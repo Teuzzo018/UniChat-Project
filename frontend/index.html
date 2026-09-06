@@ -185,6 +185,21 @@
       </form>
     </dialog>
 
+    <dialog class="confirm-dialog" id="confirmDialog" aria-labelledby="confirmDialogTitle" aria-describedby="confirmDialogMessage">
+      <div class="confirm-card">
+        <div class="confirm-icon" aria-hidden="true">!</div>
+        <div class="confirm-copy">
+          <p class="eyebrow">Conferma azione</p>
+          <h2 id="confirmDialogTitle">Sei sicuro?</h2>
+          <p id="confirmDialogMessage"></p>
+        </div>
+        <div class="confirm-actions">
+          <button class="secondary-button" id="confirmCancelButton" type="button">Annulla</button>
+          <button class="danger-button" id="confirmAcceptButton" type="button">Conferma</button>
+        </div>
+      </div>
+    </dialog>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="/socket.io/socket.io.js"></script>
     <script src="./assets/js/app.js" type="module"></script>

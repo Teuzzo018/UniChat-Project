@@ -26,6 +26,10 @@ const elements = {
   channelType: document.querySelector('#channelType'),
   closeGameButton: document.querySelector('#closeGameButton'),
   connectionStatus: document.querySelector('#connectionStatus'),
+  confirmAcceptButton: document.querySelector('#confirmAcceptButton'),
+  confirmCancelButton: document.querySelector('#confirmCancelButton'),
+  confirmDialog: document.querySelector('#confirmDialog'),
+  confirmDialogMessage: document.querySelector('#confirmDialogMessage'),
   copyInviteButton: document.querySelector('#copyInviteButton'),
   createServerFromSidebar: document.querySelector('#createServerFromSidebar'),
   createUniversityButton: document.querySelector('#createUniversityButton'),
@@ -92,6 +96,31 @@ const showToast = (message) => {
   elements.toast.classList.add('visible');
   window.setTimeout(() => elements.toast.classList.remove('visible'), 2600);
 };
+
+const showConfirm = (message, confirmLabel = 'Conferma') => new Promise((resolve) => {
+  elements.confirmDialogMessage.textContent = message;
+  elements.confirmAcceptButton.textContent = confirmLabel;
+
+  const finish = (confirmed) => {
+    elements.confirmAcceptButton.removeEventListener('click', onAccept);
+    elements.confirmCancelButton.removeEventListener('click', onCancel);
+    elements.confirmDialog.removeEventListener('cancel', onDialogCancel);
+    elements.confirmDialog.close();
+    resolve(confirmed);
+  };
+
+  const onAccept = () => finish(true);
+  const onCancel = () => finish(false);
+  const onDialogCancel = (event) => {
+    event.preventDefault();
+    finish(false);
+  };
+
+  elements.confirmAcceptButton.addEventListener('click', onAccept);
+  elements.confirmCancelButton.addEventListener('click', onCancel);
+  elements.confirmDialog.addEventListener('cancel', onDialogCancel);
+  elements.confirmDialog.showModal();
+});
 
 const getInitials = (name = '?') => {
   return name
@@ -198,7 +227,7 @@ const createAdminRow = ({ title, detail, actionLabel, onAction }) => {
 };
 
 const deleteAdminResource = async ({ path, confirmMessage }) => {
-  if (!window.confirm(confirmMessage)) {
+  if (!await showConfirm(confirmMessage, 'Elimina')) {
     return;
   }
 
@@ -655,10 +684,11 @@ const deleteOrLeaveActiveServer = async () => {
   }
 
   const isOwner = server.ownerId === state.user.id;
-  const confirmed = window.confirm(
+  const confirmed = await showConfirm(
     isOwner
       ? `Eliminare il server ${server.name}? Questa azione rimuove anche canali e messaggi.`
-      : `Lasciare il server ${server.name}?`
+      : `Lasciare il server ${server.name}?`,
+    isOwner ? 'Elimina server' : 'Lascia server'
   );
 
   if (!confirmed) {

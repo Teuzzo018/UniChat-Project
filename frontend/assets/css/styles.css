@@ -702,6 +702,59 @@ dialog::backdrop {
   background: #fff;
 }
 
+.confirm-dialog {
+  overflow: visible;
+  background: transparent;
+}
+
+.confirm-card {
+  display: grid;
+  justify-items: center;
+  width: min(430px, calc(100vw - 28px));
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.confirm-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 18px;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff4f2;
+  color: var(--danger);
+  font-size: 1.55rem;
+  font-weight: 900;
+}
+
+.confirm-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.confirm-copy p:last-child {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  margin-top: 24px;
+}
+
+.confirm-actions .danger-button {
+  min-height: 42px;
+}
+
 .toast {
   position: fixed;
   right: 18px;
