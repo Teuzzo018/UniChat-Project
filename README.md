@@ -1,0 +1,178 @@
+# UniChat
+
+UniChat e una web app di chat universitaria ispirata alle funzioni principali di Discord: server, canali, utenti, messaggi in tempo reale e una piccola area privata per giocare a Tris.
+
+Il progetto evita volutamente notifiche, giochi complessi e funzioni accessorie troppo grandi. L'obiettivo e avere una base chiara per studiare front-end, back-end, REST API, database e Socket.IO.
+
+## Struttura del progetto
+
+```text
+UniChat/
+├── frontend/
+│   ├── index.html
+│   └── assets/
+│       ├── css/
+│       │   └── styles.css
+│       └── js/
+│           └── app.js
+├── backend/
+│   ├── prisma/
+│   │   ├── schema.prisma
+│   │   └── migrations/
+│   ├── src/
+│   │   ├── config/
+│   │   ├── controllers/
+│   │   ├── lib/
+│   │   ├── middleware/
+│   │   ├── routes/
+│   │   ├── sockets/
+│   │   ├── utils/
+│   │   ├── app.js
+│   │   └── main.js
+│   ├── .env.example
+│   └── package.json
+├── docs/
+│   └── architettura-unichat.md
+├── docker-compose.yml
+├── Leggimi.txt
+└── README.md
+```
+
+## Front-end
+
+Il front-end e separato dal back-end nella cartella `frontend/`.
+
+- `frontend/index.html`: struttura della pagina, form, sezioni principali e dialog.
+- `frontend/assets/css/styles.css`: layout responsive con Grid, Flexbox, box model, stati e media query.
+- `frontend/assets/js/app.js`: DOM, eventi, fetch, async/await, stato client, Socket.IO e Tris privato.
+
+Express serve questi file statici, quindi non serve un server front-end separato.
+
+## Back-end
+
+Il back-end si trova in `backend/` ed e basato su Node.js, Express, Prisma, PostgreSQL e Socket.IO.
+
+- `backend/src/app.js`: crea l'app Express, registra middleware, API e file statici.
+- `backend/src/main.js`: avvia server HTTP e Socket.IO.
+- `backend/src/config/`: configurazione tramite variabili d'ambiente.
+- `backend/src/controllers/`: logica delle richieste.
+- `backend/src/routes/`: definizione degli endpoint REST.
+- `backend/src/middleware/`: autenticazione, 404 e gestione errori.
+- `backend/src/sockets/`: eventi Socket.IO.
+- `backend/src/lib/`: integrazioni condivise, come Prisma.
+- `backend/src/utils/`: funzioni riutilizzabili.
+- `backend/prisma/`: schema e migrazioni del database.
+
+## Sicurezza dei dati nel database
+
+Nel database non vengono salvate password in chiaro: la password utente viene salvata come hash bcrypt nel campo `User.passwordHash`.
+
+Anche i token di sessione non vengono salvati in chiaro: il server consegna al client il token reale solo al login, mentre nel database salva un HMAC SHA-256 nel campo `Session.tokenHash`. L'HMAC usa `SESSION_TOKEN_PEPPER`, un segreto che deve restare solo nel file `.env` del server.
+
+I dati applicativi della chat, come email, nomi, universita, server, canali e contenuto dei messaggi, restano invece leggibili nel database. Per cifrare anche questi dati serve una cifratura applicativa campo per campo e una gestione delle chiavi separata dal database.
+
+Per creare un super user dalla web app, imposta `ADMIN_SETUP_CODE` in `backend/.env` e inserisci lo stesso codice nel campo "Codice admin" durante la registrazione. Gli account admin vedono il pulsante "Admin" e possono eliminare utenti, server e messaggi dal pannello web.
+
+## Avvio locale
+
+1. Copia il file di esempio:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+2. Controlla che `backend/.env` contenga `DATABASE_URL` e cambia `SESSION_TOKEN_PEPPER` con un valore lungo e casuale.
+
+3. Avvia PostgreSQL:
+
+```bash
+docker compose up -d
+```
+
+4. Installa dipendenze e prepara Prisma:
+
+```bash
+cd backend
+npm install
+npm run prisma:generate
+npm run prisma:migrate
+```
+
+5. Avvia il server:
+
+```bash
+npm run dev
+```
+
+L'app risponde su:
+
+```text
+http://localhost:5000
+```
+
+## Comandi utili
+
+```bash
+cd backend
+npm run check
+npm run dev
+npm run start
+npm run prisma:studio
+```
+
+## API principali
+
+### Stato
+
+- `GET /api/health`
+
+### Autenticazione
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+
+### Universita
+
+- `GET /api/universities`
+- `POST /api/universities`
+- `DELETE /api/universities/:id`
+
+Il vecchio percorso `/api/university` resta disponibile per compatibilita.
+
+### Server e canali
+
+- `GET /api/servers`
+- `POST /api/servers`
+- `GET /api/servers/:id`
+- `POST /api/servers/:id/channels`
+
+### Messaggi
+
+- `GET /api/channels/:channelId/messages`
+- `POST /api/channels/:channelId/messages`
+
+## Socket.IO
+
+Eventi principali:
+
+- `join_channel`: entra nella stanza Socket.IO del canale.
+- `send_message`: invia un messaggio, lo salva nel database e lo propaga agli utenti nel canale.
+- `message_created`: evento ricevuto dal client quando arriva un nuovo messaggio.
+- `authenticate`: collega il socket all'utente autenticato.
+- `private_game_request`: invita un altro utente a giocare a Tris.
+- `private_game_accept`: accetta o rifiuta l'invito.
+- `private_game_move`: registra una mossa del Tris.
+- `private_game_restart`: riavvia una partita conclusa.
+
+## Funzioni implementate
+
+- Registrazione e login con token di sessione.
+- Creazione e lista universita.
+- Creazione server legati all'universita dell'utente.
+- Canali testuali e vocali.
+- Storico messaggi persistente.
+- Chat in tempo reale con Socket.IO.
+- Tris privato tra due utenti dello stesso server.
+- UI responsive senza notifiche e senza giochi complessi.

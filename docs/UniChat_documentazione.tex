@@ -1,0 +1,507 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[a4paper,top=2.4cm,bottom=2.6cm,left=2.3cm,right=2.3cm,headheight=15pt]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{lmodern}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{titlesec}
+
+\definecolor{UniBlue}{HTML}{0B3D91}
+\definecolor{UniBlueDark}{HTML}{082B66}
+\definecolor{UniBlueLight}{HTML}{EAF2FF}
+\definecolor{UniBlueLine}{HTML}{B8CCE8}
+\definecolor{TextGray}{HTML}{263238}
+\definecolor{MutedGray}{HTML}{5F6B7A}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=UniBlue,
+  urlcolor=UniBlue,
+  citecolor=UniBlue,
+  pdftitle={UniChat - Documentazione funzionale e tecnica},
+  pdfauthor={Progetto UniChat}
+}
+
+\pagestyle{plain}
+
+\titleformat{\section}
+  {\Large\bfseries\color{UniBlueDark}}
+  {\thesection}
+  {0.7em}
+  {}
+  [\vspace{0.15em}{\color{UniBlueLine}\titlerule}]
+\titleformat{\subsection}
+  {\large\bfseries\color{UniBlue}}
+  {\thesubsection}
+  {0.7em}
+  {}
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{TextGray}}
+  {\thesubsubsection}
+  {0.6em}
+  {}
+
+\setlist[itemize]{itemsep=0.25em, topsep=0.35em, leftmargin=1.4em}
+\setlist[enumerate]{itemsep=0.25em, topsep=0.35em, leftmargin=1.4em}
+\renewcommand{\arraystretch}{1.18}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+
+\newcommand{\infobox}[2]{
+  \vspace{0.5em}
+  \noindent
+  \fcolorbox{UniBlueLine}{UniBlueLight}{
+    \begin{minipage}{0.94\textwidth}
+      \textbf{\textcolor{UniBlueDark}{#1}}\par
+      #2
+    \end{minipage}
+  }
+  \vspace{0.5em}
+}
+
+\begin{document}
+
+\hypersetup{pageanchor=false}
+\begin{titlepage}
+  \pagecolor{UniBlueLight}
+  \color{TextGray}
+  \centering
+  \vspace*{1.2cm}
+  {\color{UniBlueDark}\rule{\textwidth}{1.2pt}}\par
+  \vspace{1.5cm}
+  {\Huge\bfseries\color{UniBlueDark} UniChat\par}
+  \vspace{0.45cm}
+  {\Large Documentazione funzionale e tecnica\par}
+  \vspace{0.8cm}
+  {\large Relazione di progetto per web app universitaria realtime\par}
+  \vfill
+  \begin{minipage}{0.78\textwidth}
+    \large
+UniChat è una piattaforma web per la comunicazione universitaria. Il progetto integra autenticazione, profili utente con immagine, server tematici, link di invito, canali, messaggistica persistente, aggiornamenti in tempo reale con Socket.IO, pannello amministrativo e un gioco privato del Tris tra utenti.
+  \end{minipage}
+  \vfill
+  {\color{UniBlueDark}\rule{\textwidth}{1.2pt}}\par
+  \vspace{0.45cm}
+  {\large Progetto UniChat\par}
+  {\large 1 settembre 2026\par}
+\end{titlepage}
+\nopagecolor
+
+\hypersetup{pageanchor=true}
+\pagenumbering{roman}
+\tableofcontents
+\newpage
+\pagenumbering{arabic}
+
+\section{Introduzione}
+
+UniChat è una web app di chat universitaria ispirata alle funzioni principali di Discord, ma adattata a un contesto didattico e accademico. L'obiettivo è fornire uno spazio organizzato in cui studenti e docenti possano creare server collegati a una università, discutere in canali tematici, scambiarsi messaggi in tempo reale e usare una piccola area privata per giocare a Tris.
+
+Il progetto è stato mantenuto volutamente essenziale: non include notifiche complesse, chiamate vocali reali, file sharing, sistemi di moderazione avanzati o giochi multipli. Questa scelta rende il codice più leggibile e adatto a mostrare in modo chiaro l'integrazione tra front-end, back-end, REST API, database relazionale, autenticazione e WebSocket.
+
+\infobox{Obiettivo della relazione}{
+Questa relazione descrive sia l'utilizzo pratico della web app dal punto di vista dell'utente, sia l'architettura tecnica che permette al sistema di funzionare. La prima parte è quindi funzionale; la seconda entra nelle scelte implementative.
+}
+
+\section{Utilizzo della web app lato utente}
+
+\subsection{Accesso iniziale}
+
+All'apertura dell'app, l'utente visualizza la schermata di autenticazione. Da qui può scegliere se accedere con un account esistente oppure creare un nuovo profilo. L'interfaccia distingue chiaramente le due operazioni tramite due schede: \textbf{Login} e \textbf{Registrati}.
+
+Per accedere sono richiesti email e password. Dopo il login, la web app carica automaticamente i server dell'utente, i server disponibili nella sua università e lo stato della connessione realtime.
+
+\subsection{Registrazione di un nuovo utente}
+
+La registrazione richiede:
+
+\begin{itemize}
+  \item nome completo;
+  \item indirizzo email;
+  \item password;
+  \item università di appartenenza, obbligatoria solo per chi non usa un invito;
+  \item immagine profilo opzionale tramite URL;
+  \item eventuale codice admin, se l'account deve essere creato con privilegi amministrativi.
+\end{itemize}
+
+Se l'università non è ancora presente nella lista, l'utente può aggiungerla direttamente dal form indicando nome e dominio. Se invece l'utente arriva tramite link di invito, può creare l'account senza specificare l'università: l'invito è sufficiente per collegarlo al server.
+
+\subsection{Immagine profilo}
+
+Durante la registrazione l'utente può indicare un URL per la propria immagine profilo. L'immagine viene mostrata nei messaggi e nella lista membri del server. Se l'immagine non è presente o non è raggiungibile, la web app usa automaticamente le iniziali del nome come fallback.
+
+\subsection{Navigazione tra server e canali}
+
+Dopo l'accesso, l'utente entra nell'area principale dell'app. A sinistra è presente la barra dei server, mentre nella colonna laterale vengono mostrati i server disponibili, i canali del server selezionato e gli utenti con cui è possibile avviare una partita privata.
+
+Un server rappresenta uno spazio di discussione, ad esempio un corso, un gruppo di studio o un dipartimento. Se l'utente non appartiene ancora a un server della propria università, può entrare dalla sezione \textbf{Server disponibili}. Una volta entrato, il server compare nella barra laterale e diventa selezionabile.
+
+\subsection{Invito tramite link}
+
+Ogni server possiede un codice invito univoco. Un membro può copiare il link del server attivo e condividerlo con un'altra persona. Chi riceve il link può entrare nel server anche se non appartiene alla stessa università del proprietario del server.
+
+Se il destinatario non ha ancora effettuato l'accesso, l'app conserva l'invito e lo applica dopo il login. Se deve registrarsi, può farlo senza selezionare una università perché l'invito identifica già il server di destinazione.
+
+\subsection{Creazione di un server}
+
+L'utente autenticato può creare un nuovo server tramite il pulsante dedicato. Deve indicare un nome e, opzionalmente, una descrizione. Il creatore diventa automaticamente proprietario e membro del server.
+
+Alla creazione vengono aggiunti tre canali iniziali:
+
+\begin{itemize}
+  \item \texttt{generale}, per la conversazione principale;
+  \item \texttt{materiali}, per argomenti legati allo studio;
+  \item \texttt{studio-vocale}, canale vocale rappresentato nell'interfaccia.
+\end{itemize}
+
+\subsection{Invio e lettura dei messaggi}
+
+Quando l'utente seleziona un canale testuale, l'app mostra lo storico dei messaggi già presenti nel database. In fondo alla pagina è disponibile il campo di composizione. Dopo l'invio, il messaggio viene salvato sul server e propagato in tempo reale agli altri utenti collegati allo stesso canale.
+
+Il limite massimo di un messaggio è di 1000 caratteri. Questo limite evita input eccessivamente lunghi e mantiene la conversazione leggibile.
+
+\subsection{Stato della connessione}
+
+Nell'header della chat è presente un indicatore \textbf{online/offline}. Questo elemento segnala lo stato della connessione Socket.IO:
+
+\begin{itemize}
+  \item \textbf{online}: il browser è collegato al server realtime;
+  \item \textbf{offline}: la connessione realtime è assente o interrotta.
+\end{itemize}
+
+\subsection{Gioco privato del Tris}
+
+La sezione \textbf{Privati} permette di selezionare un altro membro del server e proporgli una partita a Tris. L'altro utente può accettare o rifiutare l'invito. Una volta iniziata la partita, le mosse vengono sincronizzate tramite Socket.IO.
+
+Il Tris è una funzione temporanea e non persistente: se il server viene riavviato, le partite in corso vengono perse. Questa scelta è coerente con la natura accessoria del gioco rispetto alla chat.
+
+\subsection{Pannello amministrativo}
+
+Gli utenti con ruolo \texttt{ADMIN} visualizzano un pulsante \textbf{Admin}. Il pannello amministrativo consente di consultare utenti, server e ultimi messaggi, oltre a eliminare utenti, server o messaggi quando necessario.
+
+La protezione non è affidata al solo front-end: anche se un utente modificasse manualmente l'interfaccia del browser, il backend controllerebbe comunque il ruolo prima di consentire operazioni amministrative.
+
+\section{Caratteristiche funzionali}
+
+\subsection{Autenticazione utenti}
+
+L'app permette la registrazione e il login degli utenti. Ogni utente fornisce nome completo, email e password. L'università è richiesta per la registrazione ordinaria, mentre può essere omessa quando l'utente possiede un invito valido. Dopo il login, il server crea un token di sessione che viene salvato nel browser tramite \texttt{localStorage} e inviato nelle richieste HTTP con header \texttt{Authorization: Bearer}.
+
+Le password non vengono salvate in chiaro. Il backend salva solo un hash bcrypt nel campo \texttt{User.passwordHash}. Questo significa che la password originale non è recuperabile dal database. L'immagine profilo è invece salvata come URL opzionale nel campo \texttt{User.avatarUrl}.
+
+\subsection{Università}
+
+Gli utenti sono collegati a una università. La web app mostra l'elenco delle università disponibili durante la registrazione e permette anche di crearne una nuova indicando nome e dominio.
+
+La scelta di legare utenti e server a una università permette di separare logicamente gli ambienti: un utente vede e può entrare nei server disponibili della propria università, non in quelli di altri contesti.
+
+\subsection{Server}
+
+Un server rappresenta uno spazio di discussione, ad esempio un corso o un gruppo universitario. Un utente autenticato può creare un server indicando nome e descrizione. Il creatore diventa automaticamente membro e proprietario del server.
+
+Quando viene creato un server, il backend genera anche un codice invito univoco e crea tre canali iniziali: \texttt{generale}, \texttt{materiali} e \texttt{studio-vocale}.
+
+\subsection{Canali}
+
+Ogni server contiene canali. I canali possono essere testuali, per messaggi persistenti, oppure vocali, rappresentati come spazio dedicato nell'interfaccia ma senza implementare audio reale.
+
+Gli utenti membri del server possono creare nuovi canali indicando nome e tipo. I nomi dei canali vengono normalizzati lato backend in minuscolo e con trattini al posto degli spazi.
+
+\subsection{Messaggi}
+
+Nei canali testuali gli utenti possono inviare messaggi. Il messaggio viene validato, troncato a 1000 caratteri, salvato nel database e poi inviato in tempo reale agli utenti collegati allo stesso canale.
+
+Lo storico dei messaggi viene recuperato via REST quando l'utente apre un canale. La sincronizzazione immediata dei nuovi messaggi avviene invece con Socket.IO.
+
+\section{Architettura del progetto}
+
+Il progetto è diviso in tre aree principali:
+
+\begin{itemize}
+  \item \texttt{frontend/}, che contiene HTML, CSS e JavaScript del browser;
+  \item \texttt{backend/}, che contiene server Node.js, Express, Prisma e Socket.IO;
+  \item \texttt{docs/}, che contiene documentazione tecnica e relazione PDF.
+\end{itemize}
+
+\begin{verbatim}
+UniChat/
+  frontend/
+    index.html
+    assets/
+      css/styles.css
+      js/app.js
+  backend/
+    prisma/
+      schema.prisma
+      migrations/
+    src/
+      config/
+      controllers/
+      lib/
+      middleware/
+      routes/
+      sockets/
+      utils/
+      app.js
+      main.js
+  docs/
+    architettura-unichat.md
+    UniChat_documentazione.tex
+  docker-compose.yml
+  README.md
+  Leggimi.txt
+\end{verbatim}
+
+\section{Front-end}
+
+\subsection{Struttura HTML}
+
+Il file \texttt{frontend/index.html} definisce la struttura della pagina. Contiene form di login e registrazione, selezione università, area server, lista canali, lista membri, area messaggi, pannello Tris, pannello admin e dialog per la creazione dei server.
+
+\subsection{Stile grafico}
+
+Il file \texttt{frontend/assets/css/styles.css} gestisce layout e aspetto grafico. Le scelte principali sono:
+
+\begin{itemize}
+  \item CSS Grid per la struttura generale a colonne;
+  \item Flexbox per header, liste e azioni;
+  \item variabili CSS in \texttt{:root} per colori, bordi, ombre e testi;
+  \item media query per adattare la UI sotto gli 850px;
+  \item classi di stato come \texttt{hidden}, \texttt{active}, \texttt{online};
+  \item messaggi e indicatore online/offline allineati a destra.
+\end{itemize}
+
+La UI è composta da una barra server a sinistra, una sidebar di lavoro e una grande area centrale per chat, Tris o pannello admin.
+
+\subsection{Logica JavaScript}
+
+Il file \texttt{frontend/assets/js/app.js} contiene la logica client. Mantiene uno stato globale con token utente, utente autenticato, server dell'utente, server disponibili, server e canale attivi, utente privato selezionato, stato della partita Tris e socket Socket.IO.
+
+Il client usa \texttt{fetch} per le API REST e Socket.IO per eventi realtime. Le funzioni principali renderizzano server, canali, messaggi, pannello admin e partita Tris senza framework esterni.
+
+\section{Back-end}
+
+\subsection{Node.js ed Express}
+
+Il backend usa Node.js con Express. La scelta di Express è adatta a un progetto didattico perché rende espliciti route, middleware e controller senza introdurre troppa astrazione.
+
+Il file \texttt{backend/src/app.js} crea l'app Express, abilita CORS, JSON parsing, file statici e route API. Il file \texttt{backend/src/main.js} crea il server HTTP, collega Socket.IO e avvia l'ascolto sulla porta configurata.
+
+\subsection{Configurazione}
+
+La configurazione è centralizzata in \texttt{backend/src/config/env.js}. Il file legge \texttt{backend/.env} e fornisce:
+
+\begin{itemize}
+  \item \texttt{PORT};
+  \item \texttt{CORS\_ORIGIN};
+  \item \texttt{SESSION\_DURATION\_DAYS};
+  \item \texttt{SALT\_ROUNDS};
+  \item \texttt{SESSION\_TOKEN\_PEPPER};
+  \item \texttt{ADMIN\_SETUP\_CODE}.
+\end{itemize}
+
+La scelta di caricare esplicitamente \texttt{backend/.env} rende l'avvio meno fragile: il server trova le variabili anche se Node viene lanciato da una cartella diversa.
+
+\subsection{Controller, route e middleware}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.31\textwidth}>{\raggedright\arraybackslash}p{0.61\textwidth}}
+\hline
+\textbf{Area} & \textbf{Responsabilità} \\
+\hline
+\texttt{authControllers.js} & Registrazione, login, logout e recupero dell'utente autenticato. \\
+\texttt{universityControllers.js} & Lista, creazione ed eliminazione delle università. \\
+\texttt{serverControllers.js} & Gestione server, canali e ingresso nei server esistenti. \\
+\texttt{messageControllers.js} & Lettura e creazione dei messaggi. \\
+\texttt{adminControllers.js} & Panoramica admin e cancellazioni protette. \\
+\texttt{authMiddleware.js} & Validazione del bearer token e valorizzazione di \texttt{req.user}. \\
+\texttt{adminMiddleware.js} & Controllo del ruolo \texttt{ADMIN}. \\
+\hline
+\end{longtable}
+
+Le route sono separate dai controller e sono raccolte sotto percorsi API distinti:
+
+\begin{itemize}
+  \item \texttt{/api/auth};
+  \item \texttt{/api/universities};
+  \item \texttt{/api/servers};
+  \item \texttt{/api/channels};
+  \item \texttt{/api/admin}.
+\end{itemize}
+
+Questa organizzazione rende più leggibile il progetto e semplifica l'estensione futura.
+
+\section{Database}
+
+\subsection{Tecnologie}
+
+Il progetto usa PostgreSQL come database relazionale e Prisma come ORM. PostgreSQL è adatto per dati strutturati con relazioni chiare. Prisma semplifica query e migrazioni mantenendo uno schema leggibile.
+
+\subsection{Modello dati}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.66\textwidth}}
+\hline
+\textbf{Modello} & \textbf{Responsabilità} \\
+\hline
+\texttt{University} & Rappresenta una università con nome e dominio unici. \\
+\texttt{User} & Rappresenta un account con email, hash password, nome, immagine profilo opzionale, ruolo e università opzionale. \\
+\texttt{Session} & Rappresenta una sessione autenticata con token hash/HMAC e scadenza. \\
+\texttt{Server} & Rappresenta uno spazio di discussione legato a una università, a un proprietario e a un codice invito. \\
+\texttt{ServerMember} & Tabella ponte tra utenti e server. Impedisce doppie iscrizioni con vincolo unico. \\
+\texttt{Channel} & Rappresenta un canale testuale o vocale dentro un server. \\
+\texttt{Message} & Rappresenta un messaggio persistente legato a utente e canale. \\
+\hline
+\end{longtable}
+
+Nel database vengono salvati utenti, URL delle immagini profilo, università, sessioni, server, codici invito, appartenenze ai server, canali e messaggi. Non vengono salvate le partite di Tris: le partite vivono in una \texttt{Map} in memoria dentro il processo Socket.IO.
+
+\section{Sicurezza}
+
+\subsection{Password}
+
+Le password sono protette con bcrypt. Durante la registrazione il backend riceve la password, genera un hash con un numero di round configurabile e salva solo l'hash. Durante il login confronta la password inserita con l'hash salvato.
+
+Questa è la scelta corretta per le password: non devono essere cifrate in modo reversibile, ma hashate con un algoritmo pensato per resistere ad attacchi brute force.
+
+\subsection{Token di sessione}
+
+Il token reale viene generato con \texttt{crypto.randomBytes(32)} e inviato al client al login. Nel database non viene salvato il token in chiaro: viene salvato un HMAC SHA-256 calcolato con \texttt{SESSION\_TOKEN\_PEPPER}.
+
+Questa scelta aggiunge un segreto lato server. Se qualcuno ottiene solo un dump del database, non può verificare facilmente token candidati senza conoscere anche il pepper.
+
+\subsection{Dati applicativi}
+
+I dati applicativi, come email, nomi, URL avatar, università, server, canali e contenuto dei messaggi, restano leggibili nel database. Questa è una scelta consapevole per mantenere il progetto semplice e interrogabile.
+
+Per cifrare anche questi campi servirebbe una cifratura applicativa campo per campo, ad esempio AES-GCM, con chiavi conservate fuori dal database. Questo aumenterebbe la complessità per ricerca, ordinamento, debug e gestione delle chiavi.
+
+\subsection{Admin}
+
+Il ruolo \texttt{ADMIN} è controllato lato backend. Le API admin richiedono token valido, sessione non scaduta e utente con ruolo \texttt{ADMIN}. Il pannello admin nel front-end è solo una comodità visuale; la protezione reale è nel backend.
+
+\section{Realtime con Socket.IO}
+
+Socket.IO viene usato per due aree: chat in tempo reale e Tris privato.
+
+Quando il browser si collega, il client invia l'evento \texttt{authenticate} con il token. Il backend associa il socket all'utente e lo inserisce in una stanza privata \texttt{user:<id>}. I canali usano invece stanze identificate dal \texttt{channelId}.
+
+Quando un messaggio viene inviato:
+
+\begin{enumerate}
+  \item il client emette \texttt{send\_message};
+  \item il backend valida token, utente, canale e permessi;
+  \item il backend salva il messaggio nel database;
+  \item il backend emette \texttt{message\_created} nella stanza del canale;
+  \item i client connessi aggiornano la UI.
+\end{enumerate}
+
+Gli eventi Socket.IO principali del Tris sono \texttt{private\_game\_request}, \texttt{private\_game\_accept}, \texttt{private\_game\_move} e \texttt{private\_game\_restart}.
+
+\section{Docker e ambiente locale}
+
+Docker è usato per avviare PostgreSQL senza installarlo manualmente nel sistema.
+La configurazione si trova nel file \texttt{docker-compose.yml}.
+Il servizio principale è \texttt{postgres} e contiene:
+
+\begin{itemize}
+  \item immagine \texttt{postgres:15-alpine};
+  \item utente \texttt{unichat\_user};
+  \item password \texttt{unichat\_password};
+  \item database \texttt{unichat\_db};
+  \item porta locale \texttt{5433};
+  \item volume persistente \texttt{postgres\_data}.
+\end{itemize}
+
+Il backend si collega al database tramite:
+
+\begin{quote}
+\footnotesize
+\url{postgresql://unichat_user:unichat_password@localhost:5433/unichat_db?schema=public}
+\end{quote}
+
+Il flusso locale previsto è:
+
+\begin{enumerate}
+  \item avviare Docker Desktop se si lavora da Windows/WSL;
+  \item avviare PostgreSQL con \texttt{docker compose up -d};
+  \item entrare in \texttt{backend/};
+  \item installare dipendenze con \texttt{npm install};
+  \item generare Prisma con \texttt{npm run prisma:generate};
+  \item applicare migrazioni con \texttt{npm run prisma:migrate};
+  \item avviare il server con \texttt{npm run dev}.
+\end{enumerate}
+
+L'app viene servita su:
+
+\begin{verbatim}
+http://localhost:5000
+\end{verbatim}
+
+Se Docker non è installato o non è visibile in WSL, Prisma restituisce errore \texttt{P1001} perché il database non è raggiungibile.
+
+\section{Scelte progettuali}
+
+\subsection{Separazione front-end/back-end}
+
+Il front-end è separato dal back-end per rendere chiara la responsabilità dei file. Il browser gestisce DOM e interazione; il server gestisce dati, permessi, sessioni e realtime.
+
+\subsection{REST per operazioni persistenti}
+
+Le REST API sono usate per operazioni classiche: login, registrazione, server, canali e storico messaggi. Sono semplici da testare, leggibili e adatte alle operazioni CRUD.
+
+\subsection{Socket.IO per realtime}
+
+Socket.IO è usato quando serve aggiornamento immediato: nuovi messaggi e Tris. Usare solo REST avrebbe richiesto polling continuo; Socket.IO evita richieste ripetute inutili.
+
+\subsection{PostgreSQL e Prisma}
+
+PostgreSQL fornisce relazioni, vincoli e persistenza stabile. Prisma rende esplicito lo schema e semplifica migrazioni e query.
+
+\subsection{Tris in memoria}
+
+Il Tris non viene salvato nel database perché è una funzione temporanea. Salvare ogni partita avrebbe richiesto nuove tabelle, stato storico, pulizia e regole di recupero. Per un progetto didattico è più coerente tenerlo in memoria.
+
+\subsection{Admin con codice di setup}
+
+Il codice admin permette di creare un super user dalla web app senza scrivere manualmente SQL. Allo stesso tempo, il codice resta nel file \texttt{.env}, quindi non è esposto nel repository.
+
+\section{Limiti attuali e possibili estensioni}
+
+Il progetto funziona come base completa, ma ha limiti consapevoli:
+
+\begin{itemize}
+  \item i canali vocali sono solo rappresentati, non implementano audio reale;
+  \item il Tris non è persistente e si perde al riavvio del server;
+  \item le immagini profilo sono gestite tramite URL esterno, non tramite upload locale;
+  \item i messaggi non sono cifrati campo per campo;
+  \item non esiste ancora gestione avanzata di permessi per proprietari e moderatori;
+  \item il deploy su Netlify da solo non è ideale per Socket.IO;
+  \item per più istanze backend servirebbe un adapter Socket.IO condiviso, ad esempio Redis.
+\end{itemize}
+
+Possibili evoluzioni:
+
+\begin{itemize}
+  \item aggiungere ruoli per server;
+  \item aggiungere cancellazione o modifica messaggi per autore;
+  \item aggiungere upload immagini con storage dedicato;
+  \item cifrare messaggi sensibili a livello applicativo;
+  \item usare Redis per scalare Socket.IO;
+  \item creare un deploy su Render o Railway con PostgreSQL gestito;
+  \item aggiungere test automatici di API e socket.
+\end{itemize}
+
+\section{Conclusione}
+
+UniChat è una web app full-stack organizzata per mostrare in modo chiaro come collaborano front-end, back-end, database e realtime. Le scelte tecniche privilegiano leggibilità, separazione delle responsabilità e funzionalità concrete: autenticazione, profili utente, inviti ai server, canali, messaggi persistenti, realtime, Tris privato e pannello admin.
+
+Dal punto di vista dell'utente, l'app offre un flusso semplice: registrazione, ingresso nella propria università, creazione o selezione dei server, scelta dei canali e conversazione immediata. Dal punto di vista tecnico, il progetto dimostra l'uso coordinato di Express, Prisma, PostgreSQL e Socket.IO in una struttura chiara e mantenibile.
+
+Il progetto è adatto per essere eseguito localmente con PostgreSQL via Docker e può essere pubblicato su piattaforme che supportano un server Node persistente, come Render o Railway.
+
+\end{document}

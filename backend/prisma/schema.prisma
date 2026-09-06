@@ -1,0 +1,113 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  STUDENT
+  PROFESSOR
+  ADMIN
+}
+
+enum ChannelType {
+  TEXT
+  VOICE
+}
+
+model University {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  domain    String   @unique
+  users     User[]
+  servers   Server[]
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  passwordHash String
+  fullName     String
+  avatarUrl    String?
+  role         Role           @default(STUDENT)
+
+  universityId String?
+  university   University?   @relation(fields: [universityId], references: [id])
+
+  sessions     Session[]
+  ownedServers Server[]       @relation("ServerOwner")
+  servers      ServerMember[]
+  messages     Message[]
+
+  createdAt    DateTime       @default(now())
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Server {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  inviteCode   String   @unique
+
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+
+  ownerId      String
+  owner        User     @relation("ServerOwner", fields: [ownerId], references: [id])
+
+  channels     Channel[]
+  members      ServerMember[]
+
+  createdAt    DateTime @default(now())
+}
+
+model ServerMember {
+  id       String @id @default(uuid())
+  userId   String
+  serverId String
+
+  user     User   @relation(fields: [userId], references: [id])
+  server   Server @relation(fields: [serverId], references: [id])
+
+  @@unique([userId, serverId])
+}
+
+model Channel {
+  id        String      @id @default(uuid())
+  name      String
+  type      ChannelType @default(TEXT)
+
+  serverId  String
+  server    Server      @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  messages  Message[]
+
+  createdAt DateTime @default(now())
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  content   String
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  channelId String
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}

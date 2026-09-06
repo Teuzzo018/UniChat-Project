@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UniChat</title>
+    <link rel="stylesheet" href="./assets/css/styles.css" />
+  </head>
+  <body>
+    <div class="splash-screen" id="splashScreen" aria-hidden="true">
+      <div class="splash-title">UniChat</div>
+    </div>
+
+    <main class="app-shell">
+      <aside class="server-rail" aria-label="Server">
+        <button class="brand-mark" id="homeButton" type="button" title="Home">U</button>
+        <div class="server-list" id="serverList"></div>
+        <button class="icon-button" id="newServerButton" type="button" title="Crea server">+</button>
+      </aside>
+
+      <section class="sidebar">
+        <header class="sidebar-header">
+          <div>
+            <p class="eyebrow">UniChat</p>
+            <h1 id="workspaceTitle">Accesso</h1>
+          </div>
+          <button class="ghost-button hidden" id="logoutButton" type="button">Esci</button>
+        </header>
+
+        <div class="auth-panel" id="authPanel">
+          <div class="tabs" role="tablist" aria-label="Autenticazione">
+            <button class="tab active" data-auth-tab="login" type="button">Login</button>
+            <button class="tab" data-auth-tab="register" type="button">Registrati</button>
+          </div>
+
+          <form class="stack" id="loginForm">
+            <label>
+              Email
+              <input type="email" name="email" autocomplete="email" required />
+            </label>
+            <label>
+              Password
+              <input type="password" name="password" autocomplete="current-password" required />
+            </label>
+            <button class="primary-button" type="submit">Entra</button>
+          </form>
+
+          <form class="stack hidden" id="registerForm">
+            <label>
+              Nome completo
+              <input type="text" name="fullName" autocomplete="name" required />
+            </label>
+            <label>
+              Immagine profilo
+              <input type="url" name="avatarUrl" autocomplete="url" placeholder="https://..." />
+            </label>
+            <label>
+              Email
+              <input type="email" name="email" autocomplete="email" required />
+            </label>
+            <label>
+              Password
+              <input type="password" name="password" autocomplete="new-password" required minlength="6" />
+            </label>
+            <label>
+              Universita
+              <select name="universityId" id="universitySelect"></select>
+            </label>
+            <label>
+              Codice admin
+              <input type="password" name="adminCode" autocomplete="off" placeholder="Opzionale" />
+            </label>
+            <details class="inline-create">
+              <summary>Aggiungi universita</summary>
+              <div class="two-fields">
+                <input type="text" id="universityName" placeholder="Nome universita" />
+                <input type="text" id="universityDomain" placeholder="Dominio, es. uni.it" />
+              </div>
+              <button class="secondary-button" id="createUniversityButton" type="button">Salva universita</button>
+            </details>
+            <button class="primary-button" type="submit">Crea account</button>
+          </form>
+        </div>
+
+        <div class="workspace-panel hidden" id="workspacePanel">
+          <button class="secondary-button full-width" id="createServerFromSidebar" type="button">Nuovo server corso</button>
+          <div class="invite-panel">
+            <button class="secondary-button full-width" id="copyInviteButton" type="button">Copia invito server</button>
+            <form class="invite-form" id="inviteForm">
+              <input type="text" name="inviteCode" id="inviteCodeInput" placeholder="Codice o link invito" autocomplete="off" />
+              <button type="submit">Entra</button>
+            </form>
+          </div>
+          <button class="danger-button full-width hidden" id="deleteServerButton" type="button">Lascia server</button>
+          <h2>Server disponibili</h2>
+          <div class="available-server-list" id="availableServerList"></div>
+          <h2>Canali</h2>
+          <div class="channel-list" id="channelList"></div>
+          <form class="channel-form" id="channelForm">
+            <input type="text" name="name" placeholder="nuovo-canale" minlength="2" />
+            <select name="type" aria-label="Tipo canale">
+              <option value="TEXT">Testo</option>
+              <option value="VOICE">Voce</option>
+            </select>
+            <button type="submit">+</button>
+          </form>
+          <h2>Privati</h2>
+          <div class="member-list" id="memberList"></div>
+        </div>
+      </section>
+
+      <section class="content-area">
+        <header class="channel-header">
+          <div>
+            <p class="eyebrow" id="channelType">Canale</p>
+            <h2 id="channelTitle">Benvenuto in UniChat</h2>
+          </div>
+          <div class="header-actions">
+            <button class="secondary-button hidden" id="adminButton" type="button">Admin</button>
+            <div class="status-pill" id="connectionStatus">offline</div>
+          </div>
+        </header>
+
+        <div class="empty-state" id="emptyState">
+          <h2>Chat universitaria senza distrazioni</h2>
+          <p>Server per corsi, canali testuali e vocali, messaggi in tempo reale e accesso tramite account.</p>
+        </div>
+
+        <section class="game-panel hidden" id="gamePanel" aria-label="Tris privato">
+          <div class="game-info">
+            <div>
+              <p class="eyebrow">Chat privata</p>
+              <h2 id="gameTitle">Tris</h2>
+            </div>
+            <p id="gameStatus">Scegli un utente online dal server.</p>
+          </div>
+          <div class="game-board" id="gameBoard"></div>
+          <div class="game-actions">
+            <button class="secondary-button" id="acceptGameButton" type="button">Accetta</button>
+            <button class="ghost-button" id="declineGameButton" type="button">Rifiuta</button>
+            <button class="secondary-button" id="restartGameButton" type="button">Rigioca</button>
+            <button class="ghost-button" id="closeGameButton" type="button">Chiudi</button>
+          </div>
+        </section>
+
+        <section class="admin-panel hidden" id="adminPanel" aria-label="Pannello admin">
+          <div class="admin-section">
+            <h2>Utenti</h2>
+            <div class="admin-list" id="adminUsers"></div>
+          </div>
+          <div class="admin-section">
+            <h2>Server</h2>
+            <div class="admin-list" id="adminServers"></div>
+          </div>
+          <div class="admin-section">
+            <h2>Ultimi messaggi</h2>
+            <div class="admin-list" id="adminMessages"></div>
+          </div>
+        </section>
+
+        <div class="messages hidden" id="messages"></div>
+
+        <form class="composer hidden" id="messageForm">
+          <input type="text" name="content" id="messageInput" maxlength="1000" placeholder="Scrivi un messaggio..." autocomplete="off" />
+          <button class="primary-button" type="submit">Invia</button>
+        </form>
+      </section>
+    </main>
+
+    <dialog id="serverDialog">
+      <form class="dialog-card" id="serverForm" method="dialog">
+        <header>
+          <h2>Crea server</h2>
+          <button class="icon-button" id="closeServerDialog" type="button" title="Chiudi">x</button>
+        </header>
+        <label>
+          Nome
+          <input type="text" name="name" placeholder="Informatica 2026" minlength="2" required />
+        </label>
+        <label>
+          Descrizione
+          <textarea name="description" rows="3" placeholder="Gruppo per lezioni, materiali e studio"></textarea>
+        </label>
+        <button class="primary-button" value="default" type="submit">Crea</button>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="./assets/js/app.js" type="module"></script>
+  </body>
+</html>
