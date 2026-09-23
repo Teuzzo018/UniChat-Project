@@ -18,6 +18,17 @@ enum ChannelType {
   VOICE
 }
 
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+}
+
+enum ServerJoinRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 model University {
   id        String   @id @default(uuid())
   name      String   @unique
@@ -47,6 +58,8 @@ model User {
   privateMessagesReceived PrivateMessage[] @relation("PrivateMessageRecipient")
   friendshipsStarted  Friendship[] @relation("FriendshipRequester")
   friendshipsReceived Friendship[] @relation("FriendshipAddressee")
+  friendshipRequestsMade Friendship[] @relation("FriendshipRequestedBy")
+  serverJoinRequests ServerJoinRequest[]
 
   createdAt    DateTime       @default(now())
 }
@@ -76,6 +89,7 @@ model Server {
 
   channels     Channel[]
   members      ServerMember[]
+  joinRequests ServerJoinRequest[]
 
   createdAt    DateTime @default(now())
 }
@@ -145,11 +159,31 @@ model Friendship {
   id          String   @id @default(uuid())
   requesterId String
   addresseeId String
+  requestedById String?
+  status      FriendshipStatus @default(ACCEPTED)
 
   requester   User     @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
   addressee   User     @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  requestedBy User?    @relation("FriendshipRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
 
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([requesterId, addresseeId])
+}
+
+model ServerJoinRequest {
+  id        String   @id @default(uuid())
+  userId    String
+  serverId  String
+  status    ServerJoinRequestStatus @default(PENDING)
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  server    Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, serverId])
+  @@index([serverId, status])
 }

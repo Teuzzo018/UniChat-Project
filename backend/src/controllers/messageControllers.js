@@ -66,8 +66,10 @@ const getAttachmentData = (file) => {
   };
 };
 
+const getChannelRoom = (channelId) => `channel:${channelId}`;
+
 const emitChannelMessage = (req, message) => {
-  req.app.get('io')?.to(message.channelId).emit('message_created', message);
+  req.app.get('io')?.to(getChannelRoom(message.channelId)).emit('message_created', message);
 };
 
 const emitPrivateMessage = (req, message) => {

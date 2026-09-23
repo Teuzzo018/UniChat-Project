@@ -64,6 +64,37 @@ const ensureServerMember = async (serverId, userId) => {
   });
 };
 
+const ensureServerOwner = async (serverId, userId) => {
+  return prisma.server.findFirst({
+    where: {
+      id: serverId,
+      ownerId: userId
+    },
+    select: { id: true }
+  });
+};
+
+const joinRequestSelect = {
+  id: true,
+  status: true,
+  createdAt: true,
+  server: {
+    select: {
+      id: true,
+      name: true
+    }
+  },
+  user: {
+    select: {
+      id: true,
+      username: true,
+      fullName: true,
+      email: true,
+      avatarUrl: true
+    }
+  }
+};
+
 const listServers = async (req, res) => {
   const memberships = await prisma.serverMember.findMany({
     where: { userId: req.user.id },
@@ -85,6 +116,12 @@ const listAvailableServers = async (req, res) => {
       members: {
         none: {
           userId: req.user.id
+        }
+      },
+      joinRequests: {
+        none: {
+          userId: req.user.id,
+          status: 'PENDING'
         }
       }
     },
@@ -108,6 +145,21 @@ const listAvailableServers = async (req, res) => {
   });
 
   return res.status(200).json(servers);
+};
+
+const listServerJoinRequests = async (req, res) => {
+  const requests = await prisma.serverJoinRequest.findMany({
+    where: {
+      status: 'PENDING',
+      server: {
+        ownerId: req.user.id
+      }
+    },
+    orderBy: { createdAt: 'asc' },
+    select: joinRequestSelect
+  });
+
+  return res.status(200).json(requests);
 };
 
 const createServer = async (req, res) => {
@@ -163,26 +215,32 @@ const joinServerByInvite = async (req, res) => {
     return res.status(404).json({ error: 'Invito non valido' });
   }
 
-  await prisma.serverMember.upsert({
+  const membership = await ensureServerMember(server.id, req.user.id);
+
+  if (membership) {
+    const joinedServer = await prisma.server.findUnique({
+      where: { id: server.id },
+      select: serverSelect
+    });
+
+    return res.status(200).json(joinedServer);
+  }
+
+  await prisma.serverJoinRequest.upsert({
     where: {
       userId_serverId: {
         userId: req.user.id,
         serverId: server.id
       }
     },
-    update: {},
+    update: { status: 'PENDING' },
     create: {
       userId: req.user.id,
       serverId: server.id
     }
   });
 
-  const joinedServer = await prisma.server.findUnique({
-    where: { id: server.id },
-    select: serverSelect
-  });
-
-  return res.status(200).json(joinedServer);
+  return res.status(202).json({ message: 'Richiesta inviata. Il creatore del server deve accettarti.' });
 };
 
 const getServer = async (req, res) => {
@@ -213,26 +271,99 @@ const joinServer = async (req, res) => {
     return res.status(404).json({ error: 'Server non trovato' });
   }
 
-  await prisma.serverMember.upsert({
+  const membership = await ensureServerMember(server.id, req.user.id);
+
+  if (membership) {
+    const joinedServer = await prisma.server.findUnique({
+      where: { id: server.id },
+      select: serverSelect
+    });
+
+    return res.status(200).json(joinedServer);
+  }
+
+  await prisma.serverJoinRequest.upsert({
     where: {
       userId_serverId: {
         userId: req.user.id,
         serverId: server.id
       }
     },
-    update: {},
+    update: { status: 'PENDING' },
     create: {
       userId: req.user.id,
       serverId: server.id
     }
   });
 
-  const joinedServer = await prisma.server.findUnique({
-    where: { id: server.id },
-    select: serverSelect
+  return res.status(202).json({ message: 'Richiesta inviata. Il creatore del server deve accettarti.', serverId: server.id });
+};
+
+const acceptServerJoinRequest = async (req, res) => {
+  const request = await prisma.serverJoinRequest.findUnique({
+    where: { id: req.params.requestId },
+    select: {
+      id: true,
+      userId: true,
+      serverId: true,
+      status: true,
+      server: { select: { ownerId: true } }
+    }
   });
 
-  return res.status(200).json(joinedServer);
+  if (!request || request.server.ownerId !== req.user.id || request.status !== 'PENDING') {
+    return res.status(404).json({ error: 'Richiesta non trovata' });
+  }
+
+  const server = await prisma.$transaction(async (tx) => {
+    await tx.serverMember.upsert({
+      where: {
+        userId_serverId: {
+          userId: request.userId,
+          serverId: request.serverId
+        }
+      },
+      update: {},
+      create: {
+        userId: request.userId,
+        serverId: request.serverId
+      }
+    });
+
+    await tx.serverJoinRequest.update({
+      where: { id: request.id },
+      data: { status: 'ACCEPTED' }
+    });
+
+    return tx.server.findUnique({
+      where: { id: request.serverId },
+      select: serverSelect
+    });
+  });
+
+  return res.status(200).json(server);
+};
+
+const declineServerJoinRequest = async (req, res) => {
+  const request = await prisma.serverJoinRequest.findUnique({
+    where: { id: req.params.requestId },
+    select: {
+      id: true,
+      status: true,
+      server: { select: { ownerId: true } }
+    }
+  });
+
+  if (!request || request.server.ownerId !== req.user.id || request.status !== 'PENDING') {
+    return res.status(404).json({ error: 'Richiesta non trovata' });
+  }
+
+  await prisma.serverJoinRequest.update({
+    where: { id: request.id },
+    data: { status: 'DECLINED' }
+  });
+
+  return res.status(200).json({ message: 'Richiesta rifiutata' });
 };
 
 const deleteOrLeaveServer = async (req, res) => {
@@ -307,13 +438,17 @@ const createChannel = async (req, res) => {
 };
 
 module.exports = {
+  acceptServerJoinRequest,
   createChannel,
   createServer,
+  declineServerJoinRequest,
   deleteOrLeaveServer,
   ensureServerMember,
+  ensureServerOwner,
   getServer,
   joinServer,
   joinServerByInvite,
+  listServerJoinRequests,
   listAvailableServers,
   listServers
 };

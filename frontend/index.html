@@ -16,6 +16,7 @@
         <button class="brand-mark" id="homeButton" type="button" title="Home">U</button>
         <div class="server-list" id="serverList"></div>
         <button class="icon-button" id="newServerButton" type="button" title="Crea server">+</button>
+        <button class="game-rail-button" id="gameRailButton" type="button" title="Tris">XO</button>
       </aside>
 
       <section class="sidebar">
@@ -96,6 +97,8 @@
             </form>
           </div>
           <button class="danger-button full-width hidden" id="deleteServerButton" type="button">Lascia server</button>
+          <h2>Richieste server</h2>
+          <div class="request-list" id="serverJoinRequestList"></div>
           <h2>Server disponibili</h2>
           <div class="available-server-list" id="availableServerList"></div>
           <h2>Canali</h2>
@@ -119,6 +122,7 @@
             <button type="submit">+</button>
           </form>
           <div class="friend-list" id="friendList"></div>
+          <div class="friend-request-list" id="friendRequestList"></div>
           <div class="friend-search-list" id="friendSearchList"></div>
         </div>
       </section>
@@ -247,6 +251,25 @@
         <div class="confirm-actions">
           <button class="secondary-button" id="confirmCancelButton" type="button">Annulla</button>
           <button class="danger-button" id="confirmAcceptButton" type="button">Conferma</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="gameDialog">
+      <div class="dialog-card game-launcher">
+        <header>
+          <div>
+            <p class="eyebrow">Gioco</p>
+            <h2>Tris</h2>
+          </div>
+          <button class="icon-button" id="closeGameDialog" type="button" title="Chiudi">x</button>
+        </header>
+        <div class="game-launcher-actions">
+          <button class="primary-button" id="sendGameLinkButton" type="button">Manda link nella chat</button>
+        </div>
+        <div>
+          <p class="eyebrow">Gioca con un amico</p>
+          <div class="game-launcher-list" id="gameFriendList"></div>
         </div>
       </div>
     </dialog>

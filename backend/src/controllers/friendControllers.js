@@ -32,13 +32,18 @@ const formatFriendship = (friendship, currentUserId) => {
   return {
     id: friendship.id,
     createdAt: friendship.createdAt,
+    status: friendship.status,
+    requestedById: friendship.requestedById,
     friend
   };
 };
 
 const listFriends = async (req, res) => {
   const friendships = await prisma.friendship.findMany({
-    where: friendshipWhereForUser(req.user.id),
+    where: {
+      ...friendshipWhereForUser(req.user.id),
+      status: 'ACCEPTED'
+    },
     orderBy: { createdAt: 'desc' },
     include: {
       requester: { select: userSummarySelect },
@@ -47,6 +52,25 @@ const listFriends = async (req, res) => {
   });
 
   return res.status(200).json(friendships.map((friendship) => formatFriendship(friendship, req.user.id)));
+};
+
+const listFriendRequests = async (req, res) => {
+  const friendships = await prisma.friendship.findMany({
+    where: {
+      ...friendshipWhereForUser(req.user.id),
+      status: 'PENDING'
+    },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      requester: { select: userSummarySelect },
+      addressee: { select: userSummarySelect }
+    }
+  });
+
+  return res.status(200).json(friendships.map((friendship) => ({
+    ...formatFriendship(friendship, req.user.id),
+    incoming: friendship.requestedById !== req.user.id
+  })));
 };
 
 const searchUsers = async (req, res) => {
@@ -74,18 +98,23 @@ const searchUsers = async (req, res) => {
       where: friendshipWhereForUser(req.user.id),
       select: {
         requesterId: true,
-        addresseeId: true
+        addresseeId: true,
+        requestedById: true,
+        status: true
       }
     })
   ]);
 
-  const friendIds = new Set(friendships.map((friendship) => (
-    friendship.requesterId === req.user.id ? friendship.addresseeId : friendship.requesterId
-  )));
+  const friendshipByUserId = new Map(friendships.map((friendship) => {
+    const otherUserId = friendship.requesterId === req.user.id ? friendship.addresseeId : friendship.requesterId;
+    return [otherUserId, friendship];
+  }));
 
   return res.status(200).json(users.map((user) => ({
     ...user,
-    isFriend: friendIds.has(user.id)
+    friendshipStatus: friendshipByUserId.get(user.id)?.status || null,
+    requestedByMe: friendshipByUserId.get(user.id)?.requestedById === req.user.id,
+    isFriend: friendshipByUserId.get(user.id)?.status === 'ACCEPTED'
   })));
 };
 
@@ -120,7 +149,9 @@ const addFriend = async (req, res) => {
     update: {},
     create: {
       requesterId,
-      addresseeId
+      addresseeId,
+      requestedById: req.user.id,
+      status: 'PENDING'
     },
     include: {
       requester: { select: userSummarySelect },
@@ -128,7 +159,62 @@ const addFriend = async (req, res) => {
     }
   });
 
-  return res.status(201).json(formatFriendship(friendship, req.user.id));
+  return res.status(friendship.status === 'ACCEPTED' ? 200 : 201).json(formatFriendship(friendship, req.user.id));
+};
+
+const acceptFriendRequest = async (req, res) => {
+  const friendship = await prisma.friendship.findUnique({
+    where: { id: req.params.id },
+    include: {
+      requester: { select: userSummarySelect },
+      addressee: { select: userSummarySelect }
+    }
+  });
+
+  if (
+    !friendship
+    || friendship.status !== 'PENDING'
+    || ![friendship.requesterId, friendship.addresseeId].includes(req.user.id)
+    || friendship.requestedById === req.user.id
+  ) {
+    return res.status(404).json({ error: 'Richiesta non trovata' });
+  }
+
+  const acceptedFriendship = await prisma.friendship.update({
+    where: { id: friendship.id },
+    data: { status: 'ACCEPTED' },
+    include: {
+      requester: { select: userSummarySelect },
+      addressee: { select: userSummarySelect }
+    }
+  });
+
+  return res.status(200).json(formatFriendship(acceptedFriendship, req.user.id));
+};
+
+const declineFriendRequest = async (req, res) => {
+  const friendship = await prisma.friendship.findUnique({
+    where: { id: req.params.id },
+    select: {
+      id: true,
+      requesterId: true,
+      addresseeId: true,
+      requestedById: true,
+      status: true
+    }
+  });
+
+  if (
+    !friendship
+    || friendship.status !== 'PENDING'
+    || ![friendship.requesterId, friendship.addresseeId].includes(req.user.id)
+    || friendship.requestedById === req.user.id
+  ) {
+    return res.status(404).json({ error: 'Richiesta non trovata' });
+  }
+
+  await prisma.friendship.delete({ where: { id: friendship.id } });
+  return res.status(200).json({ message: 'Richiesta rifiutata' });
 };
 
 const removeFriend = async (req, res) => {
@@ -147,8 +233,11 @@ const removeFriend = async (req, res) => {
 };
 
 module.exports = {
+  acceptFriendRequest,
   addFriend,
+  declineFriendRequest,
   listFriends,
+  listFriendRequests,
   removeFriend,
   searchUsers
 };

@@ -75,7 +75,7 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 76px 310px 1fr;
+  grid-template-columns: 76px 380px 1fr;
   min-height: 100vh;
 }
 
@@ -91,7 +91,8 @@ button {
 
 .brand-mark,
 .server-dot,
-.icon-button {
+.icon-button,
+.game-rail-button {
   display: grid;
   width: 44px;
   height: 44px;
@@ -128,16 +129,61 @@ button {
   color: #fff;
 }
 
+.game-rail-button {
+  position: relative;
+  margin-top: auto;
+  background: #ffffff;
+  color: #0f2f63;
+  isolation: isolate;
+}
+
+.game-rail-button::before,
+.game-rail-button::after {
+  position: absolute;
+  top: 50%;
+  z-index: -1;
+  width: 22px;
+  height: 14px;
+  border: 2px solid #bfdbfe;
+  border-radius: 6px;
+  background:
+    radial-gradient(circle at 7px 7px, #60a5fa 0 2px, transparent 3px),
+    radial-gradient(circle at 15px 7px, #ffffff 0 2px, transparent 3px),
+    #1d4ed8;
+  content: "";
+  opacity: 0;
+  transform: translateY(-50%) scale(0.6);
+  transition: 180ms ease;
+}
+
+.game-rail-button::before {
+  left: -4px;
+}
+
+.game-rail-button::after {
+  right: -4px;
+}
+
+.game-rail-button:hover::before {
+  opacity: 1;
+  transform: translate(-18px, -62%) rotate(-14deg) scale(1);
+}
+
+.game-rail-button:hover::after {
+  opacity: 1;
+  transform: translate(18px, -38%) rotate(14deg) scale(1);
+}
+
 .sidebar {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 18px;
+  align-items: stretch;
+  gap: 16px;
   min-width: 0;
   border-right: 1px solid var(--line);
   background: var(--panel);
-  padding: 20px;
-  text-align: center;
+  padding: 18px;
+  text-align: left;
 }
 
 .sidebar-header,
@@ -148,6 +194,25 @@ button {
   justify-content: center;
   gap: 16px;
   width: 100%;
+}
+
+.sidebar-header {
+  justify-content: space-between;
+  min-height: 58px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sidebar-header > div {
+  min-width: 0;
+}
+
+.sidebar-header h1 {
+  overflow: hidden;
+  margin: 0;
+  font-size: 1.08rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .eyebrow {
@@ -175,9 +240,24 @@ h2 {
 .workspace-panel {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
   width: 100%;
-  max-width: 420px;
+  max-width: none;
+}
+
+.workspace-panel {
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.workspace-panel h2 {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: uppercase;
 }
 
 .tabs {
@@ -220,7 +300,7 @@ label {
   color: var(--muted);
   font-size: 0.9rem;
   font-weight: 700;
-  text-align: center;
+  text-align: left;
 }
 
 input,
@@ -233,7 +313,7 @@ textarea {
   color: var(--ink);
   padding: 11px 12px;
   outline: none;
-  text-align: center;
+  text-align: left;
 }
 
 input:focus,
@@ -308,7 +388,11 @@ button:focus-visible {
 
 .invite-panel {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbff;
 }
 
 .invite-form {
@@ -368,7 +452,7 @@ button:focus-visible {
 .member-item {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
   min-height: 38px;
   border: 0;
@@ -376,7 +460,13 @@ button:focus-visible {
   background: transparent;
   color: var(--muted);
   padding: 0 10px;
-  text-align: center;
+  text-align: left;
+}
+
+.channel-item {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .member-item {
@@ -637,10 +727,14 @@ button:focus-visible {
 
 .message.own .avatar {
   grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
 }
 
 .message.other .avatar {
   grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
 }
 
 .member-avatar {
@@ -675,12 +769,14 @@ button:focus-visible {
 
 .message.own > div:not(.avatar) {
   grid-column: 1;
+  grid-row: 1;
   background: #dbeafe;
   border-color: rgba(37, 99, 235, 0.22);
 }
 
 .message.other > div:not(.avatar) {
   grid-column: 2;
+  grid-row: 1;
 }
 
 .message-meta {
@@ -759,7 +855,9 @@ button:focus-visible {
 }
 
 .friend-list,
-.friend-search-list {
+.friend-request-list,
+.friend-search-list,
+.request-list {
   display: grid;
   gap: 8px;
   margin-bottom: 14px;
@@ -808,6 +906,73 @@ button:focus-visible {
   gap: 6px;
 }
 
+.request-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px;
+  text-align: left;
+}
+
+.request-item > div {
+  display: grid;
+  min-width: 0;
+}
+
+.request-item strong,
+.request-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-item span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.request-actions {
+  display: flex !important;
+  gap: 6px;
+}
+
+.request-actions button {
+  min-height: 30px;
+  padding: 0 8px;
+  font-size: 0.78rem;
+}
+
+.friendship-burst::after {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(37, 99, 235, 0.26), transparent 18%),
+    radial-gradient(circle at 36% 52%, rgba(16, 185, 129, 0.22), transparent 14%),
+    radial-gradient(circle at 64% 56%, rgba(245, 158, 11, 0.2), transparent 13%);
+  content: "";
+  animation: friendshipBurst 850ms ease-out forwards;
+}
+
+@keyframes friendshipBurst {
+  0% {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  28% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+}
+
 .composer {
   display: grid;
   grid-template-columns: 1fr 42px 96px;
@@ -832,6 +997,55 @@ dialog::backdrop {
   width: min(420px, calc(100vw - 28px));
   padding: 20px;
   background: #fff;
+}
+
+.game-launcher {
+  gap: 18px;
+}
+
+.game-launcher header {
+  justify-content: space-between;
+}
+
+.game-launcher-actions {
+  display: grid;
+}
+
+.game-launcher-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.game-launcher-user {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbff;
+  color: var(--ink);
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.game-launcher-user:hover {
+  border-color: rgba(37, 99, 235, 0.38);
+  background: #eaf2ff;
+}
+
+.game-launcher-user span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-launcher-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .confirm-dialog {
@@ -912,6 +1126,7 @@ dialog::backdrop {
 }
 
 .file-button {
+  position: relative;
   display: grid;
   width: 42px;
   min-height: 42px;
@@ -923,6 +1138,32 @@ dialog::backdrop {
   cursor: pointer;
   font-size: 1.2rem;
   font-weight: 900;
+}
+
+.file-button::after {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: max-content;
+  max-width: 180px;
+  border-radius: 8px;
+  background: #0f2f63;
+  color: #fff;
+  content: "Invia un allegato";
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+  opacity: 0;
+  padding: 8px 10px;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: 160ms ease;
+}
+
+.file-button:hover::after,
+.file-button:focus-within::after {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .file-button input {

@@ -1,6 +1,7 @@
 const state = {
   token: localStorage.getItem('unichat:token'),
   pendingInviteCode: new URLSearchParams(window.location.search).get('invite') || localStorage.getItem('unichat:pendingInviteCode'),
+  pendingGameId: new URLSearchParams(window.location.search).get('game'),
   user: null,
   servers: [],
   availableServers: [],
@@ -9,8 +10,10 @@ const state = {
   activePrivateUserId: null,
   activeConversationType: 'channel',
   friends: [],
+  friendRequests: [],
   friendsExpanded: false,
   friendSearchResults: [],
+  serverJoinRequests: [],
   game: null,
   socket: null,
   voice: {
@@ -61,13 +64,17 @@ const elements = {
   emptyState: document.querySelector('#emptyState'),
   endCallButton: document.querySelector('#endCallButton'),
   gameBoard: document.querySelector('#gameBoard'),
+  gameDialog: document.querySelector('#gameDialog'),
+  gameFriendList: document.querySelector('#gameFriendList'),
   gamePanel: document.querySelector('#gamePanel'),
+  gameRailButton: document.querySelector('#gameRailButton'),
   gameStatus: document.querySelector('#gameStatus'),
   gameTitle: document.querySelector('#gameTitle'),
   friendForm: document.querySelector('#friendForm'),
   friendCounterButton: document.querySelector('#friendCounterButton'),
   friendCount: document.querySelector('#friendCount'),
   friendList: document.querySelector('#friendList'),
+  friendRequestList: document.querySelector('#friendRequestList'),
   friendSearchList: document.querySelector('#friendSearchList'),
   friendUsernameInput: document.querySelector('#friendUsernameInput'),
   homeButton: document.querySelector('#homeButton'),
@@ -85,10 +92,12 @@ const elements = {
   newServerButton: document.querySelector('#newServerButton'),
   registerForm: document.querySelector('#registerForm'),
   restartGameButton: document.querySelector('#restartGameButton'),
+  sendGameLinkButton: document.querySelector('#sendGameLinkButton'),
   localVideo: document.querySelector('#localVideo'),
   remoteVideo: document.querySelector('#remoteVideo'),
   serverDialog: document.querySelector('#serverDialog'),
   serverForm: document.querySelector('#serverForm'),
+  serverJoinRequestList: document.querySelector('#serverJoinRequestList'),
   serverList: document.querySelector('#serverList'),
   splashScreen: document.querySelector('#splashScreen'),
   toast: document.querySelector('#toast'),
@@ -235,9 +244,45 @@ const activePrivateUser = () => {
 
 const getDisplayHandle = (user) => user?.username ? `@${user.username}` : user?.email || '';
 
+const appendMessageContent = (container, text = '') => {
+  const urlPattern = /(https?:\/\/[^\s]+)/g;
+  let lastIndex = 0;
+
+  text.replace(urlPattern, (url, _match, index) => {
+    container.append(document.createTextNode(text.slice(lastIndex, index)));
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.textContent = url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    container.append(link);
+
+    lastIndex = index + url.length;
+    return url;
+  });
+
+  container.append(document.createTextNode(text.slice(lastIndex)));
+};
+
 const setDefaultEmptyState = () => {
-  elements.emptyState.querySelector('h2').textContent = 'Chat universitaria senza distrazioni';
-  elements.emptyState.querySelector('p').textContent = 'Server per corsi, canali testuali e vocali, messaggi in tempo reale e accesso tramite account.';
+  elements.emptyState.querySelector('h2').textContent = state.user ? 'Home' : 'Chat universitaria senza distrazioni';
+  elements.emptyState.querySelector('p').textContent = state.user
+    ? 'Crea un server, usa un link invito o aggiungi amici per iniziare.'
+    : 'Server per corsi, canali testuali e vocali, messaggi in tempo reale e accesso tramite account.';
+};
+
+const showHome = async () => {
+  await leaveVoiceChannel();
+  resetCall();
+  state.activeServerId = null;
+  state.activeChannelId = null;
+  state.activePrivateUserId = null;
+  state.activeConversationType = 'channel';
+  state.game = null;
+  renderServers();
+  renderChannels();
+  await loadMessages();
 };
 
 const setAuthenticatedUi = (authenticated) => {
@@ -412,7 +457,41 @@ const renderAvailableServers = () => {
   });
 };
 
-const renderFriendRow = ({ user, isFriend }) => {
+const renderServerJoinRequests = () => {
+  elements.serverJoinRequestList.replaceChildren();
+
+  state.serverJoinRequests.forEach((request) => {
+    const item = document.createElement('div');
+    item.className = 'request-item';
+
+    const info = document.createElement('div');
+    const title = document.createElement('strong');
+    title.textContent = request.user.fullName;
+    const detail = document.createElement('span');
+    detail.textContent = `${getDisplayHandle(request.user)} -> ${request.server.name}`;
+    info.append(title, detail);
+
+    const actions = document.createElement('div');
+    actions.className = 'request-actions';
+    const acceptButton = document.createElement('button');
+    acceptButton.className = 'secondary-button';
+    acceptButton.type = 'button';
+    acceptButton.textContent = 'Accetta';
+    acceptButton.addEventListener('click', () => answerServerJoinRequest(request.id, true));
+
+    const declineButton = document.createElement('button');
+    declineButton.className = 'ghost-button';
+    declineButton.type = 'button';
+    declineButton.textContent = 'Rifiuta';
+    declineButton.addEventListener('click', () => answerServerJoinRequest(request.id, false));
+
+    actions.append(acceptButton, declineButton);
+    item.append(createUserAvatar(request.user, 'member-avatar'), info, actions);
+    elements.serverJoinRequestList.append(item);
+  });
+};
+
+const renderFriendRow = ({ user, isFriend, friendshipStatus, requestedByMe }) => {
   const item = document.createElement('div');
   item.className = 'friend-item';
 
@@ -437,7 +516,10 @@ const renderFriendRow = ({ user, isFriend }) => {
   const button = document.createElement('button');
   button.className = isFriend ? 'ghost-button' : 'secondary-button';
   button.type = 'button';
-  button.textContent = isFriend ? 'Rimuovi' : 'Aggiungi';
+  button.disabled = friendshipStatus === 'PENDING';
+  button.textContent = isFriend ? 'Rimuovi' : friendshipStatus === 'PENDING'
+    ? (requestedByMe ? 'Inviata' : 'Da accettare')
+    : 'Aggiungi';
   button.addEventListener('click', () => (isFriend ? removeFriend(user.id) : addFriend(user.username)));
 
   info.append(name, handle);
@@ -452,6 +534,7 @@ const renderFriendRow = ({ user, isFriend }) => {
 
 const renderFriends = () => {
   elements.friendList.replaceChildren();
+  elements.friendRequestList.replaceChildren();
   elements.friendSearchList.replaceChildren();
   elements.friendCount.textContent = String(state.friends.length);
   elements.friendCounterButton.classList.toggle('active', state.friendsExpanded);
@@ -464,6 +547,44 @@ const renderFriends = () => {
     }));
   });
 
+  state.friendRequests.forEach((request) => {
+    const item = document.createElement('div');
+    item.className = 'friend-item request-item';
+    item.append(createUserAvatar(request.friend, 'member-avatar'));
+
+    const info = document.createElement('div');
+    const name = document.createElement('strong');
+    name.textContent = request.friend.fullName;
+    const handle = document.createElement('span');
+    handle.textContent = getDisplayHandle(request.friend);
+    info.append(name, handle);
+
+    const actions = document.createElement('div');
+    actions.className = 'friend-actions';
+
+    if (request.incoming) {
+      const acceptButton = document.createElement('button');
+      acceptButton.className = 'secondary-button';
+      acceptButton.type = 'button';
+      acceptButton.textContent = 'Accetta';
+      acceptButton.addEventListener('click', () => answerFriendRequest(request.id, true));
+
+      const declineButton = document.createElement('button');
+      declineButton.className = 'ghost-button';
+      declineButton.type = 'button';
+      declineButton.textContent = 'No';
+      declineButton.addEventListener('click', () => answerFriendRequest(request.id, false));
+      actions.append(acceptButton, declineButton);
+    } else {
+      const status = document.createElement('span');
+      status.textContent = 'In attesa';
+      actions.append(status);
+    }
+
+    item.append(info, actions);
+    elements.friendRequestList.append(item);
+  });
+
   state.friendSearchResults.forEach((user) => {
     if (state.friends.some((friendship) => friendship.friend.id === user.id)) {
       return;
@@ -471,13 +592,20 @@ const renderFriends = () => {
 
     elements.friendSearchList.append(renderFriendRow({
       user,
-      isFriend: false
+      isFriend: false,
+      friendshipStatus: user.friendshipStatus,
+      requestedByMe: user.requestedByMe
     }));
   });
 };
 
 const loadFriends = async () => {
-  state.friends = await api('/friends');
+  const [friends, requests] = await Promise.all([
+    api('/friends'),
+    api('/friends/requests')
+  ]);
+  state.friends = friends;
+  state.friendRequests = requests;
   renderFriends();
 };
 
@@ -507,7 +635,25 @@ const addFriend = async (username) => {
     elements.friendUsernameInput.value = '';
     state.friendSearchResults = [];
     await loadFriends();
-    showToast('Amico aggiunto');
+    showToast('Richiesta amicizia inviata');
+  } catch (error) {
+    showToast(error.message);
+  }
+};
+
+const answerFriendRequest = async (requestId, accepted) => {
+  try {
+    if (accepted) {
+      await api(`/friends/requests/${requestId}/accept`, { method: 'POST' });
+      document.body.classList.add('friendship-burst');
+      window.setTimeout(() => document.body.classList.remove('friendship-burst'), 900);
+      showToast('Ora siete amici');
+    } else {
+      await api(`/friends/requests/${requestId}`, { method: 'DELETE' });
+      showToast('Richiesta rifiutata');
+    }
+
+    await loadFriends();
   } catch (error) {
     showToast(error.message);
   }
@@ -538,6 +684,8 @@ const renderChannels = () => {
 
   if (!server) {
     elements.workspaceTitle.textContent = state.user?.fullName || 'Accesso';
+    elements.deleteServerButton.classList.add('hidden');
+    elements.copyInviteButton.disabled = true;
     return;
   }
 
@@ -596,6 +744,11 @@ const setGameStatus = () => {
 
   if (state.game.status === 'declined') {
     elements.gameStatus.textContent = 'Invito rifiutato.';
+    return;
+  }
+
+  if (state.game.status === 'waiting_link') {
+    elements.gameStatus.textContent = 'Link inviato. In attesa che qualcuno entri.';
     return;
   }
 
@@ -946,7 +1099,7 @@ const renderMessage = (message) => {
 
   const content = document.createElement('p');
   content.className = 'message-content';
-  content.textContent = message.content || '';
+  appendMessageContent(content, message.content || '');
 
   meta.append(author, time);
   body.append(meta);
@@ -977,8 +1130,8 @@ const loadMessages = async () => {
 
   if (!hasConversation) {
     setDefaultEmptyState();
-    elements.channelTitle.textContent = 'Benvenuto in UniChat';
-    elements.channelType.textContent = 'Canale';
+    elements.channelTitle.textContent = state.user ? 'Home' : 'Benvenuto in UniChat';
+    elements.channelType.textContent = state.user ? 'Panoramica' : 'Canale';
     elements.videoCallButton.classList.add('hidden');
     return;
   }
@@ -1055,15 +1208,21 @@ const loadAvailableServers = async () => {
   renderAvailableServers();
 };
 
+const loadServerJoinRequests = async () => {
+  state.serverJoinRequests = await api('/servers/join-requests');
+  renderServerJoinRequests();
+};
+
 const loadServers = async () => {
   state.servers = await api('/servers');
 
-  if (!state.activeServerId || !state.servers.some((server) => server.id === state.activeServerId)) {
-    state.activeServerId = state.servers[0]?.id || null;
+  if (state.activeServerId && !state.servers.some((server) => server.id === state.activeServerId)) {
+    state.activeServerId = null;
   }
 
   renderServers();
-  await selectServer(state.activeServerId);
+  renderChannels();
+  await loadMessages();
   await loadAvailableServers();
 
   if (state.pendingInviteCode) {
@@ -1074,22 +1233,48 @@ const loadServers = async () => {
 const loadWorkspaceData = async () => {
   await Promise.all([
     loadServers(),
-    loadFriends()
+    loadFriends(),
+    loadServerJoinRequests()
   ]);
 };
 
 const joinServer = async (serverId) => {
   try {
-    const server = await api(`/servers/${serverId}/join`, {
+    const result = await api(`/servers/${serverId}/join`, {
       method: 'POST'
     });
 
-    state.servers.push(server);
-    state.availableServers = state.availableServers.filter((availableServer) => availableServer.id !== server.id);
-    state.activeServerId = server.id;
+    if (result?.id) {
+      addOrReplaceServer(result);
+      state.availableServers = state.availableServers.filter((availableServer) => availableServer.id !== result.id);
+      state.activeServerId = result.id;
+      renderAvailableServers();
+      renderServers();
+      await selectServer(result.id);
+      return;
+    }
+
+    state.availableServers = state.availableServers.filter((availableServer) => availableServer.id !== serverId);
     renderAvailableServers();
-    renderServers();
-    await selectServer(server.id);
+    showToast(result.message || 'Richiesta inviata');
+  } catch (error) {
+    showToast(error.message);
+  }
+};
+
+const answerServerJoinRequest = async (requestId, accepted) => {
+  try {
+    if (accepted) {
+      const server = await api(`/servers/join-requests/${requestId}/accept`, { method: 'POST' });
+      addOrReplaceServer(server);
+      renderServers();
+      showToast('Richiesta server accettata');
+    } else {
+      await api(`/servers/join-requests/${requestId}`, { method: 'DELETE' });
+      showToast('Richiesta server rifiutata');
+    }
+
+    await loadServerJoinRequests();
   } catch (error) {
     showToast(error.message);
   }
@@ -1115,22 +1300,29 @@ const joinServerByInvite = async (rawInviteCode) => {
   }
 
   try {
-    const server = await api('/servers/join-by-invite', {
+    const result = await api('/servers/join-by-invite', {
       method: 'POST',
       body: JSON.stringify({ inviteCode })
     });
 
-    addOrReplaceServer(server);
-    state.availableServers = state.availableServers.filter((availableServer) => availableServer.id !== server.id);
-    state.activeServerId = server.id;
     state.pendingInviteCode = null;
     localStorage.removeItem('unichat:pendingInviteCode');
     clearInviteFromUrl();
     elements.inviteCodeInput.value = '';
-    renderAvailableServers();
-    renderServers();
-    await selectServer(server.id);
-    showToast('Sei entrato nel server tramite invito');
+
+    if (result?.id) {
+      addOrReplaceServer(result);
+      state.availableServers = state.availableServers.filter((availableServer) => availableServer.id !== result.id);
+      state.activeServerId = result.id;
+      renderAvailableServers();
+      renderServers();
+      await selectServer(result.id);
+      showToast('Sei entrato nel server tramite invito');
+      return;
+    }
+
+    await loadAvailableServers();
+    showToast(result.message || 'Richiesta inviata');
   } catch (error) {
     showToast(error.message);
   }
@@ -1447,7 +1639,11 @@ const connectSocket = () => {
       state.socket.emit('join_channel', state.activeChannelId);
     }
 
-    state.socket.emit('authenticate', { token: state.token });
+    state.socket.emit('authenticate', { token: state.token }, (response) => {
+      if (response?.ok) {
+        joinPendingGameFromUrl();
+      }
+    });
   });
 
   state.socket.on('disconnect', () => {
@@ -1470,10 +1666,13 @@ const connectSocket = () => {
 
   state.socket.on('private_message_created', (message) => {
     const privateUser = activePrivateUser();
+    const currentUserId = state.user?.id;
 
     if (
       state.activeConversationType !== 'private'
       || !privateUser
+      || !currentUserId
+      || ![message.senderId, message.recipientId].includes(currentUserId)
       || ![message.senderId, message.recipientId].includes(privateUser.id)
     ) {
       return;
@@ -1576,6 +1775,154 @@ const startPrivateGame = (opponentId) => {
       return;
     }
 
+    showGame(response.game);
+  });
+};
+
+const getPlayableMembers = () => {
+  const server = activeServer();
+
+  return server?.members
+    .map((membership) => membership.user)
+    .filter((member) => member.id !== state.user?.id) || [];
+};
+
+const renderGameLauncher = () => {
+  elements.gameFriendList.replaceChildren();
+
+  const members = getPlayableMembers();
+  elements.sendGameLinkButton.disabled = !activeServer() || (!state.activeChannelId && state.activeConversationType !== 'private');
+
+  if (members.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'game-launcher-empty';
+    empty.textContent = 'Nessun altro utente in questo server.';
+    elements.gameFriendList.append(empty);
+    return;
+  }
+
+  members.forEach((member) => {
+    const button = document.createElement('button');
+    button.className = 'game-launcher-user';
+    button.type = 'button';
+
+    const name = document.createElement('span');
+    name.textContent = member.fullName;
+
+    button.append(createUserAvatar(member, 'member-avatar'), name);
+    button.addEventListener('click', () => {
+      elements.gameDialog.close();
+      startPrivateGame(member.id);
+    });
+    elements.gameFriendList.append(button);
+  });
+};
+
+const openGameDialog = () => {
+  if (!state.user) {
+    showToast('Accedi per giocare');
+    return;
+  }
+
+  if (!activeServer()) {
+    showToast('Entra in un server per giocare');
+    return;
+  }
+
+  renderGameLauncher();
+  elements.gameDialog.showModal();
+};
+
+const postTextToActiveConversation = async (content) => {
+  if (state.activeConversationType === 'private') {
+    const privateUser = activePrivateUser();
+
+    if (!privateUser) {
+      throw new Error('Apri una chat privata');
+    }
+
+    const formData = new FormData();
+    formData.append('content', content);
+    await api(`/private/${privateUser.id}/messages`, {
+      method: 'POST',
+      body: formData
+    });
+    return;
+  }
+
+  if (!state.activeChannelId) {
+    throw new Error('Apri un canale testuale');
+  }
+
+  await new Promise((resolve, reject) => {
+    state.socket.emit('send_message', {
+      token: state.token,
+      channelId: state.activeChannelId,
+      content
+    }, (response) => {
+      if (!response?.ok) {
+        reject(new Error(response?.error || 'Messaggio non inviato'));
+        return;
+      }
+      resolve(response.message);
+    });
+  });
+};
+
+const sendGameLinkToChat = () => {
+  const server = activeServer();
+
+  if (!server || !state.socket?.connected) {
+    showToast('Connessione non disponibile');
+    return;
+  }
+
+  state.socket.emit('private_game_link_create', {
+    token: state.token,
+    serverId: server.id
+  }, async (response) => {
+    if (!response?.ok) {
+      showToast(response?.error || 'Link non creato');
+      return;
+    }
+
+    const gameUrl = `${window.location.origin}${window.location.pathname}?game=${response.game.id}`;
+
+    try {
+      await postTextToActiveConversation(`Invito a Tris: ${gameUrl}`);
+      elements.gameDialog.close();
+      showGame(response.game);
+      showToast('Link Tris inviato');
+    } catch (error) {
+      showToast(error.message);
+    }
+  });
+};
+
+const clearGameFromUrl = () => {
+  if (!new URLSearchParams(window.location.search).has('game')) {
+    return;
+  }
+
+  window.history.replaceState({}, document.title, window.location.pathname);
+};
+
+const joinPendingGameFromUrl = () => {
+  if (!state.pendingGameId || !state.socket?.connected) {
+    return;
+  }
+
+  state.socket.emit('private_game_link_join', {
+    token: state.token,
+    gameId: state.pendingGameId
+  }, (response) => {
+    if (!response?.ok) {
+      showToast(response?.error || 'Invito Tris non disponibile');
+      return;
+    }
+
+    state.pendingGameId = null;
+    clearGameFromUrl();
     showGame(response.game);
   });
 };
@@ -1763,8 +2110,10 @@ elements.logoutButton.addEventListener('click', async () => {
   state.servers = [];
   state.availableServers = [];
   state.friends = [];
+  state.friendRequests = [];
   state.friendsExpanded = false;
   state.friendSearchResults = [];
+  state.serverJoinRequests = [];
   state.activeServerId = null;
   state.activeChannelId = null;
   state.activePrivateUserId = null;
@@ -1776,6 +2125,7 @@ elements.logoutButton.addEventListener('click', async () => {
   renderServers();
   renderChannels();
   renderFriends();
+  renderServerJoinRequests();
   elements.gamePanel.classList.add('hidden');
   elements.adminPanel.classList.add('hidden');
   await loadMessages();
@@ -1785,6 +2135,9 @@ const openServerDialog = () => elements.serverDialog.showModal();
 
 elements.adminButton.addEventListener('click', showAdminPanel);
 elements.newServerButton.addEventListener('click', openServerDialog);
+elements.gameRailButton.addEventListener('click', openGameDialog);
+elements.sendGameLinkButton.addEventListener('click', sendGameLinkToChat);
+document.querySelector('#closeGameDialog').addEventListener('click', () => elements.gameDialog.close());
 elements.createServerFromSidebar.addEventListener('click', openServerDialog);
 elements.copyInviteButton.addEventListener('click', copyActiveServerInvite);
 elements.deleteServerButton.addEventListener('click', deleteOrLeaveActiveServer);
@@ -1890,8 +2243,7 @@ elements.messageForm.addEventListener('submit', async (event) => {
 });
 
 elements.homeButton.addEventListener('click', () => {
-  state.activeServerId = state.servers[0]?.id || null;
-  selectServer(state.activeServerId);
+  showHome();
 });
 
 elements.acceptGameButton.addEventListener('click', () => answerGameInvite(true));

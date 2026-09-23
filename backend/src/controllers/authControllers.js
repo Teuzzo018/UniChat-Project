@@ -99,7 +99,7 @@ const register = async (req, res) => {
     } else if (inviteCode) {
       invitedServer = await prisma.server.findUnique({
         where: { inviteCode: String(inviteCode).trim() },
-        select: { id: true }
+        select: { id: true, universityId: true }
       });
 
       if (!invitedServer) {
@@ -124,14 +124,14 @@ const register = async (req, res) => {
           passwordHash,
           fullName,
           avatarUrl,
-          universityId: university?.id || null,
+          universityId: university?.id || invitedServer?.universityId || null,
           role
         },
         select: userSelect
       });
 
       if (invitedServer) {
-        await tx.serverMember.create({
+        await tx.serverJoinRequest.create({
           data: {
             userId: createdUser.id,
             serverId: invitedServer.id
