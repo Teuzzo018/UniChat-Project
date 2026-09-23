@@ -47,6 +47,10 @@
 
           <form class="stack hidden" id="registerForm">
             <label>
+              Username
+              <input type="text" name="username" autocomplete="username" pattern="[A-Za-z0-9._-]{3,24}" placeholder="mario.rossi" required />
+            </label>
+            <label>
               Nome completo
               <input type="text" name="fullName" autocomplete="name" required />
             </label>
@@ -106,6 +110,16 @@
           </form>
           <h2>Privati</h2>
           <div class="member-list" id="memberList"></div>
+          <button class="friend-counter" id="friendCounterButton" type="button">
+            <span>Amici</span>
+            <strong id="friendCount">0</strong>
+          </button>
+          <form class="friend-form" id="friendForm">
+            <input type="text" name="username" id="friendUsernameInput" placeholder="username" autocomplete="off" />
+            <button type="submit">+</button>
+          </form>
+          <div class="friend-list" id="friendList"></div>
+          <div class="friend-search-list" id="friendSearchList"></div>
         </div>
       </section>
 
@@ -116,6 +130,7 @@
             <h2 id="channelTitle">Benvenuto in UniChat</h2>
           </div>
           <div class="header-actions">
+            <button class="secondary-button hidden" id="videoCallButton" type="button">Video</button>
             <button class="secondary-button hidden" id="adminButton" type="button">Admin</button>
             <div class="status-pill" id="connectionStatus">offline</div>
           </div>
@@ -160,8 +175,44 @@
 
         <div class="messages hidden" id="messages"></div>
 
+        <section class="voice-panel hidden" id="voicePanel" aria-label="Canale vocale">
+          <div class="voice-copy">
+            <h2 id="voiceTitle">Canale vocale</h2>
+            <p id="voiceStatus">Entra nel canale per parlare.</p>
+          </div>
+          <div class="voice-actions">
+            <button class="primary-button" id="joinVoiceButton" type="button">Entra</button>
+            <button class="danger-button hidden" id="leaveVoiceButton" type="button">Esci</button>
+          </div>
+          <div class="voice-participants" id="voiceParticipants"></div>
+          <div class="remote-audio" id="remoteAudio"></div>
+        </section>
+
+        <section class="call-panel hidden" id="callPanel" aria-label="Videochiamata privata">
+          <div class="call-header">
+            <div>
+              <p class="eyebrow">Videochiamata</p>
+              <h2 id="callTitle">Chiamata privata</h2>
+            </div>
+            <p id="callStatus">Connessione in corso...</p>
+          </div>
+          <div class="call-videos">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <video id="localVideo" autoplay playsinline muted></video>
+          </div>
+          <div class="call-actions">
+            <button class="primary-button hidden" id="acceptCallButton" type="button">Accetta</button>
+            <button class="ghost-button hidden" id="declineCallButton" type="button">Rifiuta</button>
+            <button class="danger-button" id="endCallButton" type="button">Chiudi</button>
+          </div>
+        </section>
+
         <form class="composer hidden" id="messageForm">
           <input type="text" name="content" id="messageInput" maxlength="1000" placeholder="Scrivi un messaggio..." autocomplete="off" />
+          <label class="file-button" title="Allega file">
+            <input type="file" id="messageFileInput" />
+            <span>+</span>
+          </label>
           <button class="primary-button" type="submit">Invia</button>
         </form>
       </section>

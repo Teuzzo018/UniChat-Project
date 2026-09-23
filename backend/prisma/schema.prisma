@@ -30,6 +30,7 @@ model University {
 model User {
   id           String         @id @default(uuid())
   email        String         @unique
+  username     String?        @unique
   passwordHash String
   fullName     String
   avatarUrl    String?
@@ -42,6 +43,10 @@ model User {
   ownedServers Server[]       @relation("ServerOwner")
   servers      ServerMember[]
   messages     Message[]
+  privateMessagesSent     PrivateMessage[] @relation("PrivateMessageSender")
+  privateMessagesReceived PrivateMessage[] @relation("PrivateMessageRecipient")
+  friendshipsStarted  Friendship[] @relation("FriendshipRequester")
+  friendshipsReceived Friendship[] @relation("FriendshipAddressee")
 
   createdAt    DateTime       @default(now())
 }
@@ -101,7 +106,11 @@ model Channel {
 
 model Message {
   id        String   @id @default(uuid())
-  content   String
+  content   String   @default("")
+  attachmentUrl      String?
+  attachmentName     String?
+  attachmentMimeType String?
+  attachmentSize     Int?
 
   userId    String
   user      User     @relation(fields: [userId], references: [id])
@@ -110,4 +119,37 @@ model Message {
   channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
+}
+
+model PrivateMessage {
+  id        String   @id @default(uuid())
+  content   String   @default("")
+  attachmentUrl      String?
+  attachmentName     String?
+  attachmentMimeType String?
+  attachmentSize     Int?
+
+  senderId    String
+  sender      User     @relation("PrivateMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  recipientId String
+  recipient   User     @relation("PrivateMessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@index([senderId, recipientId, createdAt])
+  @@index([recipientId, senderId, createdAt])
+}
+
+model Friendship {
+  id          String   @id @default(uuid())
+  requesterId String
+  addresseeId String
+
+  requester   User     @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User     @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([requesterId, addresseeId])
 }

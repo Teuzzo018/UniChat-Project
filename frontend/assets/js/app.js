@@ -7,12 +7,31 @@ const state = {
   activeServerId: null,
   activeChannelId: null,
   activePrivateUserId: null,
+  activeConversationType: 'channel',
+  friends: [],
+  friendsExpanded: false,
+  friendSearchResults: [],
   game: null,
-  socket: null
+  socket: null,
+  voice: {
+    channelId: null,
+    localStream: null,
+    peers: new Map(),
+    participants: []
+  },
+  call: {
+    id: null,
+    peer: null,
+    friend: null,
+    localStream: null,
+    incoming: false,
+    active: false
+  }
 };
 
 const elements = {
   acceptGameButton: document.querySelector('#acceptGameButton'),
+  acceptCallButton: document.querySelector('#acceptCallButton'),
   adminButton: document.querySelector('#adminButton'),
   adminMessages: document.querySelector('#adminMessages'),
   adminPanel: document.querySelector('#adminPanel'),
@@ -24,6 +43,9 @@ const elements = {
   channelList: document.querySelector('#channelList'),
   channelTitle: document.querySelector('#channelTitle'),
   channelType: document.querySelector('#channelType'),
+  callPanel: document.querySelector('#callPanel'),
+  callStatus: document.querySelector('#callStatus'),
+  callTitle: document.querySelector('#callTitle'),
   closeGameButton: document.querySelector('#closeGameButton'),
   connectionStatus: document.querySelector('#connectionStatus'),
   confirmAcceptButton: document.querySelector('#confirmAcceptButton'),
@@ -34,24 +56,37 @@ const elements = {
   createServerFromSidebar: document.querySelector('#createServerFromSidebar'),
   createUniversityButton: document.querySelector('#createUniversityButton'),
   declineGameButton: document.querySelector('#declineGameButton'),
+  declineCallButton: document.querySelector('#declineCallButton'),
   deleteServerButton: document.querySelector('#deleteServerButton'),
   emptyState: document.querySelector('#emptyState'),
+  endCallButton: document.querySelector('#endCallButton'),
   gameBoard: document.querySelector('#gameBoard'),
   gamePanel: document.querySelector('#gamePanel'),
   gameStatus: document.querySelector('#gameStatus'),
   gameTitle: document.querySelector('#gameTitle'),
+  friendForm: document.querySelector('#friendForm'),
+  friendCounterButton: document.querySelector('#friendCounterButton'),
+  friendCount: document.querySelector('#friendCount'),
+  friendList: document.querySelector('#friendList'),
+  friendSearchList: document.querySelector('#friendSearchList'),
+  friendUsernameInput: document.querySelector('#friendUsernameInput'),
   homeButton: document.querySelector('#homeButton'),
   inviteCodeInput: document.querySelector('#inviteCodeInput'),
   inviteForm: document.querySelector('#inviteForm'),
+  joinVoiceButton: document.querySelector('#joinVoiceButton'),
+  leaveVoiceButton: document.querySelector('#leaveVoiceButton'),
   loginForm: document.querySelector('#loginForm'),
   logoutButton: document.querySelector('#logoutButton'),
   memberList: document.querySelector('#memberList'),
   messageForm: document.querySelector('#messageForm'),
+  messageFileInput: document.querySelector('#messageFileInput'),
   messageInput: document.querySelector('#messageInput'),
   messages: document.querySelector('#messages'),
   newServerButton: document.querySelector('#newServerButton'),
   registerForm: document.querySelector('#registerForm'),
   restartGameButton: document.querySelector('#restartGameButton'),
+  localVideo: document.querySelector('#localVideo'),
+  remoteVideo: document.querySelector('#remoteVideo'),
   serverDialog: document.querySelector('#serverDialog'),
   serverForm: document.querySelector('#serverForm'),
   serverList: document.querySelector('#serverList'),
@@ -60,6 +95,12 @@ const elements = {
   universityDomain: document.querySelector('#universityDomain'),
   universityName: document.querySelector('#universityName'),
   universitySelect: document.querySelector('#universitySelect'),
+  videoCallButton: document.querySelector('#videoCallButton'),
+  remoteAudio: document.querySelector('#remoteAudio'),
+  voicePanel: document.querySelector('#voicePanel'),
+  voiceParticipants: document.querySelector('#voiceParticipants'),
+  voiceStatus: document.querySelector('#voiceStatus'),
+  voiceTitle: document.querySelector('#voiceTitle'),
   workspacePanel: document.querySelector('#workspacePanel'),
   workspaceTitle: document.querySelector('#workspaceTitle')
 };
@@ -73,10 +114,11 @@ window.setTimeout(() => {
 }, 1700);
 
 const api = async (path, options = {}) => {
+  const isFormData = options.body instanceof FormData;
   const response = await fetch(`/api${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
       ...options.headers
     }
@@ -186,8 +228,12 @@ const activeChannel = () => {
 const activePrivateUser = () => {
   const server = activeServer();
   const members = server?.members.map((membership) => membership.user) || [];
-  return members.find((member) => member.id === state.activePrivateUserId);
+  return members.find((member) => member.id === state.activePrivateUserId)
+    || state.friends.map((friendship) => friendship.friend).find((friend) => friend.id === state.activePrivateUserId)
+    || state.friendSearchResults.find((user) => user.id === state.activePrivateUserId);
 };
+
+const getDisplayHandle = (user) => user?.username ? `@${user.username}` : user?.email || '';
 
 const setDefaultEmptyState = () => {
   elements.emptyState.querySelector('h2').textContent = 'Chat universitaria senza distrazioni';
@@ -199,6 +245,7 @@ const setAuthenticatedUi = (authenticated) => {
   elements.workspacePanel.classList.toggle('hidden', !authenticated);
   elements.logoutButton.classList.toggle('hidden', !authenticated);
   elements.adminButton.classList.toggle('hidden', !authenticated || state.user?.role !== 'ADMIN');
+  elements.videoCallButton.classList.toggle('hidden', state.activeConversationType !== 'private' || !state.activePrivateUserId);
   elements.workspaceTitle.textContent = authenticated ? state.user.fullName : 'Accesso';
 };
 
@@ -303,11 +350,15 @@ const showAdminPanel = async () => {
 
   state.activeChannelId = null;
   state.activePrivateUserId = null;
+  state.activeConversationType = 'channel';
   state.game = null;
   elements.emptyState.classList.add('hidden');
   elements.gamePanel.classList.add('hidden');
+  elements.callPanel.classList.add('hidden');
+  elements.voicePanel.classList.add('hidden');
   elements.messages.classList.add('hidden');
   elements.messageForm.classList.add('hidden');
+  elements.videoCallButton.classList.add('hidden');
   elements.adminPanel.classList.remove('hidden');
   elements.channelTitle.textContent = 'Pannello admin';
   elements.channelType.textContent = 'Amministrazione';
@@ -361,6 +412,123 @@ const renderAvailableServers = () => {
   });
 };
 
+const renderFriendRow = ({ user, isFriend }) => {
+  const item = document.createElement('div');
+  item.className = 'friend-item';
+
+  const avatar = createUserAvatar(user, 'member-avatar');
+  const info = document.createElement('div');
+
+  const name = document.createElement('strong');
+  name.textContent = user.fullName;
+
+  const handle = document.createElement('span');
+  handle.textContent = getDisplayHandle(user);
+
+  const actions = document.createElement('div');
+  actions.className = 'friend-actions';
+
+  const chatButton = document.createElement('button');
+  chatButton.className = 'secondary-button';
+  chatButton.type = 'button';
+  chatButton.textContent = 'Chat';
+  chatButton.addEventListener('click', () => selectPrivateChat(user));
+
+  const button = document.createElement('button');
+  button.className = isFriend ? 'ghost-button' : 'secondary-button';
+  button.type = 'button';
+  button.textContent = isFriend ? 'Rimuovi' : 'Aggiungi';
+  button.addEventListener('click', () => (isFriend ? removeFriend(user.id) : addFriend(user.username)));
+
+  info.append(name, handle);
+  if (isFriend) {
+    actions.append(chatButton, button);
+  } else {
+    actions.append(button);
+  }
+  item.append(avatar, info, actions);
+  return item;
+};
+
+const renderFriends = () => {
+  elements.friendList.replaceChildren();
+  elements.friendSearchList.replaceChildren();
+  elements.friendCount.textContent = String(state.friends.length);
+  elements.friendCounterButton.classList.toggle('active', state.friendsExpanded);
+  elements.friendList.classList.toggle('hidden', !state.friendsExpanded);
+
+  state.friends.forEach((friendship) => {
+    elements.friendList.append(renderFriendRow({
+      user: friendship.friend,
+      isFriend: true
+    }));
+  });
+
+  state.friendSearchResults.forEach((user) => {
+    if (state.friends.some((friendship) => friendship.friend.id === user.id)) {
+      return;
+    }
+
+    elements.friendSearchList.append(renderFriendRow({
+      user,
+      isFriend: false
+    }));
+  });
+};
+
+const loadFriends = async () => {
+  state.friends = await api('/friends');
+  renderFriends();
+};
+
+const searchFriends = async (query) => {
+  if (query.trim().length < 2) {
+    state.friendSearchResults = [];
+    renderFriends();
+    return;
+  }
+
+  state.friendSearchResults = await api(`/friends/search?q=${encodeURIComponent(query.trim())}`);
+  state.friendsExpanded = true;
+  renderFriends();
+};
+
+const addFriend = async (username) => {
+  if (!username) {
+    showToast('Inserisci uno username');
+    return;
+  }
+
+  try {
+    await api('/friends', {
+      method: 'POST',
+      body: JSON.stringify({ username })
+    });
+    elements.friendUsernameInput.value = '';
+    state.friendSearchResults = [];
+    await loadFriends();
+    showToast('Amico aggiunto');
+  } catch (error) {
+    showToast(error.message);
+  }
+};
+
+const removeFriend = async (userId) => {
+  try {
+    await api(`/friends/${userId}`, { method: 'DELETE' });
+    state.friends = state.friends.filter((friendship) => friendship.friend.id !== userId);
+    renderFriends();
+    showToast('Amico rimosso');
+  } catch (error) {
+    showToast(error.message);
+  }
+};
+
+const toggleFriends = () => {
+  state.friendsExpanded = !state.friendsExpanded;
+  renderFriends();
+};
+
 const renderChannels = () => {
   const server = activeServer();
   elements.channelList.replaceChildren();
@@ -380,7 +548,7 @@ const renderChannels = () => {
     const button = document.createElement('button');
     button.className = `channel-item ${channel.id === state.activeChannelId ? 'active' : ''}`;
     button.type = 'button';
-    button.textContent = `${channel.type === 'TEXT' ? '#' : '>'} ${channel.name}`;
+    button.textContent = `${channel.type === 'TEXT' ? '#' : '◉'} ${channel.name}`;
     button.addEventListener('click', () => selectChannel(channel.id));
     elements.channelList.append(button);
   });
@@ -396,7 +564,7 @@ const renderChannels = () => {
       const name = document.createElement('span');
       name.textContent = member.fullName;
       button.append(avatar, name);
-      button.addEventListener('click', () => startPrivateGame(member.id));
+      button.addEventListener('click', () => selectPrivateChat(member));
       elements.memberList.append(button);
     });
 };
@@ -447,6 +615,7 @@ const setGameStatus = () => {
 const renderGame = () => {
   elements.emptyState.classList.add('hidden');
   elements.adminPanel.classList.add('hidden');
+  elements.callPanel.classList.add('hidden');
   elements.messages.classList.add('hidden');
   elements.messageForm.classList.add('hidden');
   elements.gamePanel.classList.remove('hidden');
@@ -489,12 +658,276 @@ const closeGame = () => {
   loadMessages();
 };
 
+const resetCall = ({ notifyPeer = false } = {}) => {
+  if (notifyPeer && state.call.id && state.call.friend) {
+    state.socket?.emit('private_video_call_end', {
+      token: state.token,
+      callId: state.call.id,
+      recipientId: state.call.friend.id
+    });
+  }
+
+  state.call.peer?.close();
+  state.call.localStream?.getTracks().forEach((track) => track.stop());
+  state.call = {
+    id: null,
+    peer: null,
+    friend: null,
+    localStream: null,
+    incoming: false,
+    active: false
+  };
+  elements.localVideo.srcObject = null;
+  elements.remoteVideo.srcObject = null;
+  elements.callPanel.classList.add('hidden');
+};
+
+const showCallPanel = (status) => {
+  const friend = state.call.friend;
+  elements.emptyState.classList.add('hidden');
+  elements.adminPanel.classList.add('hidden');
+  elements.gamePanel.classList.add('hidden');
+  elements.voicePanel.classList.add('hidden');
+  elements.messages.classList.add('hidden');
+  elements.messageForm.classList.add('hidden');
+  elements.callPanel.classList.remove('hidden');
+  elements.callTitle.textContent = friend ? `Con ${friend.fullName}` : 'Chiamata privata';
+  elements.callStatus.textContent = status;
+  elements.acceptCallButton.classList.toggle('hidden', !state.call.incoming);
+  elements.declineCallButton.classList.toggle('hidden', !state.call.incoming);
+};
+
+const createCallPeer = (recipientId) => {
+  const peer = new RTCPeerConnection({
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+  });
+
+  state.call.localStream?.getTracks().forEach((track) => {
+    peer.addTrack(track, state.call.localStream);
+  });
+
+  peer.addEventListener('icecandidate', (event) => {
+    if (event.candidate) {
+      state.socket.emit('private_video_call_signal', {
+        token: state.token,
+        callId: state.call.id,
+        recipientId,
+        signal: {
+          type: 'ice',
+          candidate: event.candidate
+        }
+      });
+    }
+  });
+
+  peer.addEventListener('track', (event) => {
+    elements.remoteVideo.srcObject = event.streams[0];
+  });
+
+  peer.addEventListener('connectionstatechange', () => {
+    if (peer.connectionState === 'connected') {
+      state.call.active = true;
+      showCallPanel('Chiamata attiva');
+    }
+    if (['closed', 'failed', 'disconnected'].includes(peer.connectionState)) {
+      resetCall();
+      loadMessages();
+    }
+  });
+
+  state.call.peer = peer;
+  return peer;
+};
+
+const startLocalVideo = async () => {
+  state.call.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+  elements.localVideo.srcObject = state.call.localStream;
+};
+
+const startVideoCall = async () => {
+  const friend = activePrivateUser();
+
+  if (!friend || !state.socket?.connected) {
+    showToast('Apri una chat privata prima di chiamare');
+    return;
+  }
+
+  try {
+    resetCall();
+    state.call.id = crypto.randomUUID();
+    state.call.friend = friend;
+    await startLocalVideo();
+    showCallPanel('Chiamata in uscita...');
+    state.socket.emit('private_video_call_request', {
+      token: state.token,
+      recipientId: friend.id,
+      callId: state.call.id
+    }, (response) => {
+      if (!response?.ok) {
+        showToast(response?.error || 'Chiamata non avviata');
+        resetCall();
+        loadMessages();
+      }
+    });
+  } catch {
+    showToast('Camera o microfono non disponibili');
+    resetCall();
+  }
+};
+
+const acceptVideoCall = async () => {
+  if (!state.call.incoming || !state.call.friend) {
+    return;
+  }
+
+  try {
+    await startLocalVideo();
+    state.call.incoming = false;
+    const peer = createCallPeer(state.call.friend.id);
+    const offer = await peer.createOffer();
+    await peer.setLocalDescription(offer);
+    showCallPanel('Connessione in corso...');
+    state.socket.emit('private_video_call_answer', {
+      token: state.token,
+      callId: state.call.id,
+      callerId: state.call.friend.id,
+      accepted: true
+    });
+    state.socket.emit('private_video_call_signal', {
+      token: state.token,
+      callId: state.call.id,
+      recipientId: state.call.friend.id,
+      signal: {
+        type: 'offer',
+        description: offer
+      }
+    });
+  } catch {
+    showToast('Camera o microfono non disponibili');
+    declineVideoCall();
+  }
+};
+
+const declineVideoCall = () => {
+  if (state.call.friend) {
+    state.socket.emit('private_video_call_answer', {
+      token: state.token,
+      callId: state.call.id,
+      callerId: state.call.friend.id,
+      accepted: false
+    });
+  }
+  resetCall();
+  loadMessages();
+};
+
+const handleVideoSignal = async ({ callId, from, signal }) => {
+  if (!state.call.id || callId !== state.call.id || !state.call.friend || from.id !== state.call.friend.id) {
+    return;
+  }
+
+  if (!state.call.peer) {
+    createCallPeer(state.call.friend.id);
+  }
+
+  if (signal.type === 'offer') {
+    await state.call.peer.setRemoteDescription(new RTCSessionDescription(signal.description));
+    const answer = await state.call.peer.createAnswer();
+    await state.call.peer.setLocalDescription(answer);
+    state.socket.emit('private_video_call_signal', {
+      token: state.token,
+      callId: state.call.id,
+      recipientId: state.call.friend.id,
+      signal: {
+        type: 'answer',
+        description: answer
+      }
+    });
+    return;
+  }
+
+  if (signal.type === 'answer') {
+    await state.call.peer.setRemoteDescription(new RTCSessionDescription(signal.description));
+    return;
+  }
+
+  if (signal.type === 'ice' && signal.candidate) {
+    await state.call.peer.addIceCandidate(new RTCIceCandidate(signal.candidate));
+  }
+};
+
+const isImageAttachment = (message) => message.attachmentMimeType?.startsWith('image/');
+const isVideoAttachment = (message) => message.attachmentMimeType?.startsWith('video/');
+const isAudioAttachment = (message) => message.attachmentMimeType?.startsWith('audio/');
+
+const formatBytes = (bytes = 0) => {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+};
+
+const renderAttachment = (message) => {
+  if (!message.attachmentUrl) {
+    return null;
+  }
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'message-attachment';
+
+  if (isImageAttachment(message)) {
+    const link = document.createElement('a');
+    link.href = message.attachmentUrl;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    const image = document.createElement('img');
+    image.src = message.attachmentUrl;
+    image.alt = message.attachmentName || 'Allegato';
+    link.append(image);
+    wrapper.append(link);
+    return wrapper;
+  }
+
+  if (isVideoAttachment(message)) {
+    const video = document.createElement('video');
+    video.src = message.attachmentUrl;
+    video.controls = true;
+    wrapper.append(video);
+    return wrapper;
+  }
+
+  if (isAudioAttachment(message)) {
+    const audio = document.createElement('audio');
+    audio.src = message.attachmentUrl;
+    audio.controls = true;
+    wrapper.append(audio);
+    return wrapper;
+  }
+
+  const link = document.createElement('a');
+  link.className = 'document-attachment';
+  link.href = message.attachmentUrl;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  link.download = message.attachmentName || '';
+  link.textContent = `${message.attachmentName || 'Documento'} (${formatBytes(message.attachmentSize)})`;
+  wrapper.append(link);
+  return wrapper;
+};
+
 const renderMessage = (message) => {
   const article = document.createElement('article');
-  article.className = 'message';
+  const authorUser = message.user || message.sender;
+  const ownMessage = authorUser.id === state.user?.id;
+  article.className = `message ${ownMessage ? 'own' : 'other'}`;
   article.dataset.messageId = message.id;
 
-  const avatar = createUserAvatar(message.user);
+  const avatar = createUserAvatar(authorUser);
 
   const body = document.createElement('div');
   const meta = document.createElement('div');
@@ -502,7 +935,7 @@ const renderMessage = (message) => {
 
   const author = document.createElement('span');
   author.className = 'message-author';
-  author.textContent = message.user.fullName;
+  author.textContent = authorUser.fullName;
 
   const time = document.createElement('span');
   time.className = 'message-time';
@@ -513,38 +946,59 @@ const renderMessage = (message) => {
 
   const content = document.createElement('p');
   content.className = 'message-content';
-  content.textContent = message.content;
+  content.textContent = message.content || '';
 
   meta.append(author, time);
-  body.append(meta, content);
+  body.append(meta);
+  if (message.content) {
+    body.append(content);
+  }
+  const attachment = renderAttachment(message);
+  if (attachment) {
+    body.append(attachment);
+  }
   article.append(avatar, body);
   elements.messages.append(article);
 };
 
 const loadMessages = async () => {
   const channel = activeChannel();
+  const privateUser = activePrivateUser();
 
   elements.adminPanel.classList.add('hidden');
   elements.gamePanel.classList.add('hidden');
+  elements.callPanel.classList.add('hidden');
+  elements.voicePanel.classList.add('hidden');
   elements.messages.replaceChildren();
-  elements.emptyState.classList.toggle('hidden', Boolean(channel));
-  elements.messages.classList.toggle('hidden', !channel);
-  elements.messageForm.classList.toggle('hidden', !channel || channel.type !== 'TEXT');
+  const hasConversation = state.activeConversationType === 'private' ? Boolean(privateUser) : Boolean(channel);
+  elements.emptyState.classList.toggle('hidden', hasConversation);
+  elements.messages.classList.toggle('hidden', !hasConversation || channel?.type === 'VOICE');
+  elements.messageForm.classList.toggle('hidden', !hasConversation || channel?.type === 'VOICE');
 
-  if (!channel) {
+  if (!hasConversation) {
     setDefaultEmptyState();
     elements.channelTitle.textContent = 'Benvenuto in UniChat';
     elements.channelType.textContent = 'Canale';
+    elements.videoCallButton.classList.add('hidden');
+    return;
+  }
+
+  if (state.activeConversationType === 'private') {
+    elements.channelTitle.textContent = privateUser.fullName;
+    elements.channelType.textContent = `Privato ${getDisplayHandle(privateUser)}`;
+    elements.videoCallButton.classList.remove('hidden');
+    const messages = await api(`/private/${privateUser.id}/messages`);
+    messages.forEach(renderMessage);
+    elements.messages.scrollTop = elements.messages.scrollHeight;
     return;
   }
 
   elements.channelTitle.textContent = channel.name;
   elements.channelType.textContent = channel.type === 'TEXT' ? 'Canale testuale' : 'Canale vocale';
+  elements.videoCallButton.classList.add('hidden');
 
   if (channel.type !== 'TEXT') {
-    elements.emptyState.classList.remove('hidden');
-    elements.emptyState.querySelector('h2').textContent = 'Canale vocale';
-    elements.emptyState.querySelector('p').textContent = 'Spazio pronto per coordinarsi, senza notifiche.';
+    renderVoicePanel();
     return;
   }
 
@@ -554,16 +1008,35 @@ const loadMessages = async () => {
 };
 
 const selectChannel = async (channelId) => {
+  resetCall();
+  if (state.voice.channelId && state.voice.channelId !== channelId) {
+    await leaveVoiceChannel();
+  }
   state.activeChannelId = channelId;
   state.activePrivateUserId = null;
+  state.activeConversationType = 'channel';
   state.socket?.emit('join_channel', channelId);
   renderChannels();
   await loadMessages();
 };
 
+const selectPrivateChat = async (user) => {
+  await leaveVoiceChannel();
+  resetCall();
+  state.activePrivateUserId = user.id;
+  state.activeChannelId = null;
+  state.activeConversationType = 'private';
+  state.game = null;
+  renderChannels();
+  await loadMessages();
+};
+
 const selectServer = async (serverId) => {
+  await leaveVoiceChannel();
+  resetCall();
   state.activeServerId = serverId;
   state.activePrivateUserId = null;
+  state.activeConversationType = 'channel';
   state.game = null;
   const server = activeServer();
   state.activeChannelId = server?.channels.find((channel) => channel.type === 'TEXT')?.id || server?.channels[0]?.id || null;
@@ -596,6 +1069,13 @@ const loadServers = async () => {
   if (state.pendingInviteCode) {
     await joinServerByInvite(state.pendingInviteCode);
   }
+};
+
+const loadWorkspaceData = async () => {
+  await Promise.all([
+    loadServers(),
+    loadFriends()
+  ]);
 };
 
 const joinServer = async (serverId) => {
@@ -701,6 +1181,7 @@ const deleteOrLeaveActiveServer = async () => {
     state.activeServerId = state.servers[0]?.id || null;
     state.activeChannelId = null;
     state.activePrivateUserId = null;
+    state.activeConversationType = 'channel';
     state.game = null;
     renderServers();
     renderChannels();
@@ -709,6 +1190,245 @@ const deleteOrLeaveActiveServer = async () => {
     showToast(result.message || (isOwner ? 'Server eliminato' : 'Sei uscito dal server'));
   } catch (error) {
     showToast(error.message);
+  }
+};
+
+const buildMessageFormData = () => {
+  const formData = new FormData();
+  const content = elements.messageInput.value.trim();
+  const file = elements.messageFileInput.files[0];
+
+  if (content) {
+    formData.append('content', content);
+  }
+
+  if (file) {
+    formData.append('file', file);
+  }
+
+  return { formData, content, file };
+};
+
+const clearComposer = () => {
+  elements.messageInput.value = '';
+  elements.messageFileInput.value = '';
+};
+
+const sendMessageWithUpload = async ({ formData, file }) => {
+  let message = null;
+
+  if (state.activeConversationType === 'private') {
+    const privateUser = activePrivateUser();
+    if (!privateUser) {
+      return;
+    }
+    message = await api(`/private/${privateUser.id}/messages`, {
+      method: 'POST',
+      body: formData
+    });
+  } else if (file && state.activeChannelId) {
+    message = await api(`/channels/${state.activeChannelId}/messages`, {
+      method: 'POST',
+      body: formData
+    });
+  }
+
+  if (message && !elements.messages.querySelector(`[data-message-id="${message.id}"]`)) {
+    renderMessage(message);
+    elements.messages.scrollTop = elements.messages.scrollHeight;
+  }
+};
+
+const renderVoiceParticipants = () => {
+  elements.voiceParticipants.replaceChildren();
+
+  state.voice.participants.forEach((participant) => {
+    const item = document.createElement('div');
+    item.className = 'voice-participant';
+    item.append(createUserAvatar(participant, 'member-avatar'));
+    const name = document.createElement('span');
+    name.textContent = participant.id === state.user?.id ? `${participant.fullName} (tu)` : participant.fullName;
+    item.append(name);
+    elements.voiceParticipants.append(item);
+  });
+};
+
+const renderVoicePanel = () => {
+  const channel = activeChannel();
+
+  elements.emptyState.classList.add('hidden');
+  elements.messages.classList.add('hidden');
+  elements.messageForm.classList.add('hidden');
+  elements.voicePanel.classList.remove('hidden');
+  elements.voiceTitle.textContent = channel?.name || 'Canale vocale';
+  elements.voiceStatus.textContent = state.voice.channelId === channel?.id
+    ? 'Sei nel canale vocale.'
+    : 'Entra nel canale per parlare.';
+  elements.joinVoiceButton.classList.toggle('hidden', state.voice.channelId === channel?.id);
+  elements.leaveVoiceButton.classList.toggle('hidden', state.voice.channelId !== channel?.id);
+  renderVoiceParticipants();
+};
+
+const addRemoteAudio = (socketId, stream) => {
+  let audio = elements.remoteAudio.querySelector(`[data-socket-id="${socketId}"]`);
+
+  if (!audio) {
+    audio = document.createElement('audio');
+    audio.dataset.socketId = socketId;
+    audio.autoplay = true;
+    audio.playsInline = true;
+    elements.remoteAudio.append(audio);
+  }
+
+  audio.srcObject = stream;
+};
+
+const closeVoicePeer = (socketId) => {
+  const peer = state.voice.peers.get(socketId);
+
+  if (peer) {
+    peer.close();
+    state.voice.peers.delete(socketId);
+  }
+
+  elements.remoteAudio.querySelector(`[data-socket-id="${socketId}"]`)?.remove();
+};
+
+const createVoicePeer = (socketId) => {
+  const existingPeer = state.voice.peers.get(socketId);
+
+  if (existingPeer) {
+    return existingPeer;
+  }
+
+  const peer = new RTCPeerConnection({
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+  });
+
+  state.voice.localStream?.getTracks().forEach((track) => {
+    peer.addTrack(track, state.voice.localStream);
+  });
+
+  peer.addEventListener('icecandidate', (event) => {
+    if (event.candidate) {
+      state.socket.emit('voice_signal', {
+        to: socketId,
+        signal: {
+          type: 'ice',
+          candidate: event.candidate
+        }
+      });
+    }
+  });
+
+  peer.addEventListener('track', (event) => {
+    addRemoteAudio(socketId, event.streams[0]);
+  });
+
+  peer.addEventListener('connectionstatechange', () => {
+    if (['closed', 'failed', 'disconnected'].includes(peer.connectionState)) {
+      closeVoicePeer(socketId);
+    }
+  });
+
+  state.voice.peers.set(socketId, peer);
+  return peer;
+};
+
+const callVoicePeer = async (socketId) => {
+  const peer = createVoicePeer(socketId);
+  const offer = await peer.createOffer();
+  await peer.setLocalDescription(offer);
+  state.socket.emit('voice_signal', {
+    to: socketId,
+    signal: {
+      type: 'offer',
+      description: offer
+    }
+  });
+};
+
+const handleVoiceSignal = async ({ from, signal }) => {
+  if (!from || !signal || !state.voice.localStream) {
+    return;
+  }
+
+  const peer = createVoicePeer(from);
+
+  if (signal.type === 'offer') {
+    await peer.setRemoteDescription(new RTCSessionDescription(signal.description));
+    const answer = await peer.createAnswer();
+    await peer.setLocalDescription(answer);
+    state.socket.emit('voice_signal', {
+      to: from,
+      signal: {
+        type: 'answer',
+        description: answer
+      }
+    });
+    return;
+  }
+
+  if (signal.type === 'answer') {
+    await peer.setRemoteDescription(new RTCSessionDescription(signal.description));
+    return;
+  }
+
+  if (signal.type === 'ice' && signal.candidate) {
+    await peer.addIceCandidate(new RTCIceCandidate(signal.candidate));
+  }
+};
+
+const joinVoiceChannel = async () => {
+  const channel = activeChannel();
+
+  if (!channel || channel.type !== 'VOICE') {
+    return;
+  }
+
+  try {
+    if (!state.voice.localStream) {
+      state.voice.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    }
+
+    state.socket.emit('voice_join_channel', {
+      token: state.token,
+      channelId: channel.id
+    }, async (response) => {
+      if (!response?.ok) {
+        showToast(response?.error || 'Canale vocale non disponibile');
+        return;
+      }
+
+      state.voice.channelId = channel.id;
+      state.voice.participants = response.participants || state.voice.participants;
+      renderVoicePanel();
+
+      for (const peer of response.peers || []) {
+        await callVoicePeer(peer.socketId);
+      }
+    });
+  } catch {
+    showToast('Permesso microfono negato o non disponibile');
+  }
+};
+
+const leaveVoiceChannel = async () => {
+  if (!state.voice.channelId) {
+    return;
+  }
+
+  state.socket?.emit('voice_leave_channel');
+  state.voice.peers.forEach((peer) => peer.close());
+  state.voice.peers.clear();
+  state.voice.localStream?.getTracks().forEach((track) => track.stop());
+  state.voice.localStream = null;
+  state.voice.channelId = null;
+  state.voice.participants = [];
+  elements.remoteAudio.replaceChildren();
+
+  if (activeChannel()?.type === 'VOICE') {
+    renderVoicePanel();
   }
 };
 
@@ -746,6 +1466,85 @@ const connectSocket = () => {
 
     renderMessage(message);
     elements.messages.scrollTop = elements.messages.scrollHeight;
+  });
+
+  state.socket.on('private_message_created', (message) => {
+    const privateUser = activePrivateUser();
+
+    if (
+      state.activeConversationType !== 'private'
+      || !privateUser
+      || ![message.senderId, message.recipientId].includes(privateUser.id)
+    ) {
+      return;
+    }
+
+    if (elements.messages.querySelector(`[data-message-id="${message.id}"]`)) {
+      return;
+    }
+
+    renderMessage(message);
+    elements.messages.scrollTop = elements.messages.scrollHeight;
+  });
+
+  state.socket.on('voice_participants', ({ channelId, participants }) => {
+    if (channelId !== state.voice.channelId) {
+      return;
+    }
+
+    state.voice.participants = participants || [];
+    renderVoiceParticipants();
+  });
+
+  state.socket.on('voice_peer_joined', () => {
+    renderVoiceParticipants();
+  });
+
+  state.socket.on('voice_peer_left', ({ socketId }) => {
+    closeVoicePeer(socketId);
+  });
+
+  state.socket.on('voice_signal', (payload) => {
+    handleVoiceSignal(payload).catch(() => showToast('Segnale vocale non valido'));
+  });
+
+  state.socket.on('private_video_call_incoming', ({ callId, from }) => {
+    resetCall();
+    state.call.id = callId;
+    state.call.friend = from;
+    state.call.incoming = true;
+    showCallPanel(`Chiamata in arrivo da ${from.fullName}`);
+  });
+
+  state.socket.on('private_video_call_answered', async ({ callId, accepted, from }) => {
+    if (callId !== state.call.id) {
+      return;
+    }
+
+    if (!accepted) {
+      showToast('Chiamata rifiutata');
+      resetCall();
+      await loadMessages();
+      return;
+    }
+
+    state.call.friend = from;
+    createCallPeer(from.id);
+    showCallPanel('Connessione in corso...');
+  });
+
+  state.socket.on('private_video_call_signal', (payload) => {
+    handleVideoSignal(payload).catch(() => showToast('Videochiamata non riuscita'));
+  });
+
+  state.socket.on('private_video_call_ended', ({ callId }) => {
+    if (callId !== state.call.id) {
+      return;
+    }
+
+    showToast('Chiamata terminata');
+    resetCall();
+    loadMessages();
   });
 
   state.socket.on('private_game_invite', (game) => {
@@ -873,7 +1672,7 @@ const bootstrap = async () => {
     state.user = await api('/auth/me');
     setAuthenticatedUi(true);
     connectSocket();
-    await loadServers();
+    await loadWorkspaceData();
   } catch (error) {
     localStorage.removeItem('unichat:token');
     state.token = null;
@@ -904,7 +1703,7 @@ elements.loginForm.addEventListener('submit', async (event) => {
     localStorage.setItem('unichat:token', result.token);
     setAuthenticatedUi(true);
     connectSocket();
-    await loadServers();
+    await loadWorkspaceData();
   } catch (error) {
     showToast(error.message);
   }
@@ -951,6 +1750,9 @@ elements.createUniversityButton.addEventListener('click', async () => {
 });
 
 elements.logoutButton.addEventListener('click', async () => {
+  await leaveVoiceChannel();
+  resetCall();
+
   try {
     await api('/auth/logout', { method: 'POST' });
   } catch {
@@ -960,15 +1762,20 @@ elements.logoutButton.addEventListener('click', async () => {
   state.user = null;
   state.servers = [];
   state.availableServers = [];
+  state.friends = [];
+  state.friendsExpanded = false;
+  state.friendSearchResults = [];
   state.activeServerId = null;
   state.activeChannelId = null;
   state.activePrivateUserId = null;
+  state.activeConversationType = 'channel';
   state.game = null;
   state.socket?.disconnect();
   localStorage.removeItem('unichat:token');
   setAuthenticatedUi(false);
   renderServers();
   renderChannels();
+  renderFriends();
   elements.gamePanel.classList.add('hidden');
   elements.adminPanel.classList.add('hidden');
   await loadMessages();
@@ -986,6 +1793,18 @@ document.querySelector('#closeServerDialog').addEventListener('click', () => ele
 elements.inviteForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   await joinServerByInvite(elements.inviteCodeInput.value);
+});
+
+elements.friendForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  state.friendsExpanded = true;
+  await addFriend(elements.friendUsernameInput.value);
+});
+
+elements.friendCounterButton.addEventListener('click', toggleFriends);
+
+elements.friendUsernameInput.addEventListener('input', () => {
+  searchFriends(elements.friendUsernameInput.value).catch((error) => showToast(error.message));
 });
 
 elements.serverForm.addEventListener('submit', async (event) => {
@@ -1036,9 +1855,24 @@ elements.channelForm.addEventListener('submit', async (event) => {
 
 elements.messageForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const content = elements.messageInput.value;
+  const { formData, content, file } = buildMessageFormData();
 
-  if (!content.trim() || !state.activeChannelId) {
+  if (!content && !file) {
+    return;
+  }
+
+  if (state.activeConversationType === 'private' || file) {
+    try {
+      await sendMessageWithUpload({ formData, file });
+    } catch (error) {
+      showToast(error.message);
+      return;
+    }
+    clearComposer();
+    return;
+  }
+
+  if (!state.activeChannelId) {
     return;
   }
 
@@ -1049,10 +1883,10 @@ elements.messageForm.addEventListener('submit', async (event) => {
   }, (response) => {
     if (!response?.ok) {
       showToast(response?.error || 'Messaggio non inviato');
+      return;
     }
+    clearComposer();
   });
-
-  elements.messageInput.value = '';
 });
 
 elements.homeButton.addEventListener('click', () => {
@@ -1064,5 +1898,14 @@ elements.acceptGameButton.addEventListener('click', () => answerGameInvite(true)
 elements.declineGameButton.addEventListener('click', () => answerGameInvite(false));
 elements.restartGameButton.addEventListener('click', restartGame);
 elements.closeGameButton.addEventListener('click', closeGame);
+elements.videoCallButton.addEventListener('click', startVideoCall);
+elements.acceptCallButton.addEventListener('click', acceptVideoCall);
+elements.declineCallButton.addEventListener('click', declineVideoCall);
+elements.endCallButton.addEventListener('click', () => {
+  resetCall({ notifyPeer: true });
+  loadMessages();
+});
+elements.joinVoiceButton.addEventListener('click', joinVoiceChannel);
+elements.leaveVoiceButton.addEventListener('click', leaveVoiceChannel);
 
 bootstrap().catch((error) => showToast(error.message));

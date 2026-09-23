@@ -7,11 +7,16 @@ const { createSessionToken, hashSessionToken } = require('../utils/sessionTokens
 const userSelect = {
   id: true,
   email: true,
+  username: true,
   fullName: true,
   avatarUrl: true,
   role: true,
   universityId: true,
   createdAt: true
+};
+
+const normalizeUsername = (value) => {
+  return String(value || '').trim().toLowerCase();
 };
 
 const normalizeOptionalUrl = (value) => {
@@ -37,11 +42,18 @@ const normalizeOptionalUrl = (value) => {
 const register = async (req, res) => {
   try {
     const { email, password, fullName, universityId, inviteCode, adminCode } = req.body;
+    const username = normalizeUsername(req.body.username);
     const avatarUrl = normalizeOptionalUrl(req.body.avatarUrl);
 
-    if (!email || !password || !fullName) {
+    if (!email || !password || !fullName || !username) {
       return res.status(400).json({
-        error: 'Email, password e nome completo sono obbligatori'
+        error: 'Username, email, password e nome completo sono obbligatori'
+      });
+    }
+
+    if (!/^[a-z0-9._-]{3,24}$/.test(username)) {
+      return res.status(400).json({
+        error: 'Username non valido: usa 3-24 caratteri tra lettere, numeri, punto, trattino e underscore'
       });
     }
 
@@ -58,6 +70,16 @@ const register = async (req, res) => {
     if (existingUser) {
       return res.status(409).json({
         error: 'Email già registrata'
+      });
+    }
+
+    const existingUsername = await prisma.user.findUnique({
+      where: { username }
+    });
+
+    if (existingUsername) {
+      return res.status(409).json({
+        error: 'Username già in uso'
       });
     }
 
@@ -98,6 +120,7 @@ const register = async (req, res) => {
       const createdUser = await tx.user.create({
         data: {
           email,
+          username,
           passwordHash,
           fullName,
           avatarUrl,
@@ -186,6 +209,7 @@ const login = async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
+        username: user.username,
         fullName: user.fullName,
         avatarUrl: user.avatarUrl,
         role: user.role,

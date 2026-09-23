@@ -6,6 +6,7 @@ const { ensureServerMember } = require('../controllers/serverControllers');
 const { hashSessionToken } = require('../utils/sessionTokens');
 
 const games = new Map();
+const voiceRooms = new Map();
 const winningLines = [
   [0, 1, 2],
   [3, 4, 5],
@@ -35,6 +36,52 @@ const getUserFromToken = async (token) => {
 };
 
 const getUserRoom = (userId) => `user:${userId}`;
+const getVoiceRoom = (channelId) => `voice:${channelId}`;
+
+const getVoiceParticipants = (channelId) => {
+  const room = voiceRooms.get(channelId);
+
+  if (!room) {
+    return [];
+  }
+
+  return Array.from(room.values()).map(({ user }) => ({
+    id: user.id,
+    username: user.username,
+    fullName: user.fullName,
+    avatarUrl: user.avatarUrl
+  }));
+};
+
+const leaveVoiceChannel = (io, socket) => {
+  const channelId = socket.data.voiceChannelId;
+
+  if (!channelId) {
+    return;
+  }
+
+  const room = voiceRooms.get(channelId);
+
+  if (room) {
+    room.delete(socket.id);
+    if (room.size === 0) {
+      voiceRooms.delete(channelId);
+    }
+  }
+
+  socket.leave(getVoiceRoom(channelId));
+  socket.data.voiceChannelId = null;
+
+  socket.to(getVoiceRoom(channelId)).emit('voice_peer_left', {
+    socketId: socket.id,
+    userId: socket.data.user?.id
+  });
+
+  io.to(getVoiceRoom(channelId)).emit('voice_participants', {
+    channelId,
+    participants: getVoiceParticipants(channelId)
+  });
+};
 
 const getGameResult = (board) => {
   const winningLine = winningLines.find(([a, b, c]) => {
@@ -134,6 +181,183 @@ const registerSocketHandlers = (io) => {
         console.error('Errore Socket.IO send_message:', error);
         callback?.({ ok: false, error: 'Errore durante l\'invio' });
       }
+    });
+
+    socket.on('voice_join_channel', async ({ token, channelId }, callback) => {
+      try {
+        const user = await getUserFromToken(token);
+
+        if (!user) {
+          callback?.({ ok: false, error: 'Sessione non valida' });
+          return;
+        }
+
+        const channel = await findAccessibleChannel(channelId, user.id);
+
+        if (!channel || channel.type !== 'VOICE') {
+          callback?.({ ok: false, error: 'Canale vocale non disponibile' });
+          return;
+        }
+
+        leaveVoiceChannel(io, socket);
+
+        if (!voiceRooms.has(channelId)) {
+          voiceRooms.set(channelId, new Map());
+        }
+
+        const existingPeers = Array.from(voiceRooms.get(channelId).entries()).map(([socketId, item]) => ({
+          socketId,
+          user: {
+            id: item.user.id,
+            username: item.user.username,
+            fullName: item.user.fullName,
+            avatarUrl: item.user.avatarUrl
+          }
+        }));
+
+        voiceRooms.get(channelId).set(socket.id, { user });
+        socket.data.user = user;
+        socket.data.voiceChannelId = channelId;
+        socket.join(getVoiceRoom(channelId));
+
+        socket.to(getVoiceRoom(channelId)).emit('voice_peer_joined', {
+          socketId: socket.id,
+          user: {
+            id: user.id,
+            username: user.username,
+            fullName: user.fullName,
+            avatarUrl: user.avatarUrl
+          }
+        });
+
+        io.to(getVoiceRoom(channelId)).emit('voice_participants', {
+          channelId,
+          participants: getVoiceParticipants(channelId)
+        });
+
+        callback?.({
+          ok: true,
+          peers: existingPeers,
+          participants: getVoiceParticipants(channelId)
+        });
+      } catch (error) {
+        console.error('Errore Socket.IO voice_join_channel:', error);
+        callback?.({ ok: false, error: 'Ingresso nel canale vocale non riuscito' });
+      }
+    });
+
+    socket.on('voice_leave_channel', () => {
+      leaveVoiceChannel(io, socket);
+    });
+
+    socket.on('voice_signal', ({ to, signal }) => {
+      if (!to || !signal || !socket.data.voiceChannelId) {
+        return;
+      }
+
+      io.to(to).emit('voice_signal', {
+        from: socket.id,
+        user: socket.data.user ? {
+          id: socket.data.user.id,
+          username: socket.data.user.username,
+          fullName: socket.data.user.fullName,
+          avatarUrl: socket.data.user.avatarUrl
+        } : null,
+        signal
+      });
+    });
+
+    socket.on('private_video_call_request', async ({ token, recipientId, callId }, callback) => {
+      try {
+        const user = await getUserFromToken(token);
+
+        if (!user || !recipientId || recipientId === user.id || !callId) {
+          callback?.({ ok: false, error: 'Richiesta non valida' });
+          return;
+        }
+
+        const recipient = await prisma.user.findUnique({
+          where: { id: recipientId },
+          select: { id: true }
+        });
+
+        if (!recipient) {
+          callback?.({ ok: false, error: 'Utente non trovato' });
+          return;
+        }
+
+        io.to(getUserRoom(recipientId)).emit('private_video_call_incoming', {
+          callId,
+          from: {
+            id: user.id,
+            username: user.username,
+            fullName: user.fullName,
+            avatarUrl: user.avatarUrl
+          }
+        });
+        callback?.({ ok: true });
+      } catch (error) {
+        console.error('Errore Socket.IO private_video_call_request:', error);
+        callback?.({ ok: false, error: 'Chiamata non avviata' });
+      }
+    });
+
+    socket.on('private_video_call_answer', async ({ token, callId, callerId, accepted }, callback) => {
+      try {
+        const user = await getUserFromToken(token);
+
+        if (!user || !callId || !callerId) {
+          callback?.({ ok: false, error: 'Risposta non valida' });
+          return;
+        }
+
+        io.to(getUserRoom(callerId)).emit('private_video_call_answered', {
+          callId,
+          accepted: Boolean(accepted),
+          from: {
+            id: user.id,
+            username: user.username,
+            fullName: user.fullName,
+            avatarUrl: user.avatarUrl
+          }
+        });
+        callback?.({ ok: true });
+      } catch (error) {
+        console.error('Errore Socket.IO private_video_call_answer:', error);
+        callback?.({ ok: false, error: 'Risposta alla chiamata non inviata' });
+      }
+    });
+
+    socket.on('private_video_call_signal', async ({ token, callId, recipientId, signal }) => {
+      const user = await getUserFromToken(token);
+
+      if (!user || !callId || !recipientId || !signal) {
+        return;
+      }
+
+      io.to(getUserRoom(recipientId)).emit('private_video_call_signal', {
+        callId,
+        from: {
+          id: user.id,
+          username: user.username,
+          fullName: user.fullName,
+          avatarUrl: user.avatarUrl
+        },
+        signal
+      });
+    });
+
+    socket.on('private_video_call_end', async ({ token, callId, recipientId }) => {
+      const user = await getUserFromToken(token);
+
+      if (!user || !callId || !recipientId) {
+        return;
+      }
+
+      io.to(getUserRoom(recipientId)).emit('private_video_call_ended', {
+        callId,
+        from: { id: user.id }
+      });
     });
 
     socket.on('private_game_request', async ({ token, opponentId, serverId }, callback) => {
@@ -283,6 +507,7 @@ const registerSocketHandlers = (io) => {
     });
 
     socket.on('disconnect', () => {
+      leaveVoiceChannel(io, socket);
       console.log(`Utente disconnesso: ${socket.id}`);
     });
   });

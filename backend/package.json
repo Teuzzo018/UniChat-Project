@@ -4,7 +4,7 @@
   "description": "Backend API for UniChat",
   "main": "src/main.js",
   "scripts": {
-    "check": "node --check src/main.js && node --check src/app.js && node --check src/routes/index.js && node --check src/routes/adminRoutes.js && node --check src/routes/serverRoutes.js && node --check src/routes/messageRoutes.js && node --check src/controllers/authControllers.js && node --check src/controllers/adminControllers.js && node --check src/controllers/universityControllers.js && node --check src/controllers/serverControllers.js && node --check src/controllers/messageControllers.js && node --check src/middleware/authMiddleware.js && node --check src/middleware/adminMiddleware.js && node --check src/middleware/errorHandler.js && node --check src/sockets/index.js && node --check ../frontend/assets/js/app.js",
+    "check": "node --check src/main.js && node --check src/app.js && node --check src/routes/index.js && node --check src/routes/adminRoutes.js && node --check src/routes/friendRoutes.js && node --check src/routes/privateRoutes.js && node --check src/routes/serverRoutes.js && node --check src/routes/messageRoutes.js && node --check src/controllers/authControllers.js && node --check src/controllers/adminControllers.js && node --check src/controllers/friendControllers.js && node --check src/controllers/universityControllers.js && node --check src/controllers/serverControllers.js && node --check src/controllers/messageControllers.js && node --check src/middleware/authMiddleware.js && node --check src/middleware/adminMiddleware.js && node --check src/middleware/errorHandler.js && node --check src/utils/uploadParser.js && node --check src/sockets/index.js && node --check ../frontend/assets/js/app.js",
     "dev": "nodemon src/main.js",
     "start": "node src/main.js",
     "prisma:generate": "prisma generate",
@@ -22,6 +22,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.4.0",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
