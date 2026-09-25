@@ -56,6 +56,19 @@ const createLinkedGame = (serverId, user) => ({
   ]
 });
 
+const ensureAcceptedFriendship = async (firstUserId, secondUserId) => {
+  const [requesterId, addresseeId] = [firstUserId, secondUserId].sort();
+
+  return prisma.friendship.findFirst({
+    where: {
+      requesterId,
+      addresseeId,
+      status: 'ACCEPTED'
+    },
+    select: { id: true }
+  });
+};
+
 const emitGameUpdate = (io, game) => {
   const payload = getGameView(game);
 
@@ -69,28 +82,39 @@ const registerGameHandlers = ({ io, socket }) => {
     try {
       const user = await getUserFromToken(token);
 
-      if (!user || !opponentId || !serverId || opponentId === user.id) {
+      if (!user || !opponentId || opponentId === user.id) {
         callback?.({ ok: false, error: 'Richiesta non valida' });
         return;
       }
 
-      const [requesterMember, opponentMember, opponent] = await Promise.all([
-        ensureServerMember(serverId, user.id),
-        ensureServerMember(serverId, opponentId),
+      const [friendship, opponent] = await Promise.all([
+        ensureAcceptedFriendship(user.id, opponentId),
         prisma.user.findUnique({
           where: { id: opponentId },
           select: { id: true, username: true, fullName: true, avatarUrl: true }
         })
       ]);
 
-      if (!requesterMember || !opponentMember || !opponent) {
-        callback?.({ ok: false, error: 'Utente non disponibile in questo server' });
+      if (!friendship || !opponent) {
+        callback?.({ ok: false, error: 'Puoi invitare solo un amico' });
         return;
+      }
+
+      if (serverId) {
+        const [requesterMember, opponentMember] = await Promise.all([
+          ensureServerMember(serverId, user.id),
+          ensureServerMember(serverId, opponentId)
+        ]);
+
+        if (!requesterMember || !opponentMember) {
+          callback?.({ ok: false, error: 'Utente non disponibile in questo server' });
+          return;
+        }
       }
 
       const game = {
         id: crypto.randomUUID(),
-        serverId,
+        serverId: serverId || null,
         status: 'pending',
         board: Array(9).fill(null),
         turn: 'X',

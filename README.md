@@ -14,7 +14,7 @@ L'app permette di creare server universitari, usare canali testuali e vocali, in
 - Allegati in chat: immagini, audio, video e documenti.
 - Canali vocali WebRTC con segnalazione Socket.IO.
 - Videochiamate private.
-- Tris privato con inviti diretti o link condiviso in chat.
+- Tris privato con inviti diretti agli amici o link condiviso in chat.
 - Pannello admin per eliminare utenti, server e messaggi.
 
 ## Stack
@@ -96,7 +96,7 @@ Gli eventi Socket.IO sono divisi per responsabilita:
 - `src/sockets/chatHandlers.js`: canali e messaggi realtime.
 - `src/sockets/voiceHandlers.js`: canali vocali e segnalazione WebRTC audio.
 - `src/sockets/callHandlers.js`: videochiamate private.
-- `src/sockets/gameHandlers.js`: Tris, inviti, link e mosse.
+- `src/sockets/gameHandlers.js`: Tris tra amici, inviti, link e mosse.
 
 ## Avvio Locale
 
@@ -241,7 +241,7 @@ Anche i messaggi privati accettano testo e file tramite `multipart/form-data`.
 
 ### Tris
 
-- `private_game_request`: invita un utente a giocare.
+- `private_game_request`: invita un amico a giocare.
 - `private_game_accept`: accetta o rifiuta l'invito.
 - `private_game_move`: registra una mossa.
 - `private_game_restart`: riavvia una partita conclusa.
@@ -273,6 +273,6 @@ Per cifrare anche messaggi e allegati serve una cifratura applicativa campo per 
 - Chat realtime con Socket.IO.
 - Canali vocali WebRTC.
 - Videochiamate private WebRTC.
-- Tris privato con inviti diretti o link.
+- Tris privato con inviti diretti agli amici o link.
 - Pannello admin.
 - Socket.IO separato in moduli per leggibilita e manutenzione.

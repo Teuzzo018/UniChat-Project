@@ -24,6 +24,20 @@ const friendshipWhereForUser = (userId) => ({
   ]
 });
 
+const getUserRoom = (userId) => `user:${userId}`;
+
+const emitFriendshipEvent = (req, userIds, eventName, payload = {}) => {
+  const io = req.app.get('io');
+
+  if (!io) {
+    return;
+  }
+
+  userIds.forEach((userId) => {
+    io.to(getUserRoom(userId)).emit(eventName, payload);
+  });
+};
+
 const formatFriendship = (friendship, currentUserId) => {
   const friend = friendship.requesterId === currentUserId
     ? friendship.addressee
@@ -159,6 +173,11 @@ const addFriend = async (req, res) => {
     }
   });
 
+  emitFriendshipEvent(req, [req.user.id, targetUser.id], 'friendship_changed', {
+    friendshipId: friendship.id,
+    status: friendship.status
+  });
+
   return res.status(friendship.status === 'ACCEPTED' ? 200 : 201).json(formatFriendship(friendship, req.user.id));
 };
 
@@ -189,6 +208,11 @@ const acceptFriendRequest = async (req, res) => {
     }
   });
 
+  emitFriendshipEvent(req, [acceptedFriendship.requesterId, acceptedFriendship.addresseeId], 'friendship_changed', {
+    friendshipId: acceptedFriendship.id,
+    status: acceptedFriendship.status
+  });
+
   return res.status(200).json(formatFriendship(acceptedFriendship, req.user.id));
 };
 
@@ -214,19 +238,41 @@ const declineFriendRequest = async (req, res) => {
   }
 
   await prisma.friendship.delete({ where: { id: friendship.id } });
+  emitFriendshipEvent(req, [friendship.requesterId, friendship.addresseeId], 'friendship_changed', {
+    friendshipId: friendship.id,
+    status: 'DECLINED'
+  });
   return res.status(200).json({ message: 'Richiesta rifiutata' });
 };
 
 const removeFriend = async (req, res) => {
   const friendId = req.params.userId;
 
-  await prisma.friendship.deleteMany({
+  const deletedFriendships = await prisma.friendship.findMany({
     where: {
       OR: [
         { requesterId: req.user.id, addresseeId: friendId },
         { requesterId: friendId, addresseeId: req.user.id }
       ]
+    },
+    select: {
+      id: true,
+      requesterId: true,
+      addresseeId: true
     }
+  });
+
+  await prisma.friendship.deleteMany({
+    where: {
+      id: { in: deletedFriendships.map((friendship) => friendship.id) }
+    }
+  });
+
+  deletedFriendships.forEach((friendship) => {
+    emitFriendshipEvent(req, [friendship.requesterId, friendship.addresseeId], 'friendship_changed', {
+      friendshipId: friendship.id,
+      status: 'REMOVED'
+    });
   });
 
   return res.status(200).json({ message: 'Amico rimosso' });

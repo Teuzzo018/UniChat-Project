@@ -1686,6 +1686,10 @@ const connectSocket = () => {
     elements.messages.scrollTop = elements.messages.scrollHeight;
   });
 
+  state.socket.on('friendship_changed', () => {
+    loadFriends().catch((error) => showToast(error.message));
+  });
+
   state.socket.on('voice_participants', ({ channelId, participants }) => {
     if (channelId !== state.voice.channelId) {
       return;
@@ -1759,7 +1763,7 @@ const connectSocket = () => {
 const startPrivateGame = (opponentId) => {
   const server = activeServer();
 
-  if (!server || !state.socket?.connected) {
+  if (!state.socket?.connected) {
     showToast('Connessione non disponibile');
     return;
   }
@@ -1768,7 +1772,7 @@ const startPrivateGame = (opponentId) => {
   state.socket.emit('private_game_request', {
     token: state.token,
     opponentId,
-    serverId: server.id
+    serverId: server?.id || null
   }, (response) => {
     if (!response?.ok) {
       showToast(response?.error || 'Partita non avviata');
@@ -1780,11 +1784,7 @@ const startPrivateGame = (opponentId) => {
 };
 
 const getPlayableMembers = () => {
-  const server = activeServer();
-
-  return server?.members
-    .map((membership) => membership.user)
-    .filter((member) => member.id !== state.user?.id) || [];
+  return state.friends.map((friendship) => friendship.friend);
 };
 
 const renderGameLauncher = () => {
@@ -1796,7 +1796,7 @@ const renderGameLauncher = () => {
   if (members.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'game-launcher-empty';
-    empty.textContent = 'Nessun altro utente in questo server.';
+    empty.textContent = 'Nessun amico disponibile.';
     elements.gameFriendList.append(empty);
     return;
   }
@@ -1821,11 +1821,6 @@ const renderGameLauncher = () => {
 const openGameDialog = () => {
   if (!state.user) {
     showToast('Accedi per giocare');
-    return;
-  }
-
-  if (!activeServer()) {
-    showToast('Entra in un server per giocare');
     return;
   }
 
