@@ -375,6 +375,27 @@ const toggleOverviewPanel = (panelName) => {
   renderOverviewBar();
 };
 
+const closeOverviewPanel = () => {
+  if (!state.activeOverviewPanel) {
+    return;
+  }
+
+  state.activeOverviewPanel = null;
+  renderOverviewBar();
+};
+
+const closeOverviewPanelOnOutsideClick = (event) => {
+  if (
+    !state.activeOverviewPanel
+    || elements.overviewBar.classList.contains('hidden')
+    || elements.overviewBar.contains(event.target)
+  ) {
+    return;
+  }
+
+  closeOverviewPanel();
+};
+
 const renderSettingsLists = () => {
   elements.settingsFriendBlockList.replaceChildren();
   elements.settingsBlockedList.replaceChildren();
@@ -2958,6 +2979,7 @@ elements.settingsButton.addEventListener('click', openUserSettings);
 elements.overviewTabs.forEach((button) => {
   button.addEventListener('click', () => toggleOverviewPanel(button.dataset.overviewPanel));
 });
+document.addEventListener('click', closeOverviewPanelOnOutsideClick);
 document.querySelector('#closeSettingsDialog').addEventListener('click', () => elements.settingsDialog.close());
 elements.settingsProfileForm.addEventListener('submit', async (event) => {
   event.preventDefault();

@@ -1354,7 +1354,7 @@ button:focus-visible {
 
 .composer {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px 42px minmax(0, 220px) 96px;
+  grid-template-columns: minmax(0, 1fr) 42px 42px 96px;
   align-items: center;
   gap: 10px;
   border-top: 1px solid var(--line);
@@ -1721,8 +1721,9 @@ dialog::backdrop {
 
 .composer-attachment {
   display: inline-grid;
+  grid-column: 1 / -1;
   min-width: 0;
-  max-width: 220px;
+  width: 100%;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 8px;
