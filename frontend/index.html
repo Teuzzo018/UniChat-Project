@@ -16,7 +16,7 @@
         <button class="brand-mark" id="homeButton" type="button" title="Home">U</button>
         <div class="server-list" id="serverList"></div>
         <button class="icon-button" id="newServerButton" type="button" title="Crea server">+</button>
-        <button class="game-rail-button" id="gameRailButton" type="button" title="Tris">XO</button>
+        <button class="game-rail-button" id="gameRailButton" type="button" title="Giochi">XO</button>
       </aside>
 
       <section class="sidebar">
@@ -25,7 +25,6 @@
             <p class="eyebrow">UniChat</p>
             <h1 id="workspaceTitle">Accesso</h1>
           </div>
-          <button class="ghost-button hidden" id="logoutButton" type="button">Esci</button>
         </header>
 
         <div class="auth-panel" id="authPanel">
@@ -57,7 +56,7 @@
             </label>
             <label>
               Immagine profilo
-              <input type="url" name="avatarUrl" autocomplete="url" placeholder="https://..." />
+              <input type="file" name="file" id="registerAvatarFile" accept="image/*" />
             </label>
             <label>
               Email
@@ -97,55 +96,168 @@
             </form>
           </div>
           <button class="danger-button full-width hidden" id="deleteServerButton" type="button">Lascia server</button>
-          <h2>Richieste server</h2>
-          <div class="request-list" id="serverJoinRequestList"></div>
-          <h2>Server disponibili</h2>
-          <div class="available-server-list" id="availableServerList"></div>
-          <h2>Canali</h2>
-          <div class="channel-list" id="channelList"></div>
-          <form class="channel-form" id="channelForm">
-            <input type="text" name="name" placeholder="nuovo-canale" minlength="2" />
-            <select name="type" aria-label="Tipo canale">
-              <option value="TEXT">Testo</option>
-              <option value="VOICE">Voce</option>
-            </select>
-            <button type="submit">+</button>
-          </form>
-          <h2>Privati</h2>
-          <div class="member-list" id="memberList"></div>
-          <button class="friend-counter" id="friendCounterButton" type="button">
-            <span>Amici</span>
-            <strong id="friendCount">0</strong>
-          </button>
-          <form class="friend-form" id="friendForm">
-            <input type="text" name="username" id="friendUsernameInput" placeholder="username" autocomplete="off" />
-            <button type="submit">+</button>
-          </form>
-          <div class="friend-list" id="friendList"></div>
-          <div class="friend-request-list" id="friendRequestList"></div>
-          <div class="friend-search-list" id="friendSearchList"></div>
         </div>
+
+        <section class="user-dock hidden" id="userDock" aria-label="Profilo utente">
+          <button class="user-card" id="profileButton" type="button">
+            <div class="member-avatar" id="profileAvatar"></div>
+            <div>
+              <strong id="profileName">Utente</strong>
+              <span id="profileHandle">@utente</span>
+            </div>
+          </button>
+          <div class="status-pill" id="connectionStatus">offline</div>
+          <div class="user-controls" aria-label="Controlli utente">
+            <button class="dock-button" id="muteButton" type="button" title="Disattiva microfono" aria-label="Disattiva microfono" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <path d="M12 19v3"></path>
+                <path d="M8 22h8"></path>
+              </svg>
+            </button>
+            <button class="dock-button" id="deafenButton" type="button" title="Disattiva audio" aria-label="Disattiva audio" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 14v-2a9 9 0 0 1 18 0v2"></path>
+                <path d="M5 14h3v7H5a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2Z"></path>
+                <path d="M16 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-3v-7Z"></path>
+              </svg>
+            </button>
+            <button class="dock-button" id="permissionsButton" type="button" title="Permessi" aria-label="Permessi">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3 20 7v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7l8-4Z"></path>
+                <path d="m9 12 2 2 4-4"></path>
+              </svg>
+            </button>
+            <button class="dock-button" id="settingsButton" type="button" title="Impostazioni" aria-label="Impostazioni">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"></path>
+                <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2 3.4-.2-.1a1.7 1.7 0 0 0-2.1.4l-.1.1-3.4-2-.1-.2a1.7 1.7 0 0 0-1.8 0l-.1.2-3.4 2-.1-.1a1.7 1.7 0 0 0-2.1-.4l-.2.1-2-3.4.1-.1a1.7 1.7 0 0 0 .3-1.9v-.2L1 12l1.6-2.8V9a1.7 1.7 0 0 0-.3-1.9L2.2 7l2-3.4.2.1a1.7 1.7 0 0 0 2.1-.4l.1-.1 3.4 2 .1.2a1.7 1.7 0 0 0 1.8 0l.1-.2 3.4-2 .1.1a1.7 1.7 0 0 0 2.1.4l.2-.1 2 3.4-.1.1a1.7 1.7 0 0 0-.3 1.9v.2L23 12l-3.6 2.8v.2Z"></path>
+              </svg>
+            </button>
+            <button class="dock-button danger" id="logoutButton" type="button" title="Esci" aria-label="Esci">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M10 17l5-5-5-5"></path>
+                <path d="M15 12H3"></path>
+                <path d="M13 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"></path>
+              </svg>
+            </button>
+          </div>
+        </section>
       </section>
 
-      <section class="content-area">
+      <section class="content-area" id="contentArea">
         <header class="channel-header">
           <div>
             <p class="eyebrow" id="channelType">Canale</p>
             <h2 id="channelTitle">Benvenuto in UniChat</h2>
           </div>
           <div class="header-actions">
-            <button class="secondary-button hidden" id="videoCallButton" type="button">Video</button>
             <button class="secondary-button hidden" id="adminButton" type="button">Admin</button>
-            <div class="status-pill" id="connectionStatus">offline</div>
           </div>
         </header>
+
+        <section class="overview-bar hidden" id="overviewBar" aria-label="Strumenti rapidi">
+          <div class="overview-tabs">
+            <button class="overview-tab" type="button" data-overview-panel="channels" title="Canali">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 9h16"></path>
+                <path d="M4 15h16"></path>
+                <path d="M10 3 8 21"></path>
+                <path d="m16 3-2 18"></path>
+              </svg>
+              <span>Canali</span>
+              <strong id="channelsBadge">0</strong>
+            </button>
+            <button class="overview-tab" type="button" data-overview-panel="friendSearch" title="Cerca amico">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M11 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"></path>
+                <path d="M3 21a8 8 0 0 1 16 0"></path>
+                <path d="m16 11 5 5"></path>
+                <path d="m21 11-5 5"></path>
+              </svg>
+              <span>Cerca amico</span>
+              <strong id="friendSearchBadge">0</strong>
+            </button>
+            <button class="overview-tab" type="button" data-overview-panel="friendRequests" title="Richieste amicizia">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                <path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"></path>
+                <path d="M19 8v6"></path>
+                <path d="M16 11h6"></path>
+              </svg>
+              <span>Richieste amicizia</span>
+              <strong id="friendRequestsBadge">0</strong>
+            </button>
+            <button class="overview-tab" type="button" data-overview-panel="serverRequests" title="Richieste server">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="4" y="4" width="16" height="6" rx="2"></rect>
+                <rect x="4" y="14" width="16" height="6" rx="2"></rect>
+                <path d="m15 17 2 2 4-4"></path>
+              </svg>
+              <span>Richieste server</span>
+              <strong id="serverRequestsBadge">0</strong>
+            </button>
+            <button class="overview-tab" type="button" data-overview-panel="servers" title="Server disponibili">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="4" y="4" width="16" height="6" rx="2"></rect>
+                <rect x="4" y="14" width="16" height="6" rx="2"></rect>
+                <path d="M8 7h.01"></path>
+                <path d="M8 17h.01"></path>
+              </svg>
+              <span>Server disponibili</span>
+              <strong id="availableServersBadge">0</strong>
+            </button>
+          </div>
+          <div class="overview-panel hidden" id="overviewPanel">
+            <section class="overview-section hidden" data-overview-content="channels">
+              <h2>Canali</h2>
+              <div class="channel-list" id="channelList"></div>
+              <form class="channel-form" id="channelForm">
+                <input type="text" name="name" placeholder="nuovo-canale" minlength="2" />
+                <select name="type" aria-label="Tipo canale">
+                  <option value="TEXT">Testo</option>
+                  <option value="VOICE">Voce</option>
+                </select>
+                <button type="submit">+</button>
+              </form>
+              <h2>Privati</h2>
+              <div class="member-list" id="memberList"></div>
+            </section>
+            <section class="overview-section hidden" data-overview-content="friendSearch">
+              <h2>Cerca amico</h2>
+              <form class="friend-form" id="friendForm">
+                <input type="text" name="username" id="friendUsernameInput" placeholder="username" autocomplete="off" />
+                <button type="submit">+</button>
+              </form>
+              <button class="friend-counter" id="friendCounterButton" type="button">
+                <span>Amici</span>
+                <strong id="friendCount">0</strong>
+              </button>
+              <div class="friend-list" id="friendList"></div>
+              <div class="friend-search-list" id="friendSearchList"></div>
+            </section>
+            <section class="overview-section hidden" data-overview-content="friendRequests">
+              <h2>Richieste amicizia</h2>
+              <div class="friend-request-list" id="friendRequestList"></div>
+            </section>
+            <section class="overview-section hidden" data-overview-content="serverRequests">
+              <h2>Richieste server</h2>
+              <div class="request-list" id="serverJoinRequestList"></div>
+            </section>
+            <section class="overview-section hidden" data-overview-content="servers">
+              <h2>Server disponibili</h2>
+              <div class="available-server-list" id="availableServerList"></div>
+            </section>
+          </div>
+        </section>
 
         <div class="empty-state" id="emptyState">
           <h2>Chat universitaria senza distrazioni</h2>
           <p>Server per corsi, canali testuali e vocali, messaggi in tempo reale e accesso tramite account.</p>
         </div>
 
-        <section class="game-panel hidden" id="gamePanel" aria-label="Tris privato">
+        <section class="game-panel hidden" id="gamePanel" aria-label="Gioco privato">
           <div class="game-info">
             <div>
               <p class="eyebrow">Chat privata</p>
@@ -177,6 +289,13 @@
           </div>
         </section>
 
+        <section class="call-history hidden" id="callHistory" aria-label="Storico chiamate">
+          <div class="call-history-header">
+            <h3>Storico chiamate</h3>
+          </div>
+          <div class="call-history-list" id="callHistoryList"></div>
+        </section>
+
         <div class="messages hidden" id="messages"></div>
 
         <section class="voice-panel hidden" id="voicePanel" aria-label="Canale vocale">
@@ -189,6 +308,14 @@
             <button class="danger-button hidden" id="leaveVoiceButton" type="button">Esci</button>
           </div>
           <div class="voice-participants" id="voiceParticipants"></div>
+          <section class="voice-transcript" aria-label="Trascrizione vocale">
+            <div class="voice-transcript-header">
+              <h3>Trascrizione live</h3>
+              <span id="voiceTranscriptStatus">Disponibile dopo l'ingresso nel canale.</span>
+            </div>
+            <div class="voice-transcript-list" id="voiceTranscriptList"></div>
+            <p class="voice-transcript-interim hidden" id="voiceTranscriptInterim"></p>
+          </section>
           <div class="remote-audio" id="remoteAudio"></div>
         </section>
 
@@ -213,6 +340,11 @@
 
         <form class="composer hidden" id="messageForm">
           <input type="text" name="content" id="messageInput" maxlength="1000" placeholder="Scrivi un messaggio..." autocomplete="off" />
+          <button class="call-composer-button hidden" id="videoCallButton" type="button" title="Chiama">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7A2 2 0 0 1 22 16.9Z"></path>
+            </svg>
+          </button>
           <label class="file-button" title="Allega file">
             <input type="file" id="messageFileInput" />
             <span>+</span>
@@ -260,10 +392,14 @@
         <header>
           <div>
             <p class="eyebrow">Gioco</p>
-            <h2>Tris</h2>
+            <h2>Giochi</h2>
           </div>
           <button class="icon-button" id="closeGameDialog" type="button" title="Chiudi">x</button>
         </header>
+        <div class="game-type-tabs" role="tablist" aria-label="Scegli gioco">
+          <button class="active" type="button" data-game-type="TICTACTOE">Tris</button>
+          <button type="button" data-game-type="HANGMAN">Impiccato</button>
+        </div>
         <div class="game-launcher-actions">
           <button class="primary-button" id="sendGameLinkButton" type="button">Manda link nella chat</button>
         </div>
@@ -271,6 +407,47 @@
           <p class="eyebrow">Gioca con un amico</p>
           <div class="game-launcher-list" id="gameFriendList"></div>
         </div>
+      </div>
+    </dialog>
+
+    <dialog id="settingsDialog">
+      <div class="dialog-card settings-panel">
+        <header>
+          <div>
+            <p class="eyebrow">Account</p>
+            <h2>Impostazioni</h2>
+          </div>
+          <button class="icon-button" id="closeSettingsDialog" type="button" title="Chiudi">x</button>
+        </header>
+
+        <form class="settings-form" id="settingsProfileForm">
+          <div class="settings-profile-preview">
+            <div class="avatar" id="settingsAvatarPreview"></div>
+            <div>
+              <strong id="settingsPreviewName">Utente</strong>
+              <span id="settingsPreviewHandle">@utente</span>
+            </div>
+          </div>
+          <label>
+            Nome completo
+            <input type="text" id="settingsFullName" name="fullName" minlength="2" required />
+          </label>
+          <label>
+            Immagine profilo
+            <input type="file" id="settingsAvatarFile" name="file" accept="image/*" />
+          </label>
+          <button class="primary-button" type="submit">Salva profilo</button>
+        </form>
+
+        <section class="settings-section">
+          <h3>Blocca amici</h3>
+          <div class="settings-list" id="settingsFriendBlockList"></div>
+        </section>
+
+        <section class="settings-section">
+          <h3>Utenti bloccati</h3>
+          <div class="settings-list" id="settingsBlockedList"></div>
+        </section>
       </div>
     </dialog>
 

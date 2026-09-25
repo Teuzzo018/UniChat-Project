@@ -14,19 +14,31 @@ const state = {
   friendsExpanded: false,
   friendSearchResults: [],
   serverJoinRequests: [],
+  blockedUsers: [],
+  activeOverviewPanel: null,
   game: null,
+  selectedGameType: 'TICTACTOE',
+  userDock: {
+    muted: false,
+    deafened: false
+  },
   socket: null,
   voice: {
     channelId: null,
     localStream: null,
     peers: new Map(),
-    participants: []
+    participants: [],
+    recognition: null,
+    shouldTranscribe: false,
+    transcriptInterim: '',
+    transcripts: []
   },
   call: {
     id: null,
     peer: null,
     friend: null,
     localStream: null,
+    pendingIceCandidates: [],
     incoming: false,
     active: false
   }
@@ -42,15 +54,20 @@ const elements = {
   adminUsers: document.querySelector('#adminUsers'),
   authPanel: document.querySelector('#authPanel'),
   availableServerList: document.querySelector('#availableServerList'),
+  availableServersBadge: document.querySelector('#availableServersBadge'),
   channelForm: document.querySelector('#channelForm'),
   channelList: document.querySelector('#channelList'),
+  channelsBadge: document.querySelector('#channelsBadge'),
   channelTitle: document.querySelector('#channelTitle'),
   channelType: document.querySelector('#channelType'),
   callPanel: document.querySelector('#callPanel'),
+  callHistory: document.querySelector('#callHistory'),
+  callHistoryList: document.querySelector('#callHistoryList'),
   callStatus: document.querySelector('#callStatus'),
   callTitle: document.querySelector('#callTitle'),
   closeGameButton: document.querySelector('#closeGameButton'),
   connectionStatus: document.querySelector('#connectionStatus'),
+  contentArea: document.querySelector('#contentArea'),
   confirmAcceptButton: document.querySelector('#confirmAcceptButton'),
   confirmCancelButton: document.querySelector('#confirmCancelButton'),
   confirmDialog: document.querySelector('#confirmDialog'),
@@ -61,6 +78,7 @@ const elements = {
   declineGameButton: document.querySelector('#declineGameButton'),
   declineCallButton: document.querySelector('#declineCallButton'),
   deleteServerButton: document.querySelector('#deleteServerButton'),
+  deafenButton: document.querySelector('#deafenButton'),
   emptyState: document.querySelector('#emptyState'),
   endCallButton: document.querySelector('#endCallButton'),
   gameBoard: document.querySelector('#gameBoard'),
@@ -70,10 +88,13 @@ const elements = {
   gameRailButton: document.querySelector('#gameRailButton'),
   gameStatus: document.querySelector('#gameStatus'),
   gameTitle: document.querySelector('#gameTitle'),
+  gameTypeButtons: document.querySelectorAll('[data-game-type]'),
+  friendRequestsBadge: document.querySelector('#friendRequestsBadge'),
   friendForm: document.querySelector('#friendForm'),
   friendCounterButton: document.querySelector('#friendCounterButton'),
   friendCount: document.querySelector('#friendCount'),
   friendList: document.querySelector('#friendList'),
+  friendSearchBadge: document.querySelector('#friendSearchBadge'),
   friendRequestList: document.querySelector('#friendRequestList'),
   friendSearchList: document.querySelector('#friendSearchList'),
   friendUsernameInput: document.querySelector('#friendUsernameInput'),
@@ -89,7 +110,17 @@ const elements = {
   messageFileInput: document.querySelector('#messageFileInput'),
   messageInput: document.querySelector('#messageInput'),
   messages: document.querySelector('#messages'),
+  muteButton: document.querySelector('#muteButton'),
   newServerButton: document.querySelector('#newServerButton'),
+  overviewBar: document.querySelector('#overviewBar'),
+  overviewPanel: document.querySelector('#overviewPanel'),
+  overviewSections: document.querySelectorAll('[data-overview-content]'),
+  overviewTabs: document.querySelectorAll('[data-overview-panel]'),
+  permissionsButton: document.querySelector('#permissionsButton'),
+  profileAvatar: document.querySelector('#profileAvatar'),
+  profileButton: document.querySelector('#profileButton'),
+  profileHandle: document.querySelector('#profileHandle'),
+  profileName: document.querySelector('#profileName'),
   registerForm: document.querySelector('#registerForm'),
   restartGameButton: document.querySelector('#restartGameButton'),
   sendGameLinkButton: document.querySelector('#sendGameLinkButton'),
@@ -98,18 +129,33 @@ const elements = {
   serverDialog: document.querySelector('#serverDialog'),
   serverForm: document.querySelector('#serverForm'),
   serverJoinRequestList: document.querySelector('#serverJoinRequestList'),
+  serverRequestsBadge: document.querySelector('#serverRequestsBadge'),
   serverList: document.querySelector('#serverList'),
+  settingsButton: document.querySelector('#settingsButton'),
+  settingsAvatarPreview: document.querySelector('#settingsAvatarPreview'),
+  settingsAvatarFile: document.querySelector('#settingsAvatarFile'),
+  settingsBlockedList: document.querySelector('#settingsBlockedList'),
+  settingsDialog: document.querySelector('#settingsDialog'),
+  settingsFriendBlockList: document.querySelector('#settingsFriendBlockList'),
+  settingsFullName: document.querySelector('#settingsFullName'),
+  settingsPreviewHandle: document.querySelector('#settingsPreviewHandle'),
+  settingsPreviewName: document.querySelector('#settingsPreviewName'),
+  settingsProfileForm: document.querySelector('#settingsProfileForm'),
   splashScreen: document.querySelector('#splashScreen'),
   toast: document.querySelector('#toast'),
   universityDomain: document.querySelector('#universityDomain'),
   universityName: document.querySelector('#universityName'),
   universitySelect: document.querySelector('#universitySelect'),
   videoCallButton: document.querySelector('#videoCallButton'),
+  userDock: document.querySelector('#userDock'),
   remoteAudio: document.querySelector('#remoteAudio'),
   voicePanel: document.querySelector('#voicePanel'),
   voiceParticipants: document.querySelector('#voiceParticipants'),
   voiceStatus: document.querySelector('#voiceStatus'),
   voiceTitle: document.querySelector('#voiceTitle'),
+  voiceTranscriptInterim: document.querySelector('#voiceTranscriptInterim'),
+  voiceTranscriptList: document.querySelector('#voiceTranscriptList'),
+  voiceTranscriptStatus: document.querySelector('#voiceTranscriptStatus'),
   workspacePanel: document.querySelector('#workspacePanel'),
   workspaceTitle: document.querySelector('#workspaceTitle')
 };
@@ -204,6 +250,190 @@ const createUserAvatar = (user, className = 'avatar') => {
   return avatar;
 };
 
+const renderAvatarContent = (container, user) => {
+  container.replaceChildren();
+
+  if (user?.avatarUrl) {
+    const image = document.createElement('img');
+    image.src = user.avatarUrl;
+    image.alt = '';
+    image.referrerPolicy = 'no-referrer';
+    image.addEventListener('error', () => {
+      container.replaceChildren();
+      container.textContent = getInitials(user.fullName);
+    }, { once: true });
+    container.append(image);
+    return;
+  }
+
+  container.textContent = getInitials(user?.fullName);
+};
+
+const updateVoiceAudioState = () => {
+  state.voice.localStream?.getAudioTracks().forEach((track) => {
+    track.enabled = !state.userDock.muted && !state.userDock.deafened;
+  });
+
+  elements.remoteAudio.querySelectorAll('audio').forEach((audio) => {
+    audio.muted = state.userDock.deafened;
+  });
+};
+
+const renderUserDock = () => {
+  const authenticated = Boolean(state.user);
+
+  elements.userDock.classList.toggle('hidden', !authenticated);
+
+  if (!authenticated) {
+    return;
+  }
+
+  renderAvatarContent(elements.profileAvatar, state.user);
+  elements.profileName.textContent = state.user.fullName;
+  elements.profileHandle.textContent = getDisplayHandle(state.user);
+
+  elements.muteButton.classList.toggle('active', state.userDock.muted);
+  elements.muteButton.setAttribute('aria-pressed', String(state.userDock.muted));
+  elements.muteButton.title = state.userDock.muted ? 'Riattiva microfono' : 'Disattiva microfono';
+  elements.muteButton.setAttribute('aria-label', state.userDock.muted ? 'Riattiva microfono' : 'Disattiva microfono');
+
+  elements.deafenButton.classList.toggle('active', state.userDock.deafened);
+  elements.deafenButton.setAttribute('aria-pressed', String(state.userDock.deafened));
+  elements.deafenButton.title = state.userDock.deafened ? 'Riattiva audio' : 'Disattiva audio';
+  elements.deafenButton.setAttribute('aria-label', state.userDock.deafened ? 'Riattiva audio' : 'Disattiva audio');
+
+  elements.permissionsButton.classList.toggle('active', state.user.role === 'ADMIN');
+  updateVoiceAudioState();
+};
+
+const setBadgeCount = (badge, count) => {
+  badge.textContent = String(count);
+  badge.classList.toggle('hidden', count <= 0);
+};
+
+const renderOverviewBar = () => {
+  const authenticated = Boolean(state.user);
+  const server = activeServer();
+
+  elements.overviewBar.classList.toggle('hidden', !authenticated);
+  elements.contentArea.classList.toggle('has-overview', authenticated);
+
+  if (!authenticated) {
+    state.activeOverviewPanel = null;
+    elements.overviewPanel.classList.add('hidden');
+    return;
+  }
+
+  setBadgeCount(elements.channelsBadge, server?.channels.length || 0);
+  setBadgeCount(elements.friendSearchBadge, state.friends.length);
+  setBadgeCount(elements.friendRequestsBadge, state.friendRequests.length);
+  setBadgeCount(elements.serverRequestsBadge, state.serverJoinRequests.length);
+  setBadgeCount(elements.availableServersBadge, state.availableServers.length);
+
+  elements.overviewTabs.forEach((button) => {
+    button.classList.toggle('active', button.dataset.overviewPanel === state.activeOverviewPanel);
+  });
+
+  elements.overviewPanel.classList.toggle('hidden', !state.activeOverviewPanel);
+  elements.overviewSections.forEach((section) => {
+    section.classList.toggle('hidden', section.dataset.overviewContent !== state.activeOverviewPanel);
+  });
+};
+
+const toggleOverviewPanel = (panelName) => {
+  state.activeOverviewPanel = state.activeOverviewPanel === panelName ? null : panelName;
+  renderOverviewBar();
+};
+
+const renderSettingsLists = () => {
+  elements.settingsFriendBlockList.replaceChildren();
+  elements.settingsBlockedList.replaceChildren();
+
+  if (!state.friends.length) {
+    const empty = document.createElement('p');
+    empty.className = 'settings-empty';
+    empty.textContent = 'Nessun amico da bloccare.';
+    elements.settingsFriendBlockList.append(empty);
+  } else {
+    state.friends.forEach((friendship) => {
+      const friend = friendship.friend;
+      const row = document.createElement('div');
+      row.className = 'settings-user-row';
+
+      const info = document.createElement('div');
+      info.append(createUserAvatar(friend, 'member-avatar'));
+
+      const copy = document.createElement('div');
+      const name = document.createElement('strong');
+      name.textContent = friend.fullName;
+      const handle = document.createElement('span');
+      handle.textContent = getDisplayHandle(friend);
+      copy.append(name, handle);
+      info.append(copy);
+
+      const button = document.createElement('button');
+      button.className = 'danger-button';
+      button.type = 'button';
+      button.textContent = 'Blocca';
+      button.addEventListener('click', () => blockFriend(friend.id));
+
+      row.append(info, button);
+      elements.settingsFriendBlockList.append(row);
+    });
+  }
+
+  if (!state.blockedUsers.length) {
+    const empty = document.createElement('p');
+    empty.className = 'settings-empty';
+    empty.textContent = 'Nessun utente bloccato.';
+    elements.settingsBlockedList.append(empty);
+  } else {
+    state.blockedUsers.forEach((block) => {
+      const user = block.user;
+      const row = document.createElement('div');
+      row.className = 'settings-user-row';
+
+      const info = document.createElement('div');
+      info.append(createUserAvatar(user, 'member-avatar'));
+
+      const copy = document.createElement('div');
+      const name = document.createElement('strong');
+      name.textContent = user.fullName;
+      const handle = document.createElement('span');
+      handle.textContent = getDisplayHandle(user);
+      copy.append(name, handle);
+      info.append(copy);
+
+      const button = document.createElement('button');
+      button.className = 'secondary-button';
+      button.type = 'button';
+      button.textContent = 'Sblocca';
+      button.addEventListener('click', () => unblockUser(user.id));
+
+      row.append(info, button);
+      elements.settingsBlockedList.append(row);
+    });
+  }
+};
+
+const loadBlockedUsers = async () => {
+  state.blockedUsers = await api('/friends/blocked');
+  renderSettingsLists();
+};
+
+const renderSettingsDialog = () => {
+  if (!state.user) {
+    return;
+  }
+
+  elements.settingsFullName.value = state.user.fullName || '';
+  elements.settingsAvatarFile.value = '';
+  elements.settingsPreviewName.textContent = state.user.fullName;
+  elements.settingsPreviewHandle.textContent = getDisplayHandle(state.user);
+  renderAvatarContent(elements.settingsAvatarPreview, state.user);
+  renderSettingsLists();
+};
+
 const activeServer = () => state.servers.find((server) => server.id === state.activeServerId);
 
 const extractInviteCode = (value = '') => {
@@ -292,6 +522,8 @@ const setAuthenticatedUi = (authenticated) => {
   elements.adminButton.classList.toggle('hidden', !authenticated || state.user?.role !== 'ADMIN');
   elements.videoCallButton.classList.toggle('hidden', state.activeConversationType !== 'private' || !state.activePrivateUserId);
   elements.workspaceTitle.textContent = authenticated ? state.user.fullName : 'Accesso';
+  renderUserDock();
+  renderOverviewBar();
 };
 
 const createAdminRow = ({ title, detail, actionLabel, onAction }) => {
@@ -401,6 +633,7 @@ const showAdminPanel = async () => {
   elements.gamePanel.classList.add('hidden');
   elements.callPanel.classList.add('hidden');
   elements.voicePanel.classList.add('hidden');
+  elements.callHistory.classList.add('hidden');
   elements.messages.classList.add('hidden');
   elements.messageForm.classList.add('hidden');
   elements.videoCallButton.classList.add('hidden');
@@ -455,6 +688,7 @@ const renderAvailableServers = () => {
     item.append(info, button);
     elements.availableServerList.append(item);
   });
+  renderOverviewBar();
 };
 
 const renderServerJoinRequests = () => {
@@ -489,6 +723,7 @@ const renderServerJoinRequests = () => {
     item.append(createUserAvatar(request.user, 'member-avatar'), info, actions);
     elements.serverJoinRequestList.append(item);
   });
+  renderOverviewBar();
 };
 
 const renderFriendRow = ({ user, isFriend, friendshipStatus, requestedByMe }) => {
@@ -513,6 +748,12 @@ const renderFriendRow = ({ user, isFriend, friendshipStatus, requestedByMe }) =>
   chatButton.textContent = 'Chat';
   chatButton.addEventListener('click', () => selectPrivateChat(user));
 
+  const historyButton = document.createElement('button');
+  historyButton.className = 'secondary-button';
+  historyButton.type = 'button';
+  historyButton.textContent = 'Storico';
+  historyButton.addEventListener('click', () => showCallHistoryForUser(user));
+
   const button = document.createElement('button');
   button.className = isFriend ? 'ghost-button' : 'secondary-button';
   button.type = 'button';
@@ -524,7 +765,7 @@ const renderFriendRow = ({ user, isFriend, friendshipStatus, requestedByMe }) =>
 
   info.append(name, handle);
   if (isFriend) {
-    actions.append(chatButton, button);
+    actions.append(chatButton, historyButton, button);
   } else {
     actions.append(button);
   }
@@ -597,6 +838,7 @@ const renderFriends = () => {
       requestedByMe: user.requestedByMe
     }));
   });
+  renderOverviewBar();
 };
 
 const loadFriends = async () => {
@@ -607,6 +849,60 @@ const loadFriends = async () => {
   state.friends = friends;
   state.friendRequests = requests;
   renderFriends();
+  renderSettingsLists();
+};
+
+const openUserSettings = async () => {
+  if (!state.user) {
+    return;
+  }
+
+  renderSettingsDialog();
+  elements.settingsDialog.showModal();
+
+  try {
+    await loadBlockedUsers();
+  } catch (error) {
+    showToast(error.message);
+  }
+};
+
+const updateProfileSettings = async () => {
+  const formData = new FormData();
+  formData.append('fullName', elements.settingsFullName.value);
+
+  if (elements.settingsAvatarFile.files[0]) {
+    formData.append('file', elements.settingsAvatarFile.files[0]);
+  }
+
+  const updatedUser = await api('/auth/me', {
+    method: 'PATCH',
+    body: formData
+  });
+
+  state.user = updatedUser;
+  renderUserDock();
+  renderSettingsDialog();
+  if (!activeServer()) {
+    elements.workspaceTitle.textContent = state.user.fullName;
+  }
+  showToast('Profilo aggiornato');
+};
+
+const blockFriend = async (userId) => {
+  await api(`/friends/${userId}/block`, { method: 'POST' });
+  await Promise.all([
+    loadFriends(),
+    loadBlockedUsers()
+  ]);
+  renderChannels();
+  showToast('Utente bloccato');
+};
+
+const unblockUser = async (userId) => {
+  await api(`/friends/blocked/${userId}`, { method: 'DELETE' });
+  await loadBlockedUsers();
+  showToast('Utente sbloccato');
 };
 
 const searchFriends = async (query) => {
@@ -686,6 +982,7 @@ const renderChannels = () => {
     elements.workspaceTitle.textContent = state.user?.fullName || 'Accesso';
     elements.deleteServerButton.classList.add('hidden');
     elements.copyInviteButton.disabled = true;
+    renderOverviewBar();
     return;
   }
 
@@ -705,6 +1002,9 @@ const renderChannels = () => {
     .map((membership) => membership.user)
     .filter((member) => member.id !== state.user.id)
     .forEach((member) => {
+      const row = document.createElement('div');
+      row.className = 'member-row';
+
       const button = document.createElement('button');
       button.className = `member-item ${member.id === state.activePrivateUserId ? 'active' : ''}`;
       button.type = 'button';
@@ -713,8 +1013,18 @@ const renderChannels = () => {
       name.textContent = member.fullName;
       button.append(avatar, name);
       button.addEventListener('click', () => selectPrivateChat(member));
-      elements.memberList.append(button);
+
+      const historyButton = document.createElement('button');
+      historyButton.className = 'member-history-button';
+      historyButton.type = 'button';
+      historyButton.title = 'Storico chiamate';
+      historyButton.textContent = '↺';
+      historyButton.addEventListener('click', () => showCallHistoryForUser(member));
+
+      row.append(button, historyButton);
+      elements.memberList.append(row);
     });
+  renderOverviewBar();
 };
 
 const getCurrentPlayer = () => {
@@ -723,6 +1033,10 @@ const getCurrentPlayer = () => {
 
 const getOpponent = () => {
   return state.game?.players.find((player) => player.id !== state.user.id);
+};
+
+const getGameLabel = (type = state.game?.type) => {
+  return type === 'HANGMAN' ? 'Impiccato' : 'Tris';
 };
 
 const setGameStatus = () => {
@@ -734,7 +1048,7 @@ const setGameStatus = () => {
   const player = getCurrentPlayer();
   const opponent = getOpponent();
 
-  elements.gameTitle.textContent = `Tris con ${opponent?.fullName || 'utente'}`;
+  elements.gameTitle.textContent = `${getGameLabel()} con ${opponent?.fullName || 'utente'}`;
 
   if (state.game.status === 'pending') {
     const invited = state.game.players[1]?.id === state.user.id;
@@ -757,6 +1071,13 @@ const setGameStatus = () => {
     return;
   }
 
+  if (state.game.type === 'HANGMAN' && state.game.winner) {
+    elements.gameStatus.textContent = state.game.winner === 'players'
+      ? 'Parola completata. Avete vinto.'
+      : 'Tentativi finiti. Avete perso.';
+    return;
+  }
+
   if (state.game.winner) {
     elements.gameStatus.textContent = state.game.winner === player?.symbol ? 'Hai vinto.' : 'Hai perso.';
     return;
@@ -765,22 +1086,10 @@ const setGameStatus = () => {
   elements.gameStatus.textContent = state.game.turn === player?.symbol ? 'Tocca a te.' : `Turno di ${opponent?.fullName || 'avversario'}.`;
 };
 
-const renderGame = () => {
-  elements.emptyState.classList.add('hidden');
-  elements.adminPanel.classList.add('hidden');
-  elements.callPanel.classList.add('hidden');
-  elements.messages.classList.add('hidden');
-  elements.messageForm.classList.add('hidden');
-  elements.gamePanel.classList.remove('hidden');
-  elements.gameBoard.replaceChildren();
-
-  const player = getCurrentPlayer();
+const renderTicTacToeGame = (player) => {
   const canMove = state.game?.status === 'active' && state.game.turn === player?.symbol && !state.game.winner;
-  const invited = state.game?.status === 'pending' && state.game.players[1]?.id === state.user.id;
 
-  elements.acceptGameButton.classList.toggle('hidden', !invited);
-  elements.declineGameButton.classList.toggle('hidden', !invited);
-  elements.restartGameButton.classList.toggle('hidden', state.game?.status !== 'finished');
+  elements.gameBoard.className = 'game-board';
 
   for (let index = 0; index < 9; index += 1) {
     const cell = document.createElement('button');
@@ -790,6 +1099,67 @@ const renderGame = () => {
     cell.disabled = !canMove || Boolean(state.game?.board[index]);
     cell.addEventListener('click', () => playGameMove(index));
     elements.gameBoard.append(cell);
+  }
+};
+
+const renderHangmanGame = (player) => {
+  const canMove = state.game?.status === 'active' && state.game.turn === player?.symbol && !state.game.winner;
+  const usedLetters = new Set([
+    ...(state.game?.guessedLetters || []),
+    ...(state.game?.wrongLetters || [])
+  ]);
+
+  elements.gameBoard.className = 'game-board hangman-board';
+
+  const word = document.createElement('div');
+  word.className = 'hangman-word';
+  word.textContent = (state.game?.maskedWord || []).join(' ');
+
+  const attempts = document.createElement('div');
+  attempts.className = 'hangman-attempts';
+  attempts.textContent = `Errori: ${(state.game?.wrongLetters || []).length}/${state.game?.maxAttempts || 6}`;
+
+  const wrong = document.createElement('div');
+  wrong.className = 'hangman-wrong';
+  wrong.textContent = `Lettere sbagliate: ${(state.game?.wrongLetters || []).join(', ') || '-'}`;
+
+  const keyboard = document.createElement('div');
+  keyboard.className = 'hangman-keyboard';
+
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach((letter) => {
+    const button = document.createElement('button');
+    button.className = 'hangman-key';
+    button.type = 'button';
+    button.textContent = letter;
+    button.disabled = !canMove || usedLetters.has(letter);
+    button.addEventListener('click', () => playGameMove(letter));
+    keyboard.append(button);
+  });
+
+  elements.gameBoard.append(word, attempts, wrong, keyboard);
+};
+
+const renderGame = () => {
+  elements.emptyState.classList.add('hidden');
+  elements.adminPanel.classList.add('hidden');
+  elements.callPanel.classList.add('hidden');
+  elements.callHistory.classList.add('hidden');
+  elements.messages.classList.add('hidden');
+  elements.messageForm.classList.add('hidden');
+  elements.gamePanel.classList.remove('hidden');
+  elements.gameBoard.replaceChildren();
+
+  const player = getCurrentPlayer();
+  const invited = state.game?.status === 'pending' && state.game.players[1]?.id === state.user.id;
+
+  elements.acceptGameButton.classList.toggle('hidden', !invited);
+  elements.declineGameButton.classList.toggle('hidden', !invited);
+  elements.restartGameButton.classList.toggle('hidden', state.game?.status !== 'finished');
+
+  if (state.game?.type === 'HANGMAN') {
+    renderHangmanGame(player);
+  } else {
+    renderTicTacToeGame(player);
   }
 
   setGameStatus();
@@ -827,6 +1197,7 @@ const resetCall = ({ notifyPeer = false } = {}) => {
     peer: null,
     friend: null,
     localStream: null,
+    pendingIceCandidates: [],
     incoming: false,
     active: false
   };
@@ -841,6 +1212,7 @@ const showCallPanel = (status) => {
   elements.adminPanel.classList.add('hidden');
   elements.gamePanel.classList.add('hidden');
   elements.voicePanel.classList.add('hidden');
+  elements.callHistory.classList.add('hidden');
   elements.messages.classList.add('hidden');
   elements.messageForm.classList.add('hidden');
   elements.callPanel.classList.remove('hidden');
@@ -882,7 +1254,10 @@ const createCallPeer = (recipientId) => {
       state.call.active = true;
       showCallPanel('Chiamata attiva');
     }
-    if (['closed', 'failed', 'disconnected'].includes(peer.connectionState)) {
+    if (peer.connectionState === 'disconnected') {
+      showCallPanel('Connessione instabile...');
+    }
+    if (['closed', 'failed'].includes(peer.connectionState)) {
       resetCall();
       loadMessages();
     }
@@ -974,6 +1349,18 @@ const declineVideoCall = () => {
   loadMessages();
 };
 
+const flushVideoIceCandidates = async () => {
+  if (!state.call.peer?.remoteDescription) {
+    return;
+  }
+
+  const candidates = state.call.pendingIceCandidates.splice(0);
+
+  for (const candidate of candidates) {
+    await state.call.peer.addIceCandidate(new RTCIceCandidate(candidate));
+  }
+};
+
 const handleVideoSignal = async ({ callId, from, signal }) => {
   if (!state.call.id || callId !== state.call.id || !state.call.friend || from.id !== state.call.friend.id) {
     return;
@@ -985,6 +1372,7 @@ const handleVideoSignal = async ({ callId, from, signal }) => {
 
   if (signal.type === 'offer') {
     await state.call.peer.setRemoteDescription(new RTCSessionDescription(signal.description));
+    await flushVideoIceCandidates();
     const answer = await state.call.peer.createAnswer();
     await state.call.peer.setLocalDescription(answer);
     state.socket.emit('private_video_call_signal', {
@@ -1001,10 +1389,16 @@ const handleVideoSignal = async ({ callId, from, signal }) => {
 
   if (signal.type === 'answer') {
     await state.call.peer.setRemoteDescription(new RTCSessionDescription(signal.description));
+    await flushVideoIceCandidates();
     return;
   }
 
   if (signal.type === 'ice' && signal.candidate) {
+    if (!state.call.peer.remoteDescription) {
+      state.call.pendingIceCandidates.push(signal.candidate);
+      return;
+    }
+
     await state.call.peer.addIceCandidate(new RTCIceCandidate(signal.candidate));
   }
 };
@@ -1114,6 +1508,95 @@ const renderMessage = (message) => {
   elements.messages.append(article);
 };
 
+const getCallStatusText = (call) => {
+  const ownCall = call.callerId === state.user?.id;
+
+  if (call.status === 'DECLINED') {
+    return ownCall ? 'Rifiutata' : 'Rifiutata da te';
+  }
+
+  if (call.status === 'RINGING') {
+    return ownCall ? 'In uscita' : 'In arrivo';
+  }
+
+  if (call.status === 'ACCEPTED') {
+    return 'Accettata';
+  }
+
+  return ownCall ? 'Effettuata' : 'Ricevuta';
+};
+
+const renderCallHistory = (calls) => {
+  elements.callHistoryList.replaceChildren();
+
+  if (!calls.length) {
+    const empty = document.createElement('p');
+    empty.className = 'call-history-empty';
+    empty.textContent = 'Nessuna chiamata ancora.';
+    elements.callHistoryList.append(empty);
+    return;
+  }
+
+  calls.forEach((call) => {
+    const row = document.createElement('article');
+    row.className = 'call-history-item';
+
+    const icon = document.createElement('div');
+    icon.className = 'call-history-icon';
+    icon.textContent = call.status === 'DECLINED' ? '!' : '↗';
+
+    const copy = document.createElement('div');
+
+    const title = document.createElement('strong');
+    title.textContent = getCallStatusText(call);
+
+    const detail = document.createElement('span');
+    const startedAt = new Date(call.startedAt);
+    detail.textContent = startedAt.toLocaleString('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    copy.append(title, detail);
+    row.append(icon, copy);
+    elements.callHistoryList.append(row);
+  });
+};
+
+const loadCallHistory = async (userId) => {
+  const calls = await api(`/private/${userId}/calls`);
+  renderCallHistory(calls);
+};
+
+const showCallHistoryForUser = async (user) => {
+  resetCall();
+  state.activePrivateUserId = user.id;
+  state.activeChannelId = null;
+  state.activeConversationType = 'private';
+  state.game = null;
+  renderChannels();
+
+  elements.emptyState.classList.add('hidden');
+  elements.adminPanel.classList.add('hidden');
+  elements.gamePanel.classList.add('hidden');
+  elements.voicePanel.classList.add('hidden');
+  elements.callPanel.classList.add('hidden');
+  elements.messages.classList.add('hidden');
+  elements.messageForm.classList.add('hidden');
+  elements.callHistory.classList.remove('hidden');
+  elements.videoCallButton.classList.remove('hidden');
+  elements.channelTitle.textContent = `Chiamate con ${user.fullName}`;
+  elements.channelType.textContent = `Storico ${getDisplayHandle(user)}`;
+
+  try {
+    await loadCallHistory(user.id);
+  } catch (error) {
+    showToast(error.message);
+  }
+};
+
 const loadMessages = async () => {
   const channel = activeChannel();
   const privateUser = activePrivateUser();
@@ -1122,6 +1605,7 @@ const loadMessages = async () => {
   elements.gamePanel.classList.add('hidden');
   elements.callPanel.classList.add('hidden');
   elements.voicePanel.classList.add('hidden');
+  elements.callHistory.classList.add('hidden');
   elements.messages.replaceChildren();
   const hasConversation = state.activeConversationType === 'private' ? Boolean(privateUser) : Boolean(channel);
   elements.emptyState.classList.toggle('hidden', hasConversation);
@@ -1445,20 +1929,174 @@ const renderVoiceParticipants = () => {
   });
 };
 
+const getSpeechRecognitionConstructor = () => window.SpeechRecognition || window.webkitSpeechRecognition;
+
+const renderVoiceTranscripts = () => {
+  elements.voiceTranscriptList.replaceChildren();
+
+  if (!state.voice.transcripts.length) {
+    const empty = document.createElement('p');
+    empty.className = 'voice-transcript-empty';
+    empty.textContent = 'Nessuna trascrizione ancora.';
+    elements.voiceTranscriptList.append(empty);
+  } else {
+    state.voice.transcripts.forEach((entry) => {
+      const item = document.createElement('article');
+      item.className = 'voice-transcript-item';
+
+      const meta = document.createElement('div');
+      meta.className = 'voice-transcript-meta';
+
+      const name = document.createElement('strong');
+      name.textContent = entry.user?.id === state.user?.id ? 'Tu' : entry.user?.fullName || 'Utente';
+
+      const time = document.createElement('time');
+      time.dateTime = entry.createdAt;
+      time.textContent = new Date(entry.createdAt).toLocaleTimeString('it-IT', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      meta.append(name, time);
+
+      const text = document.createElement('p');
+      text.textContent = entry.text;
+
+      item.append(meta, text);
+      elements.voiceTranscriptList.append(item);
+    });
+  }
+
+  elements.voiceTranscriptInterim.textContent = state.voice.transcriptInterim
+    ? `Sto ascoltando: ${state.voice.transcriptInterim}`
+    : '';
+  elements.voiceTranscriptInterim.classList.toggle('hidden', !state.voice.transcriptInterim);
+  elements.voiceTranscriptList.scrollTop = elements.voiceTranscriptList.scrollHeight;
+};
+
+const addVoiceTranscript = (entry) => {
+  if (!entry?.text) {
+    return;
+  }
+
+  state.voice.transcripts.push(entry);
+  state.voice.transcripts = state.voice.transcripts.slice(-80);
+  renderVoiceTranscripts();
+};
+
+const stopVoiceTranscription = () => {
+  state.voice.shouldTranscribe = false;
+  state.voice.transcriptInterim = '';
+
+  if (state.voice.recognition) {
+    state.voice.recognition.onend = null;
+    state.voice.recognition.onerror = null;
+    state.voice.recognition.onresult = null;
+    try {
+      state.voice.recognition.stop();
+    } catch {
+      // The browser can throw if recognition already stopped itself.
+    }
+    state.voice.recognition = null;
+  }
+
+  renderVoiceTranscripts();
+};
+
+const startVoiceTranscription = () => {
+  const SpeechRecognition = getSpeechRecognitionConstructor();
+
+  if (!SpeechRecognition) {
+    elements.voiceTranscriptStatus.textContent = 'Trascrizione non supportata da questo browser.';
+    return;
+  }
+
+  stopVoiceTranscription();
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'it-IT';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  state.voice.shouldTranscribe = true;
+  state.voice.recognition = recognition;
+  elements.voiceTranscriptStatus.textContent = 'Trascrizione attiva.';
+
+  recognition.onresult = (event) => {
+    let finalText = '';
+    let interimText = '';
+
+    for (let index = event.resultIndex; index < event.results.length; index += 1) {
+      const result = event.results[index];
+      const text = result[0]?.transcript?.trim();
+
+      if (!text) {
+        continue;
+      }
+
+      if (result.isFinal) {
+        finalText = `${finalText} ${text}`.trim();
+      } else {
+        interimText = `${interimText} ${text}`.trim();
+      }
+    }
+
+    state.voice.transcriptInterim = interimText;
+    renderVoiceTranscripts();
+
+    if (finalText && state.voice.channelId && state.socket?.connected) {
+      state.socket.emit('voice_transcript', {
+        channelId: state.voice.channelId,
+        text: finalText
+      });
+    }
+  };
+
+  recognition.onerror = () => {
+    elements.voiceTranscriptStatus.textContent = 'Trascrizione interrotta dal browser.';
+  };
+
+  recognition.onend = () => {
+    state.voice.recognition = null;
+
+    if (state.voice.shouldTranscribe && state.voice.channelId) {
+      window.setTimeout(startVoiceTranscription, 500);
+      return;
+    }
+
+    elements.voiceTranscriptStatus.textContent = state.voice.channelId
+      ? 'Trascrizione ferma.'
+      : 'Disponibile dopo l\'ingresso nel canale.';
+  };
+
+  try {
+    recognition.start();
+  } catch {
+    state.voice.recognition = null;
+    state.voice.shouldTranscribe = false;
+    elements.voiceTranscriptStatus.textContent = 'Trascrizione non avviata dal browser.';
+  }
+};
+
 const renderVoicePanel = () => {
   const channel = activeChannel();
 
   elements.emptyState.classList.add('hidden');
   elements.messages.classList.add('hidden');
   elements.messageForm.classList.add('hidden');
+  elements.callHistory.classList.add('hidden');
   elements.voicePanel.classList.remove('hidden');
   elements.voiceTitle.textContent = channel?.name || 'Canale vocale';
   elements.voiceStatus.textContent = state.voice.channelId === channel?.id
     ? 'Sei nel canale vocale.'
     : 'Entra nel canale per parlare.';
+  elements.voiceTranscriptStatus.textContent = state.voice.channelId === channel?.id
+    ? elements.voiceTranscriptStatus.textContent
+    : 'Disponibile dopo l\'ingresso nel canale.';
   elements.joinVoiceButton.classList.toggle('hidden', state.voice.channelId === channel?.id);
   elements.leaveVoiceButton.classList.toggle('hidden', state.voice.channelId !== channel?.id);
   renderVoiceParticipants();
+  renderVoiceTranscripts();
 };
 
 const addRemoteAudio = (socketId, stream) => {
@@ -1469,6 +2107,7 @@ const addRemoteAudio = (socketId, stream) => {
     audio.dataset.socketId = socketId;
     audio.autoplay = true;
     audio.playsInline = true;
+    audio.muted = state.userDock.deafened;
     elements.remoteAudio.append(audio);
   }
 
@@ -1581,6 +2220,7 @@ const joinVoiceChannel = async () => {
   try {
     if (!state.voice.localStream) {
       state.voice.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      updateVoiceAudioState();
     }
 
     state.socket.emit('voice_join_channel', {
@@ -1594,7 +2234,9 @@ const joinVoiceChannel = async () => {
 
       state.voice.channelId = channel.id;
       state.voice.participants = response.participants || state.voice.participants;
+      state.voice.transcripts = [];
       renderVoicePanel();
+      startVoiceTranscription();
 
       for (const peer of response.peers || []) {
         await callVoicePeer(peer.socketId);
@@ -1611,17 +2253,56 @@ const leaveVoiceChannel = async () => {
   }
 
   state.socket?.emit('voice_leave_channel');
+  stopVoiceTranscription();
   state.voice.peers.forEach((peer) => peer.close());
   state.voice.peers.clear();
   state.voice.localStream?.getTracks().forEach((track) => track.stop());
   state.voice.localStream = null;
   state.voice.channelId = null;
   state.voice.participants = [];
+  state.voice.transcripts = [];
   elements.remoteAudio.replaceChildren();
+  renderUserDock();
 
   if (activeChannel()?.type === 'VOICE') {
     renderVoicePanel();
   }
+};
+
+const toggleMute = () => {
+  state.userDock.muted = !state.userDock.muted;
+  renderUserDock();
+  showToast(state.userDock.muted ? 'Microfono disattivato' : 'Microfono riattivato');
+};
+
+const toggleDeafen = () => {
+  state.userDock.deafened = !state.userDock.deafened;
+
+  if (state.userDock.deafened) {
+    state.userDock.muted = true;
+  }
+
+  renderUserDock();
+  showToast(state.userDock.deafened ? 'Audio disattivato' : 'Audio riattivato');
+};
+
+const showUserProfile = () => {
+  if (!state.user) {
+    return;
+  }
+
+  const server = activeServer();
+  const role = state.user.role === 'ADMIN' ? 'Admin' : 'Utente';
+  showToast(`${state.user.fullName} ${getDisplayHandle(state.user)} - ${role}${server ? ` in ${server.name}` : ''}`);
+};
+
+const openPermissionsPanel = () => {
+  if (state.user?.role === 'ADMIN') {
+    showAdminPanel();
+    return;
+  }
+
+  showToast('Permessi standard: puoi creare server, canali, chat e giochi.');
 };
 
 const connectSocket = () => {
@@ -1711,6 +2392,14 @@ const connectSocket = () => {
     handleVoiceSignal(payload).catch(() => showToast('Segnale vocale non valido'));
   });
 
+  state.socket.on('voice_transcript', (entry) => {
+    if (entry.channelId !== state.voice.channelId) {
+      return;
+    }
+
+    addVoiceTranscript(entry);
+  });
+
   state.socket.on('private_video_call_incoming', ({ callId, from }) => {
     resetCall();
     state.call.id = callId;
@@ -1752,7 +2441,7 @@ const connectSocket = () => {
 
   state.socket.on('private_game_invite', (game) => {
     showGame(game);
-    showToast(`Invito a Tris da ${game.players[0].fullName}`);
+    showToast(`Invito a ${getGameLabel(game.type)} da ${game.players[0].fullName}`);
   });
 
   state.socket.on('private_game_update', (game) => {
@@ -1760,7 +2449,7 @@ const connectSocket = () => {
   });
 };
 
-const startPrivateGame = (opponentId) => {
+const startPrivateGame = (opponentId, type = state.selectedGameType) => {
   const server = activeServer();
 
   if (!state.socket?.connected) {
@@ -1772,7 +2461,8 @@ const startPrivateGame = (opponentId) => {
   state.socket.emit('private_game_request', {
     token: state.token,
     opponentId,
-    serverId: server?.id || null
+    serverId: server?.id || null,
+    type
   }, (response) => {
     if (!response?.ok) {
       showToast(response?.error || 'Partita non avviata');
@@ -1789,6 +2479,9 @@ const getPlayableMembers = () => {
 
 const renderGameLauncher = () => {
   elements.gameFriendList.replaceChildren();
+  elements.gameTypeButtons.forEach((button) => {
+    button.classList.toggle('active', button.dataset.gameType === state.selectedGameType);
+  });
 
   const members = getPlayableMembers();
   elements.sendGameLinkButton.disabled = !activeServer() || (!state.activeChannelId && state.activeConversationType !== 'private');
@@ -1812,7 +2505,7 @@ const renderGameLauncher = () => {
     button.append(createUserAvatar(member, 'member-avatar'), name);
     button.addEventListener('click', () => {
       elements.gameDialog.close();
-      startPrivateGame(member.id);
+      startPrivateGame(member.id, state.selectedGameType);
     });
     elements.gameFriendList.append(button);
   });
@@ -1874,7 +2567,8 @@ const sendGameLinkToChat = () => {
 
   state.socket.emit('private_game_link_create', {
     token: state.token,
-    serverId: server.id
+    serverId: server.id,
+    type: state.selectedGameType
   }, async (response) => {
     if (!response?.ok) {
       showToast(response?.error || 'Link non creato');
@@ -1882,12 +2576,13 @@ const sendGameLinkToChat = () => {
     }
 
     const gameUrl = `${window.location.origin}${window.location.pathname}?game=${response.game.id}`;
+    const gameLabel = getGameLabel(response.game.type);
 
     try {
-      await postTextToActiveConversation(`Invito a Tris: ${gameUrl}`);
+      await postTextToActiveConversation(`Invito a ${gameLabel}: ${gameUrl}`);
       elements.gameDialog.close();
       showGame(response.game);
-      showToast('Link Tris inviato');
+      showToast(`Link ${gameLabel} inviato`);
     } catch (error) {
       showToast(error.message);
     }
@@ -1912,7 +2607,7 @@ const joinPendingGameFromUrl = () => {
     gameId: state.pendingGameId
   }, (response) => {
     if (!response?.ok) {
-      showToast(response?.error || 'Invito Tris non disponibile');
+      showToast(response?.error || 'Invito gioco non disponibile');
       return;
     }
 
@@ -2056,15 +2751,23 @@ elements.registerForm.addEventListener('submit', async (event) => {
   const form = new FormData(event.currentTarget);
 
   try {
-    const payload = Object.fromEntries(form);
+    const payload = new FormData();
+
+    form.forEach((value, key) => {
+      if (value instanceof File && !value.name) {
+        return;
+      }
+
+      payload.append(key, value);
+    });
 
     if (state.pendingInviteCode) {
-      payload.inviteCode = state.pendingInviteCode;
+      payload.append('inviteCode', state.pendingInviteCode);
     }
 
     await api('/auth/register', {
       method: 'POST',
-      body: JSON.stringify(payload)
+      body: payload
     });
     showToast('Account creato. Ora puoi effettuare il login.');
     document.querySelector('[data-auth-tab="login"]').click();
@@ -2109,11 +2812,15 @@ elements.logoutButton.addEventListener('click', async () => {
   state.friendsExpanded = false;
   state.friendSearchResults = [];
   state.serverJoinRequests = [];
+  state.blockedUsers = [];
+  state.activeOverviewPanel = null;
   state.activeServerId = null;
   state.activeChannelId = null;
   state.activePrivateUserId = null;
   state.activeConversationType = 'channel';
   state.game = null;
+  state.userDock.muted = false;
+  state.userDock.deafened = false;
   state.socket?.disconnect();
   localStorage.removeItem('unichat:token');
   setAuthenticatedUi(false);
@@ -2133,6 +2840,47 @@ elements.newServerButton.addEventListener('click', openServerDialog);
 elements.gameRailButton.addEventListener('click', openGameDialog);
 elements.sendGameLinkButton.addEventListener('click', sendGameLinkToChat);
 document.querySelector('#closeGameDialog').addEventListener('click', () => elements.gameDialog.close());
+elements.profileButton.addEventListener('click', showUserProfile);
+elements.muteButton.addEventListener('click', toggleMute);
+elements.deafenButton.addEventListener('click', toggleDeafen);
+elements.permissionsButton.addEventListener('click', openPermissionsPanel);
+elements.settingsButton.addEventListener('click', openUserSettings);
+elements.overviewTabs.forEach((button) => {
+  button.addEventListener('click', () => toggleOverviewPanel(button.dataset.overviewPanel));
+});
+document.querySelector('#closeSettingsDialog').addEventListener('click', () => elements.settingsDialog.close());
+elements.settingsProfileForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  try {
+    await updateProfileSettings();
+  } catch (error) {
+    showToast(error.message);
+  }
+});
+elements.settingsFullName.addEventListener('input', () => {
+  elements.settingsPreviewName.textContent = elements.settingsFullName.value || state.user?.fullName || 'Utente';
+});
+elements.settingsAvatarFile.addEventListener('change', () => {
+  const file = elements.settingsAvatarFile.files[0];
+
+  if (!file) {
+    renderAvatarContent(elements.settingsAvatarPreview, state.user);
+    return;
+  }
+
+  const previewUrl = URL.createObjectURL(file);
+  renderAvatarContent(elements.settingsAvatarPreview, {
+    ...state.user,
+    avatarUrl: previewUrl
+  });
+});
+elements.gameTypeButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    state.selectedGameType = button.dataset.gameType || 'TICTACTOE';
+    renderGameLauncher();
+  });
+});
 elements.createServerFromSidebar.addEventListener('click', openServerDialog);
 elements.copyInviteButton.addEventListener('click', copyActiveServerInvite);
 elements.deleteServerButton.addEventListener('click', deleteOrLeaveActiveServer);
