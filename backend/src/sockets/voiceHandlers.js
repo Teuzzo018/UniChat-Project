@@ -113,6 +113,23 @@ const registerVoiceHandlers = ({ io, socket }) => {
     });
   });
 
+  socket.on('voice_transcript', ({ channelId, text }) => {
+    const activeVoiceChannelId = socket.data.voiceChannelId;
+    const cleanText = typeof text === 'string' ? text.trim().slice(0, 500) : '';
+
+    if (!activeVoiceChannelId || channelId !== activeVoiceChannelId || !cleanText || !socket.data.user) {
+      return;
+    }
+
+    io.to(getVoiceRoom(activeVoiceChannelId)).emit('voice_transcript', {
+      id: `${socket.id}:${Date.now()}`,
+      channelId: activeVoiceChannelId,
+      user: getSocketUserSummary(socket.data.user),
+      text: cleanText,
+      createdAt: new Date().toISOString()
+    });
+  });
+
   socket.on('disconnect', () => {
     leaveVoiceChannel(io, socket);
   });

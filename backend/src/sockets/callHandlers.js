@@ -21,6 +21,23 @@ const registerCallHandlers = ({ io, socket }) => {
         return;
       }
 
+      await prisma.privateCall.upsert({
+        where: { id: callId },
+        update: {
+          callerId: user.id,
+          recipientId,
+          status: 'RINGING',
+          endedAt: null,
+          answeredAt: null
+        },
+        create: {
+          id: callId,
+          callerId: user.id,
+          recipientId,
+          status: 'RINGING'
+        }
+      });
+
       io.to(getUserRoom(recipientId)).emit('private_video_call_incoming', {
         callId,
         from: getSocketUserSummary(user)
@@ -40,6 +57,19 @@ const registerCallHandlers = ({ io, socket }) => {
         callback?.({ ok: false, error: 'Risposta non valida' });
         return;
       }
+
+      await prisma.privateCall.updateMany({
+        where: {
+          id: callId,
+          callerId,
+          recipientId: user.id
+        },
+        data: {
+          status: accepted ? 'ACCEPTED' : 'DECLINED',
+          answeredAt: accepted ? new Date() : null,
+          endedAt: accepted ? null : new Date()
+        }
+      });
 
       io.to(getUserRoom(callerId)).emit('private_video_call_answered', {
         callId,
@@ -73,6 +103,20 @@ const registerCallHandlers = ({ io, socket }) => {
     if (!user || !callId || !recipientId) {
       return;
     }
+
+    await prisma.privateCall.updateMany({
+      where: {
+        id: callId,
+        OR: [
+          { callerId: user.id, recipientId },
+          { callerId: recipientId, recipientId: user.id }
+        ]
+      },
+      data: {
+        status: 'ENDED',
+        endedAt: new Date()
+      }
+    });
 
     io.to(getUserRoom(recipientId)).emit('private_video_call_ended', {
       callId,

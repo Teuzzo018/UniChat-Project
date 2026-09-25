@@ -41,9 +41,11 @@ const normalizeOptionalUrl = (value) => {
 
 const register = async (req, res) => {
   try {
-    const { email, password, fullName, universityId, inviteCode, adminCode } = req.body;
-    const username = normalizeUsername(req.body.username);
-    const avatarUrl = normalizeOptionalUrl(req.body.avatarUrl);
+    const fields = req.upload?.fields || req.body || {};
+    const uploadedFile = req.upload?.file || null;
+    const { email, password, fullName, universityId, inviteCode, adminCode } = fields;
+    const username = normalizeUsername(fields.username);
+    const avatarUrl = normalizeOptionalUrl(fields.avatarUrl);
 
     if (!email || !password || !fullName || !username) {
       return res.status(400).json({
@@ -123,7 +125,7 @@ const register = async (req, res) => {
           username,
           passwordHash,
           fullName,
-          avatarUrl,
+          avatarUrl: uploadedFile?.url || avatarUrl,
           universityId: university?.id || invitedServer?.universityId || null,
           role
         },
@@ -287,10 +289,61 @@ const getAuthenticatedUser = async (req, res) => {
   }
 };
 
+const updateAuthenticatedUser = async (req, res) => {
+  try {
+    const fields = req.upload?.fields || req.body || {};
+    const uploadedFile = req.upload?.file || null;
+    const fullName = String(fields.fullName || '').trim();
+    const avatarUrl = normalizeOptionalUrl(fields.avatarUrl);
+
+    if (!fullName) {
+      return res.status(400).json({
+        error: 'Nome completo obbligatorio'
+      });
+    }
+
+    if (uploadedFile && !uploadedFile.mimeType?.startsWith('image/')) {
+      return res.status(400).json({
+        error: 'Il file profilo deve essere un\'immagine'
+      });
+    }
+
+    if (avatarUrl === false) {
+      return res.status(400).json({
+        error: 'URL immagine profilo non valido'
+      });
+    }
+
+    if (uploadedFile && !uploadedFile.mimeType?.startsWith('image/')) {
+      return res.status(400).json({
+        error: 'Il file profilo deve essere un\'immagine'
+      });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        fullName,
+        avatarUrl: uploadedFile?.url || avatarUrl || req.user.avatarUrl
+      },
+      select: userSelect
+    });
+
+    return res.status(200).json(user);
+  } catch (error) {
+    console.error('Errore update me:', error);
+
+    return res.status(500).json({
+      error: 'Errore durante l\'aggiornamento del profilo'
+    });
+  }
+};
+
 
 module.exports = {
   register,
   login,
   logout,
-  getAuthenticatedUser
+  getAuthenticatedUser,
+  updateAuthenticatedUser
 };

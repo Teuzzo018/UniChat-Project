@@ -5,6 +5,25 @@ const { ensureServerMember } = require('../controllers/serverControllers');
 const { getSocketUserSummary, getUserFromToken, getUserRoom } = require('./shared');
 
 const games = new Map();
+const gameTypes = {
+  TICTACTOE: 'TICTACTOE',
+  HANGMAN: 'HANGMAN'
+};
+const hangmanWords = [
+  'UNIVERSITA',
+  'ESAME',
+  'BIBLIOTECA',
+  'LABORATORIO',
+  'SESSIONE',
+  'PROGETTO',
+  'LEZIONE',
+  'APPUNTI',
+  'MATRICOLA',
+  'DIPARTIMENTO',
+  'RICERCA',
+  'SEMINARIO'
+];
+const maxHangmanAttempts = 6;
 const winningLines = [
   [0, 1, 2],
   [3, 4, 5],
@@ -32,29 +51,68 @@ const getGameResult = (board) => {
   return { winner: null, winningLine: [] };
 };
 
+const getGameType = (type) => {
+  return Object.values(gameTypes).includes(type) ? type : gameTypes.TICTACTOE;
+};
+
+const createHangmanState = () => ({
+  secretWord: hangmanWords[Math.floor(Math.random() * hangmanWords.length)],
+  guessedLetters: [],
+  wrongLetters: [],
+  maxAttempts: maxHangmanAttempts
+});
+
+const getMaskedWord = (game) => {
+  if (game.type !== gameTypes.HANGMAN || !game.secretWord) {
+    return [];
+  }
+
+  return game.secretWord.split('').map((letter) => {
+    return game.guessedLetters.includes(letter) ? letter : '_';
+  });
+};
+
+const isHangmanSolved = (game) => getMaskedWord(game).every((letter) => letter !== '_');
+
 const getGameView = (game) => ({
   id: game.id,
+  type: game.type,
   status: game.status,
   board: game.board,
   turn: game.turn,
   winner: game.winner,
   winningLine: game.winningLine,
   players: game.players,
-  serverId: game.serverId
+  serverId: game.serverId,
+  maskedWord: getMaskedWord(game),
+  guessedLetters: game.guessedLetters || [],
+  wrongLetters: game.wrongLetters || [],
+  remainingAttempts: game.type === gameTypes.HANGMAN
+    ? game.maxAttempts - (game.wrongLetters?.length || 0)
+    : null,
+  maxAttempts: game.type === gameTypes.HANGMAN ? game.maxAttempts : null
 });
 
-const createLinkedGame = (serverId, user) => ({
-  id: crypto.randomUUID(),
-  serverId,
-  status: 'waiting_link',
-  board: Array(9).fill(null),
-  turn: 'X',
-  winner: null,
-  winningLine: [],
-  players: [
-    { ...getSocketUserSummary(user), symbol: 'X' }
-  ]
-});
+const createGame = ({ serverId = null, status, type, firstUser, secondUser = null }) => {
+  const gameType = getGameType(type);
+  const hangmanState = gameType === gameTypes.HANGMAN ? createHangmanState() : {};
+
+  return {
+    id: crypto.randomUUID(),
+    type: gameType,
+    serverId,
+    status,
+    board: gameType === gameTypes.TICTACTOE ? Array(9).fill(null) : [],
+    turn: 'X',
+    winner: null,
+    winningLine: [],
+    players: [
+      { ...getSocketUserSummary(firstUser), symbol: 'X' },
+      ...(secondUser ? [{ ...getSocketUserSummary(secondUser), symbol: 'O' }] : [])
+    ],
+    ...hangmanState
+  };
+};
 
 const ensureAcceptedFriendship = async (firstUserId, secondUserId) => {
   const [requesterId, addresseeId] = [firstUserId, secondUserId].sort();
@@ -77,8 +135,27 @@ const emitGameUpdate = (io, game) => {
   });
 };
 
+const resetGame = (game) => {
+  game.status = 'active';
+  game.turn = 'X';
+  game.winner = null;
+  game.winningLine = [];
+
+  if (game.type === gameTypes.HANGMAN) {
+    const hangmanState = createHangmanState();
+    game.secretWord = hangmanState.secretWord;
+    game.guessedLetters = hangmanState.guessedLetters;
+    game.wrongLetters = hangmanState.wrongLetters;
+    game.maxAttempts = hangmanState.maxAttempts;
+    game.board = [];
+    return;
+  }
+
+  game.board = Array(9).fill(null);
+};
+
 const registerGameHandlers = ({ io, socket }) => {
-  socket.on('private_game_request', async ({ token, opponentId, serverId }, callback) => {
+  socket.on('private_game_request', async ({ token, opponentId, serverId, type }, callback) => {
     try {
       const user = await getUserFromToken(token);
 
@@ -112,19 +189,13 @@ const registerGameHandlers = ({ io, socket }) => {
         }
       }
 
-      const game = {
-        id: crypto.randomUUID(),
+      const game = createGame({
         serverId: serverId || null,
         status: 'pending',
-        board: Array(9).fill(null),
-        turn: 'X',
-        winner: null,
-        winningLine: [],
-        players: [
-          { ...getSocketUserSummary(user), symbol: 'X' },
-          { ...getSocketUserSummary(opponent), symbol: 'O' }
-        ]
-      };
+        type,
+        firstUser: user,
+        secondUser: opponent
+      });
 
       games.set(game.id, game);
       io.to(getUserRoom(opponent.id)).emit('private_game_invite', getGameView(game));
@@ -180,13 +251,47 @@ const registerGameHandlers = ({ io, socket }) => {
         return;
       }
 
-      if (!Number.isInteger(index) || index < 0 || index > 8 || game.board[index]) {
-        callback?.({ ok: false, error: 'Mossa non valida' });
+      if (player.symbol !== game.turn) {
+        callback?.({ ok: false, error: 'Non e il tuo turno' });
         return;
       }
 
-      if (player.symbol !== game.turn) {
-        callback?.({ ok: false, error: 'Non e il tuo turno' });
+      if (game.type === gameTypes.HANGMAN) {
+        const letter = typeof index === 'string' ? index.trim().toUpperCase() : '';
+
+        if (!/^[A-Z]$/.test(letter)) {
+          callback?.({ ok: false, error: 'Lettera non valida' });
+          return;
+        }
+
+        if (game.guessedLetters.includes(letter) || game.wrongLetters.includes(letter)) {
+          callback?.({ ok: false, error: 'Lettera gia usata' });
+          return;
+        }
+
+        if (game.secretWord.includes(letter)) {
+          game.guessedLetters.push(letter);
+        } else {
+          game.wrongLetters.push(letter);
+        }
+
+        if (isHangmanSolved(game)) {
+          game.winner = 'players';
+          game.status = 'finished';
+        } else if (game.wrongLetters.length >= game.maxAttempts) {
+          game.winner = 'hangman';
+          game.status = 'finished';
+        } else {
+          game.turn = game.turn === 'X' ? 'O' : 'X';
+        }
+
+        emitGameUpdate(io, game);
+        callback?.({ ok: true, game: getGameView(game) });
+        return;
+      }
+
+      if (!Number.isInteger(index) || index < 0 || index > 8 || game.board[index]) {
+        callback?.({ ok: false, error: 'Mossa non valida' });
         return;
       }
 
@@ -221,11 +326,7 @@ const registerGameHandlers = ({ io, socket }) => {
         return;
       }
 
-      game.status = 'active';
-      game.board = Array(9).fill(null);
-      game.turn = 'X';
-      game.winner = null;
-      game.winningLine = [];
+      resetGame(game);
 
       emitGameUpdate(io, game);
       callback?.({ ok: true, game: getGameView(game) });
@@ -235,7 +336,7 @@ const registerGameHandlers = ({ io, socket }) => {
     }
   });
 
-  socket.on('private_game_link_create', async ({ token, serverId }, callback) => {
+  socket.on('private_game_link_create', async ({ token, serverId, type }, callback) => {
     try {
       const user = await getUserFromToken(token);
 
@@ -251,7 +352,12 @@ const registerGameHandlers = ({ io, socket }) => {
         return;
       }
 
-      const game = createLinkedGame(serverId, user);
+      const game = createGame({
+        serverId,
+        status: 'waiting_link',
+        type,
+        firstUser: user
+      });
       games.set(game.id, game);
       callback?.({ ok: true, game: getGameView(game) });
     } catch (error) {

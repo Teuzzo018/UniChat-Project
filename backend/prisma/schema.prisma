@@ -56,9 +56,13 @@ model User {
   messages     Message[]
   privateMessagesSent     PrivateMessage[] @relation("PrivateMessageSender")
   privateMessagesReceived PrivateMessage[] @relation("PrivateMessageRecipient")
+  privateCallsStarted PrivateCall[] @relation("PrivateCallCaller")
+  privateCallsReceived PrivateCall[] @relation("PrivateCallRecipient")
   friendshipsStarted  Friendship[] @relation("FriendshipRequester")
   friendshipsReceived Friendship[] @relation("FriendshipAddressee")
   friendshipRequestsMade Friendship[] @relation("FriendshipRequestedBy")
+  blockedUsers BlockedUser[] @relation("BlockedUsers")
+  blockedByUsers BlockedUser[] @relation("BlockedByUsers")
   serverJoinRequests ServerJoinRequest[]
 
   createdAt    DateTime       @default(now())
@@ -155,6 +159,23 @@ model PrivateMessage {
   @@index([recipientId, senderId, createdAt])
 }
 
+model PrivateCall {
+  id          String   @id
+  callerId    String
+  recipientId String
+  status      String   @default("RINGING")
+
+  caller      User     @relation("PrivateCallCaller", fields: [callerId], references: [id], onDelete: Cascade)
+  recipient   User     @relation("PrivateCallRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  startedAt   DateTime @default(now())
+  answeredAt  DateTime?
+  endedAt     DateTime?
+
+  @@index([callerId, recipientId, startedAt])
+  @@index([recipientId, callerId, startedAt])
+}
+
 model Friendship {
   id          String   @id @default(uuid())
   requesterId String
@@ -170,6 +191,20 @@ model Friendship {
   updatedAt   DateTime @updatedAt
 
   @@unique([requesterId, addresseeId])
+}
+
+model BlockedUser {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+
+  blocker   User     @relation("BlockedUsers", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("BlockedByUsers", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
 }
 
 model ServerJoinRequest {

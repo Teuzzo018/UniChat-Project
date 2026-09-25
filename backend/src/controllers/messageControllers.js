@@ -192,6 +192,52 @@ const listPrivateMessages = async (req, res) => {
   return res.status(200).json(messages);
 };
 
+const listPrivateCalls = async (req, res) => {
+  const recipient = await ensurePrivateRecipient(req.user.id, req.params.userId);
+
+  if (!recipient) {
+    return res.status(404).json({ error: 'Utente non trovato' });
+  }
+
+  const calls = await prisma.privateCall.findMany({
+    where: {
+      OR: [
+        { callerId: req.user.id, recipientId: recipient.id },
+        { callerId: recipient.id, recipientId: req.user.id }
+      ]
+    },
+    orderBy: { startedAt: 'desc' },
+    take: 20,
+    select: {
+      id: true,
+      callerId: true,
+      recipientId: true,
+      status: true,
+      startedAt: true,
+      answeredAt: true,
+      endedAt: true,
+      caller: {
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          avatarUrl: true
+        }
+      },
+      recipient: {
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          avatarUrl: true
+        }
+      }
+    }
+  });
+
+  return res.status(200).json(calls);
+};
+
 const createPrivateMessage = async (req, res) => {
   const recipient = await ensurePrivateRecipient(req.user.id, req.params.userId);
   const { content, file } = getUploadedMessageInput(req);
@@ -222,6 +268,7 @@ module.exports = {
   createMessage,
   createPrivateMessage,
   findAccessibleChannel,
+  listPrivateCalls,
   listMessages,
   listPrivateMessages,
   messageSelect
