@@ -44,6 +44,35 @@ const state = {
   }
 };
 
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
+  'avif',
+  'aac',
+  'doc',
+  'docx',
+  'gif',
+  'heic',
+  'heif',
+  'jpeg',
+  'jpg',
+  'm4a',
+  'm4v',
+  'mov',
+  'mp3',
+  'mp4',
+  'ogg',
+  'pdf',
+  'png',
+  'ppt',
+  'pptx',
+  'txt',
+  'wav',
+  'webp',
+  'xls',
+  'xlsx',
+  'zip'
+]);
+
 const elements = {
   acceptGameButton: document.querySelector('#acceptGameButton'),
   acceptCallButton: document.querySelector('#acceptCallButton'),
@@ -108,6 +137,7 @@ const elements = {
   memberList: document.querySelector('#memberList'),
   messageForm: document.querySelector('#messageForm'),
   messageFileInput: document.querySelector('#messageFileInput'),
+  messageAttachmentPreview: document.querySelector('#messageAttachmentPreview'),
   messageInput: document.querySelector('#messageInput'),
   messages: document.querySelector('#messages'),
   muteButton: document.querySelector('#muteButton'),
@@ -1403,9 +1433,24 @@ const handleVideoSignal = async ({ callId, from, signal }) => {
   }
 };
 
-const isImageAttachment = (message) => message.attachmentMimeType?.startsWith('image/');
-const isVideoAttachment = (message) => message.attachmentMimeType?.startsWith('video/');
-const isAudioAttachment = (message) => message.attachmentMimeType?.startsWith('audio/');
+const IMAGE_ATTACHMENT_EXTENSIONS = new Set(['avif', 'gif', 'heic', 'heif', 'jpeg', 'jpg', 'png', 'webp']);
+const VIDEO_ATTACHMENT_EXTENSIONS = new Set(['mp4', 'mov', 'm4v', 'webm']);
+const AUDIO_ATTACHMENT_EXTENSIONS = new Set(['aac', 'm4a', 'mp3', 'ogg', 'wav', 'webm']);
+
+const getAttachmentExtension = (message) => getFileExtension(message.attachmentName || message.attachmentUrl || '');
+
+const isImageAttachment = (message) => (
+  message.attachmentMimeType?.startsWith('image/')
+  || IMAGE_ATTACHMENT_EXTENSIONS.has(getAttachmentExtension(message))
+);
+const isVideoAttachment = (message) => (
+  message.attachmentMimeType?.startsWith('video/')
+  || VIDEO_ATTACHMENT_EXTENSIONS.has(getAttachmentExtension(message))
+);
+const isAudioAttachment = (message) => (
+  message.attachmentMimeType?.startsWith('audio/')
+  || AUDIO_ATTACHMENT_EXTENSIONS.has(getAttachmentExtension(message))
+);
 
 const formatBytes = (bytes = 0) => {
   if (bytes < 1024) {
@@ -1417,6 +1462,66 @@ const formatBytes = (bytes = 0) => {
   }
 
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+};
+
+const getFileExtension = (filename = '') => filename.split('.').pop()?.toLowerCase() || '';
+
+const isAllowedAttachment = (file) => {
+  if (!file) {
+    return true;
+  }
+
+  if (file.type?.startsWith('image/') || file.type?.startsWith('audio/') || file.type?.startsWith('video/')) {
+    return true;
+  }
+
+  return ALLOWED_ATTACHMENT_EXTENSIONS.has(getFileExtension(file.name));
+};
+
+const validateAttachment = (file) => {
+  if (!file) {
+    return true;
+  }
+
+  if (file.size > MAX_ATTACHMENT_BYTES) {
+    showToast(`Allegato troppo grande: massimo ${formatBytes(MAX_ATTACHMENT_BYTES)}`);
+    return false;
+  }
+
+  if (!isAllowedAttachment(file)) {
+    showToast('Formato allegato non supportato');
+    return false;
+  }
+
+  return true;
+};
+
+const renderSelectedAttachment = () => {
+  const file = elements.messageFileInput.files[0];
+
+  elements.messageAttachmentPreview.replaceChildren();
+  elements.messageAttachmentPreview.classList.toggle('hidden', !file);
+
+  if (!file) {
+    return;
+  }
+
+  const name = document.createElement('span');
+  name.textContent = file.name;
+
+  const size = document.createElement('small');
+  size.textContent = formatBytes(file.size);
+
+  const removeButton = document.createElement('button');
+  removeButton.type = 'button';
+  removeButton.title = 'Rimuovi allegato';
+  removeButton.textContent = 'x';
+  removeButton.addEventListener('click', () => {
+    elements.messageFileInput.value = '';
+    renderSelectedAttachment();
+  });
+
+  elements.messageAttachmentPreview.append(name, size, removeButton);
 };
 
 const renderAttachment = (message) => {
@@ -1874,6 +1979,10 @@ const buildMessageFormData = () => {
   const content = elements.messageInput.value.trim();
   const file = elements.messageFileInput.files[0];
 
+  if (!validateAttachment(file)) {
+    return { formData, content, file: null, valid: false };
+  }
+
   if (content) {
     formData.append('content', content);
   }
@@ -1882,12 +1991,13 @@ const buildMessageFormData = () => {
     formData.append('file', file);
   }
 
-  return { formData, content, file };
+  return { formData, content, file, valid: true };
 };
 
 const clearComposer = () => {
   elements.messageInput.value = '';
   elements.messageFileInput.value = '';
+  renderSelectedAttachment();
 };
 
 const sendMessageWithUpload = async ({ formData, file }) => {
@@ -2951,7 +3061,11 @@ elements.channelForm.addEventListener('submit', async (event) => {
 
 elements.messageForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const { formData, content, file } = buildMessageFormData();
+  const { formData, content, file, valid } = buildMessageFormData();
+
+  if (!valid) {
+    return;
+  }
 
   if (!content && !file) {
     return;
@@ -2983,6 +3097,24 @@ elements.messageForm.addEventListener('submit', async (event) => {
     }
     clearComposer();
   });
+});
+
+elements.messageFileInput.addEventListener('change', () => {
+  const file = elements.messageFileInput.files[0];
+
+  if (!file) {
+    renderSelectedAttachment();
+    return;
+  }
+
+  if (!validateAttachment(file)) {
+    elements.messageFileInput.value = '';
+    renderSelectedAttachment();
+    return;
+  }
+
+  renderSelectedAttachment();
+  showToast(`Allegato selezionato: ${file.name}`);
 });
 
 elements.homeButton.addEventListener('click', () => {

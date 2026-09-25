@@ -17,9 +17,15 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+}
+
 body {
   margin: 0;
+  height: 100%;
   min-height: 100vh;
+  overflow: hidden;
   background:
     linear-gradient(135deg, rgba(219, 234, 254, 0.94), rgba(239, 246, 255, 0.98)),
     var(--bg);
@@ -76,7 +82,10 @@ button {
 .app-shell {
   display: grid;
   grid-template-columns: 76px 380px 1fr;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .server-rail {
@@ -84,6 +93,8 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  min-height: 0;
+  overflow: auto;
   padding: 16px 10px;
   background: #0f2f63;
   color: #fff;
@@ -180,6 +191,8 @@ button {
   align-items: stretch;
   gap: 16px;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   border-right: 1px solid var(--line);
   background: var(--panel);
   padding: 18px;
@@ -640,6 +653,8 @@ button:focus-visible {
   display: grid;
   grid-template-rows: auto 1fr auto;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   background: rgba(248, 251, 255, 0.88);
   text-align: center;
 }
@@ -822,6 +837,7 @@ button:focus-visible {
 }
 
 .messages {
+  min-height: 0;
   overflow: auto;
   padding: 24px;
   text-align: left;
@@ -1338,7 +1354,8 @@ button:focus-visible {
 
 .composer {
   display: grid;
-  grid-template-columns: 1fr 42px 42px 96px;
+  grid-template-columns: minmax(0, 1fr) 42px 42px minmax(0, 220px) 96px;
+  align-items: center;
   gap: 10px;
   border-top: 1px solid var(--line);
   padding: 16px 24px;
@@ -1702,6 +1719,51 @@ dialog::backdrop {
   display: none;
 }
 
+.composer-attachment {
+  display: inline-grid;
+  min-width: 0;
+  max-width: 220px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--text);
+  padding: 8px 10px;
+}
+
+.composer-attachment span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.composer-attachment small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.composer-attachment button {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .message-attachment {
   margin-top: 8px;
 }
@@ -1891,7 +1953,7 @@ dialog::backdrop {
 @media (max-width: 850px) {
   .app-shell {
     grid-template-columns: 58px 1fr;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .server-rail {
@@ -1907,6 +1969,8 @@ dialog::backdrop {
   }
 
   .sidebar {
+    min-height: 0;
+    max-height: 42vh;
     border-right: 0;
     border-bottom: 1px solid var(--line);
     padding: 14px;
@@ -1914,7 +1978,7 @@ dialog::backdrop {
 
   .content-area {
     grid-column: 2;
-    min-height: 56vh;
+    min-height: 0;
   }
 
   .overview-bar {
@@ -1968,5 +2032,9 @@ dialog::backdrop {
   .composer {
     grid-template-columns: 1fr;
     padding: 12px 14px;
+  }
+
+  .composer-attachment {
+    max-width: none;
   }
 }
