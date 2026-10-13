@@ -116,7 +116,8 @@ button {
   align-items: center;
   gap: 12px;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 16px 10px;
   background: #0f2f63;
   color: #fff;
@@ -179,7 +180,7 @@ button {
   position: absolute;
   top: 50%;
   z-index: -1;
-  width: 22px;
+  width: 18px;
   height: 14px;
   border: 2px solid #bfdbfe;
   border-radius: 6px;
@@ -195,11 +196,11 @@ button {
 }
 
 .game-rail-button::before {
-  left: -4px;
+  left: 2px;
 }
 
 .game-rail-button::after {
-  right: -4px;
+  right: 2px;
 }
 
 .game-rail-button:hover,
@@ -211,13 +212,13 @@ button {
 .game-rail-button:hover::before,
 .game-rail-button:focus-visible::before {
   opacity: 1;
-  transform: translate(-18px, -50%) rotate(-14deg) scale(1);
+  transform: translate(-8px, -50%) rotate(-14deg) scale(1);
 }
 
 .game-rail-button:hover::after,
 .game-rail-button:focus-visible::after {
   opacity: 1;
-  transform: translate(18px, -50%) rotate(14deg) scale(1);
+  transform: translate(8px, -50%) rotate(14deg) scale(1);
 }
 
 /* ==========================================================================
