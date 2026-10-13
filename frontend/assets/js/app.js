@@ -1,303 +1,11 @@
-const state = {
-  token: localStorage.getItem('unichat:token'),
-  pendingInviteCode: new URLSearchParams(window.location.search).get('invite') || localStorage.getItem('unichat:pendingInviteCode'),
-  pendingGameId: new URLSearchParams(window.location.search).get('game'),
-  user: null,
-  servers: [],
-  availableServers: [],
-  activeServerId: null,
-  activeChannelId: null,
-  activePrivateUserId: null,
-  activeConversationType: 'channel',
-  friends: [],
-  friendRequests: [],
-  friendsExpanded: false,
-  friendSearchResults: [],
-  serverJoinRequests: [],
-  blockedUsers: [],
-  activeOverviewPanel: null,
-  game: null,
-  selectedGameType: 'TICTACTOE',
-  userDock: {
-    muted: false,
-    deafened: false
-  },
-  socket: null,
-  voice: {
-    channelId: null,
-    localStream: null,
-    peers: new Map(),
-    participants: [],
-    recognition: null,
-    shouldTranscribe: false,
-    transcriptInterim: '',
-    transcripts: []
-  },
-  call: {
-    id: null,
-    peer: null,
-    friend: null,
-    localStream: null,
-    pendingIceCandidates: [],
-    incoming: false,
-    active: false
-  }
-};
+import { api } from './modules/api.js';
+import { formatBytes, isAllowedAttachment, isAudioAttachment, isImageAttachment, isVideoAttachment, MAX_ATTACHMENT_BYTES } from './modules/attachments.js';
+import { elements, startSplashScreenTimers } from './modules/dom.js';
+import { setupEventListeners } from './modules/events.js';
+import { state } from './modules/state.js';
+import { appendMessageContent, createUserAvatar, getDisplayHandle, getInitials, renderAvatarContent, setBadgeCount, showConfirm, showToast } from './modules/ui.js';
 
-const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
-const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
-  'avif',
-  'aac',
-  'doc',
-  'docx',
-  'gif',
-  'heic',
-  'heif',
-  'jpeg',
-  'jpg',
-  'm4a',
-  'm4v',
-  'mov',
-  'mp3',
-  'mp4',
-  'ogg',
-  'pdf',
-  'png',
-  'ppt',
-  'pptx',
-  'txt',
-  'wav',
-  'webp',
-  'xls',
-  'xlsx',
-  'zip'
-]);
-
-const elements = {
-  acceptGameButton: document.querySelector('#acceptGameButton'),
-  acceptCallButton: document.querySelector('#acceptCallButton'),
-  adminButton: document.querySelector('#adminButton'),
-  adminMessages: document.querySelector('#adminMessages'),
-  adminPanel: document.querySelector('#adminPanel'),
-  adminServers: document.querySelector('#adminServers'),
-  adminUsers: document.querySelector('#adminUsers'),
-  authPanel: document.querySelector('#authPanel'),
-  availableServerList: document.querySelector('#availableServerList'),
-  availableServersBadge: document.querySelector('#availableServersBadge'),
-  channelForm: document.querySelector('#channelForm'),
-  channelList: document.querySelector('#channelList'),
-  channelsBadge: document.querySelector('#channelsBadge'),
-  channelTitle: document.querySelector('#channelTitle'),
-  channelType: document.querySelector('#channelType'),
-  callPanel: document.querySelector('#callPanel'),
-  callHistory: document.querySelector('#callHistory'),
-  callHistoryList: document.querySelector('#callHistoryList'),
-  callStatus: document.querySelector('#callStatus'),
-  callTitle: document.querySelector('#callTitle'),
-  closeGameButton: document.querySelector('#closeGameButton'),
-  connectionStatus: document.querySelector('#connectionStatus'),
-  contentArea: document.querySelector('#contentArea'),
-  confirmAcceptButton: document.querySelector('#confirmAcceptButton'),
-  confirmCancelButton: document.querySelector('#confirmCancelButton'),
-  confirmDialog: document.querySelector('#confirmDialog'),
-  confirmDialogMessage: document.querySelector('#confirmDialogMessage'),
-  copyInviteButton: document.querySelector('#copyInviteButton'),
-  createServerFromSidebar: document.querySelector('#createServerFromSidebar'),
-  createUniversityButton: document.querySelector('#createUniversityButton'),
-  declineGameButton: document.querySelector('#declineGameButton'),
-  declineCallButton: document.querySelector('#declineCallButton'),
-  deleteServerButton: document.querySelector('#deleteServerButton'),
-  deafenButton: document.querySelector('#deafenButton'),
-  emptyState: document.querySelector('#emptyState'),
-  endCallButton: document.querySelector('#endCallButton'),
-  gameBoard: document.querySelector('#gameBoard'),
-  gameDialog: document.querySelector('#gameDialog'),
-  gameFriendList: document.querySelector('#gameFriendList'),
-  gamePanel: document.querySelector('#gamePanel'),
-  gameRailButton: document.querySelector('#gameRailButton'),
-  gameStatus: document.querySelector('#gameStatus'),
-  gameTitle: document.querySelector('#gameTitle'),
-  gameTypeButtons: document.querySelectorAll('[data-game-type]'),
-  friendRequestsBadge: document.querySelector('#friendRequestsBadge'),
-  friendForm: document.querySelector('#friendForm'),
-  friendCounterButton: document.querySelector('#friendCounterButton'),
-  friendCount: document.querySelector('#friendCount'),
-  friendList: document.querySelector('#friendList'),
-  friendSearchBadge: document.querySelector('#friendSearchBadge'),
-  friendRequestList: document.querySelector('#friendRequestList'),
-  friendSearchList: document.querySelector('#friendSearchList'),
-  friendUsernameInput: document.querySelector('#friendUsernameInput'),
-  homeButton: document.querySelector('#homeButton'),
-  inviteCodeInput: document.querySelector('#inviteCodeInput'),
-  inviteForm: document.querySelector('#inviteForm'),
-  joinVoiceButton: document.querySelector('#joinVoiceButton'),
-  leaveVoiceButton: document.querySelector('#leaveVoiceButton'),
-  loginForm: document.querySelector('#loginForm'),
-  logoutButton: document.querySelector('#logoutButton'),
-  memberList: document.querySelector('#memberList'),
-  messageForm: document.querySelector('#messageForm'),
-  messageFileInput: document.querySelector('#messageFileInput'),
-  messageAttachmentPreview: document.querySelector('#messageAttachmentPreview'),
-  messageInput: document.querySelector('#messageInput'),
-  messages: document.querySelector('#messages'),
-  muteButton: document.querySelector('#muteButton'),
-  newServerButton: document.querySelector('#newServerButton'),
-  overviewBar: document.querySelector('#overviewBar'),
-  overviewPanel: document.querySelector('#overviewPanel'),
-  overviewSections: document.querySelectorAll('[data-overview-content]'),
-  overviewTabs: document.querySelectorAll('[data-overview-panel]'),
-  permissionsButton: document.querySelector('#permissionsButton'),
-  profileAvatar: document.querySelector('#profileAvatar'),
-  profileButton: document.querySelector('#profileButton'),
-  profileHandle: document.querySelector('#profileHandle'),
-  profileName: document.querySelector('#profileName'),
-  registerForm: document.querySelector('#registerForm'),
-  restartGameButton: document.querySelector('#restartGameButton'),
-  sendGameLinkButton: document.querySelector('#sendGameLinkButton'),
-  localVideo: document.querySelector('#localVideo'),
-  remoteVideo: document.querySelector('#remoteVideo'),
-  serverDialog: document.querySelector('#serverDialog'),
-  serverForm: document.querySelector('#serverForm'),
-  serverJoinRequestList: document.querySelector('#serverJoinRequestList'),
-  serverRequestsBadge: document.querySelector('#serverRequestsBadge'),
-  serverList: document.querySelector('#serverList'),
-  settingsButton: document.querySelector('#settingsButton'),
-  settingsAvatarPreview: document.querySelector('#settingsAvatarPreview'),
-  settingsAvatarFile: document.querySelector('#settingsAvatarFile'),
-  settingsBlockedList: document.querySelector('#settingsBlockedList'),
-  settingsDialog: document.querySelector('#settingsDialog'),
-  settingsFriendBlockList: document.querySelector('#settingsFriendBlockList'),
-  settingsFullName: document.querySelector('#settingsFullName'),
-  settingsPreviewHandle: document.querySelector('#settingsPreviewHandle'),
-  settingsPreviewName: document.querySelector('#settingsPreviewName'),
-  settingsProfileForm: document.querySelector('#settingsProfileForm'),
-  splashScreen: document.querySelector('#splashScreen'),
-  toast: document.querySelector('#toast'),
-  universityDomain: document.querySelector('#universityDomain'),
-  universityName: document.querySelector('#universityName'),
-  universitySelect: document.querySelector('#universitySelect'),
-  videoCallButton: document.querySelector('#videoCallButton'),
-  userDock: document.querySelector('#userDock'),
-  remoteAudio: document.querySelector('#remoteAudio'),
-  voicePanel: document.querySelector('#voicePanel'),
-  voiceParticipants: document.querySelector('#voiceParticipants'),
-  voiceStatus: document.querySelector('#voiceStatus'),
-  voiceTitle: document.querySelector('#voiceTitle'),
-  voiceTranscriptInterim: document.querySelector('#voiceTranscriptInterim'),
-  voiceTranscriptList: document.querySelector('#voiceTranscriptList'),
-  voiceTranscriptStatus: document.querySelector('#voiceTranscriptStatus'),
-  workspacePanel: document.querySelector('#workspacePanel'),
-  workspaceTitle: document.querySelector('#workspaceTitle')
-};
-
-window.setTimeout(() => {
-  elements.splashScreen?.classList.add('hidden');
-}, 900);
-
-window.setTimeout(() => {
-  elements.splashScreen?.remove();
-}, 1700);
-
-const api = async (path, options = {}) => {
-  const isFormData = options.body instanceof FormData;
-  const response = await fetch(`/api${path}`, {
-    ...options,
-    headers: {
-      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
-      ...options.headers
-    }
-  });
-
-  const payload = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(payload.error || 'Richiesta non riuscita');
-  }
-
-  return payload;
-};
-
-const showToast = (message) => {
-  elements.toast.textContent = message;
-  elements.toast.classList.add('visible');
-  window.setTimeout(() => elements.toast.classList.remove('visible'), 2600);
-};
-
-const showConfirm = (message, confirmLabel = 'Conferma') => new Promise((resolve) => {
-  elements.confirmDialogMessage.textContent = message;
-  elements.confirmAcceptButton.textContent = confirmLabel;
-
-  const finish = (confirmed) => {
-    elements.confirmAcceptButton.removeEventListener('click', onAccept);
-    elements.confirmCancelButton.removeEventListener('click', onCancel);
-    elements.confirmDialog.removeEventListener('cancel', onDialogCancel);
-    elements.confirmDialog.close();
-    resolve(confirmed);
-  };
-
-  const onAccept = () => finish(true);
-  const onCancel = () => finish(false);
-  const onDialogCancel = (event) => {
-    event.preventDefault();
-    finish(false);
-  };
-
-  elements.confirmAcceptButton.addEventListener('click', onAccept);
-  elements.confirmCancelButton.addEventListener('click', onCancel);
-  elements.confirmDialog.addEventListener('cancel', onDialogCancel);
-  elements.confirmDialog.showModal();
-});
-
-const getInitials = (name = '?') => {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
-};
-
-const createUserAvatar = (user, className = 'avatar') => {
-  const avatar = document.createElement('div');
-  avatar.className = className;
-
-  if (user?.avatarUrl) {
-    const image = document.createElement('img');
-    image.src = user.avatarUrl;
-    image.alt = '';
-    image.referrerPolicy = 'no-referrer';
-    image.addEventListener('error', () => {
-      avatar.replaceChildren();
-      avatar.textContent = getInitials(user.fullName);
-    }, { once: true });
-    avatar.append(image);
-    return avatar;
-  }
-
-  avatar.textContent = getInitials(user?.fullName);
-  return avatar;
-};
-
-const renderAvatarContent = (container, user) => {
-  container.replaceChildren();
-
-  if (user?.avatarUrl) {
-    const image = document.createElement('img');
-    image.src = user.avatarUrl;
-    image.alt = '';
-    image.referrerPolicy = 'no-referrer';
-    image.addEventListener('error', () => {
-      container.replaceChildren();
-      container.textContent = getInitials(user.fullName);
-    }, { once: true });
-    container.append(image);
-    return;
-  }
-
-  container.textContent = getInitials(user?.fullName);
-};
+startSplashScreenTimers();
 
 const updateVoiceAudioState = () => {
   state.voice.localStream?.getAudioTracks().forEach((track) => {
@@ -334,11 +42,6 @@ const renderUserDock = () => {
 
   elements.permissionsButton.classList.toggle('active', state.user.role === 'ADMIN');
   updateVoiceAudioState();
-};
-
-const setBadgeCount = (badge, count) => {
-  badge.textContent = String(count);
-  badge.classList.toggle('hidden', count <= 0);
 };
 
 const renderOverviewBar = () => {
@@ -523,28 +226,6 @@ const activePrivateUser = () => {
     || state.friendSearchResults.find((user) => user.id === state.activePrivateUserId);
 };
 
-const getDisplayHandle = (user) => user?.username ? `@${user.username}` : user?.email || '';
-
-const appendMessageContent = (container, text = '') => {
-  const urlPattern = /(https?:\/\/[^\s]+)/g;
-  let lastIndex = 0;
-
-  text.replace(urlPattern, (url, _match, index) => {
-    container.append(document.createTextNode(text.slice(lastIndex, index)));
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.textContent = url;
-    link.target = '_blank';
-    link.rel = 'noopener';
-    container.append(link);
-
-    lastIndex = index + url.length;
-    return url;
-  });
-
-  container.append(document.createTextNode(text.slice(lastIndex)));
-};
 
 const setDefaultEmptyState = () => {
   elements.emptyState.querySelector('h2').textContent = state.user ? 'Home' : 'Chat universitaria senza distrazioni';
@@ -1452,51 +1133,6 @@ const handleVideoSignal = async ({ callId, from, signal }) => {
 
     await state.call.peer.addIceCandidate(new RTCIceCandidate(signal.candidate));
   }
-};
-
-const IMAGE_ATTACHMENT_EXTENSIONS = new Set(['avif', 'gif', 'heic', 'heif', 'jpeg', 'jpg', 'png', 'webp']);
-const VIDEO_ATTACHMENT_EXTENSIONS = new Set(['mp4', 'mov', 'm4v', 'webm']);
-const AUDIO_ATTACHMENT_EXTENSIONS = new Set(['aac', 'm4a', 'mp3', 'ogg', 'wav', 'webm']);
-
-const getAttachmentExtension = (message) => getFileExtension(message.attachmentName || message.attachmentUrl || '');
-
-const isImageAttachment = (message) => (
-  message.attachmentMimeType?.startsWith('image/')
-  || IMAGE_ATTACHMENT_EXTENSIONS.has(getAttachmentExtension(message))
-);
-const isVideoAttachment = (message) => (
-  message.attachmentMimeType?.startsWith('video/')
-  || VIDEO_ATTACHMENT_EXTENSIONS.has(getAttachmentExtension(message))
-);
-const isAudioAttachment = (message) => (
-  message.attachmentMimeType?.startsWith('audio/')
-  || AUDIO_ATTACHMENT_EXTENSIONS.has(getAttachmentExtension(message))
-);
-
-const formatBytes = (bytes = 0) => {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-};
-
-const getFileExtension = (filename = '') => filename.split('.').pop()?.toLowerCase() || '';
-
-const isAllowedAttachment = (file) => {
-  if (!file) {
-    return true;
-  }
-
-  if (file.type?.startsWith('image/') || file.type?.startsWith('audio/') || file.type?.startsWith('video/')) {
-    return true;
-  }
-
-  return ALLOWED_ATTACHMENT_EXTENSIONS.has(getFileExtension(file.name));
 };
 
 const validateAttachment = (file) => {
@@ -2848,313 +2484,58 @@ const bootstrap = async () => {
   }
 };
 
-document.querySelectorAll('[data-auth-tab]').forEach((button) => {
-  button.addEventListener('click', () => {
-    document.querySelectorAll('[data-auth-tab]').forEach((tab) => tab.classList.remove('active'));
-    button.classList.add('active');
-    elements.loginForm.classList.toggle('hidden', button.dataset.authTab !== 'login');
-    elements.registerForm.classList.toggle('hidden', button.dataset.authTab !== 'register');
-  });
+setupEventListeners({
+  elements,
+  api,
+  state,
+  setAuthenticatedUi,
+  connectSocket,
+  loadWorkspaceData,
+  showToast,
+  loadUniversities,
+  leaveVoiceChannel,
+  resetCall,
+  renderServers,
+  renderChannels,
+  renderFriends,
+  renderServerJoinRequests,
+  loadMessages,
+  showAdminPanel,
+  openUserSettings,
+  openGameDialog,
+  sendGameLinkToChat,
+  showUserProfile,
+  toggleMute,
+  toggleDeafen,
+  openPermissionsPanel,
+  toggleOverviewPanel,
+  closeOverviewPanelOnOutsideClick,
+  updateProfileSettings,
+  renderAvatarContent,
+  renderGameLauncher,
+  copyActiveServerInvite,
+  deleteOrLeaveActiveServer,
+  joinServerByInvite,
+  addFriend,
+  toggleFriends,
+  searchFriends,
+  activeServer,
+  selectServer,
+  renderAvailableServers,
+  selectChannel,
+  buildMessageFormData,
+  sendMessageWithUpload,
+  clearComposer,
+  validateAttachment,
+  renderSelectedAttachment,
+  answerGameInvite,
+  restartGame,
+  closeGame,
+  startVideoCall,
+  acceptVideoCall,
+  declineVideoCall,
+  joinVoiceChannel,
+  showHome
 });
-
-elements.loginForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.currentTarget);
-
-  try {
-    const result = await api('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(Object.fromEntries(form))
-    });
-    state.token = result.token;
-    state.user = result.user;
-    localStorage.setItem('unichat:token', result.token);
-    setAuthenticatedUi(true);
-    connectSocket();
-    await loadWorkspaceData();
-  } catch (error) {
-    showToast(error.message);
-  }
-});
-
-elements.registerForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.currentTarget);
-
-  try {
-    const payload = new FormData();
-
-    form.forEach((value, key) => {
-      if (value instanceof File && !value.name) {
-        return;
-      }
-
-      payload.append(key, value);
-    });
-
-    if (state.pendingInviteCode) {
-      payload.append('inviteCode', state.pendingInviteCode);
-    }
-
-    await api('/auth/register', {
-      method: 'POST',
-      body: payload
-    });
-    showToast('Account creato. Ora puoi effettuare il login.');
-    document.querySelector('[data-auth-tab="login"]').click();
-  } catch (error) {
-    showToast(error.message);
-  }
-});
-
-elements.createUniversityButton.addEventListener('click', async () => {
-  try {
-    await api('/universities', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: elements.universityName.value,
-        domain: elements.universityDomain.value
-      })
-    });
-    elements.universityName.value = '';
-    elements.universityDomain.value = '';
-    await loadUniversities();
-    showToast('Universita aggiunta');
-  } catch (error) {
-    showToast(error.message);
-  }
-});
-
-elements.logoutButton.addEventListener('click', async () => {
-  await leaveVoiceChannel();
-  resetCall();
-
-  try {
-    await api('/auth/logout', { method: 'POST' });
-  } catch {
-  }
-
-  state.token = null;
-  state.user = null;
-  state.servers = [];
-  state.availableServers = [];
-  state.friends = [];
-  state.friendRequests = [];
-  state.friendsExpanded = false;
-  state.friendSearchResults = [];
-  state.serverJoinRequests = [];
-  state.blockedUsers = [];
-  state.activeOverviewPanel = null;
-  state.activeServerId = null;
-  state.activeChannelId = null;
-  state.activePrivateUserId = null;
-  state.activeConversationType = 'channel';
-  state.game = null;
-  state.userDock.muted = false;
-  state.userDock.deafened = false;
-  state.socket?.disconnect();
-  localStorage.removeItem('unichat:token');
-  setAuthenticatedUi(false);
-  renderServers();
-  renderChannels();
-  renderFriends();
-  renderServerJoinRequests();
-  elements.gamePanel.classList.add('hidden');
-  elements.adminPanel.classList.add('hidden');
-  await loadMessages();
-});
-
-const openServerDialog = () => elements.serverDialog.showModal();
-
-elements.adminButton.addEventListener('click', showAdminPanel);
-elements.newServerButton.addEventListener('click', openServerDialog);
-elements.gameRailButton.addEventListener('click', openGameDialog);
-elements.sendGameLinkButton.addEventListener('click', sendGameLinkToChat);
-document.querySelector('#closeGameDialog').addEventListener('click', () => elements.gameDialog.close());
-elements.profileButton.addEventListener('click', showUserProfile);
-elements.muteButton.addEventListener('click', toggleMute);
-elements.deafenButton.addEventListener('click', toggleDeafen);
-elements.permissionsButton.addEventListener('click', openPermissionsPanel);
-elements.settingsButton.addEventListener('click', openUserSettings);
-elements.overviewTabs.forEach((button) => {
-  button.addEventListener('click', () => toggleOverviewPanel(button.dataset.overviewPanel));
-});
-document.addEventListener('click', closeOverviewPanelOnOutsideClick);
-document.querySelector('#closeSettingsDialog').addEventListener('click', () => elements.settingsDialog.close());
-elements.settingsProfileForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-
-  try {
-    await updateProfileSettings();
-  } catch (error) {
-    showToast(error.message);
-  }
-});
-elements.settingsFullName.addEventListener('input', () => {
-  elements.settingsPreviewName.textContent = elements.settingsFullName.value || state.user?.fullName || 'Utente';
-});
-elements.settingsAvatarFile.addEventListener('change', () => {
-  const file = elements.settingsAvatarFile.files[0];
-
-  if (!file) {
-    renderAvatarContent(elements.settingsAvatarPreview, state.user);
-    return;
-  }
-
-  const previewUrl = URL.createObjectURL(file);
-  renderAvatarContent(elements.settingsAvatarPreview, {
-    ...state.user,
-    avatarUrl: previewUrl
-  });
-});
-elements.gameTypeButtons.forEach((button) => {
-  button.addEventListener('click', () => {
-    state.selectedGameType = button.dataset.gameType || 'TICTACTOE';
-    renderGameLauncher();
-  });
-});
-elements.createServerFromSidebar.addEventListener('click', openServerDialog);
-elements.copyInviteButton.addEventListener('click', copyActiveServerInvite);
-elements.deleteServerButton.addEventListener('click', deleteOrLeaveActiveServer);
-document.querySelector('#closeServerDialog').addEventListener('click', () => elements.serverDialog.close());
-
-elements.inviteForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  await joinServerByInvite(elements.inviteCodeInput.value);
-});
-
-elements.friendForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  state.friendsExpanded = true;
-  await addFriend(elements.friendUsernameInput.value);
-});
-
-elements.friendCounterButton.addEventListener('click', toggleFriends);
-
-elements.friendUsernameInput.addEventListener('input', () => {
-  searchFriends(elements.friendUsernameInput.value).catch((error) => showToast(error.message));
-});
-
-elements.serverForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.currentTarget);
-
-  try {
-    const server = await api('/servers', {
-      method: 'POST',
-      body: JSON.stringify(Object.fromEntries(form))
-    });
-    state.servers.push(server);
-    state.availableServers = state.availableServers.filter((availableServer) => availableServer.id !== server.id);
-    state.activeServerId = server.id;
-    elements.serverDialog.close();
-    elements.serverForm.reset();
-    renderServers();
-    renderAvailableServers();
-    await selectServer(server.id);
-  } catch (error) {
-    showToast(error.message);
-  }
-});
-
-elements.channelForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const server = activeServer();
-
-  if (!server) {
-    showToast('Crea prima un server');
-    return;
-  }
-
-  const form = new FormData(event.currentTarget);
-
-  try {
-    const channel = await api(`/servers/${server.id}/channels`, {
-      method: 'POST',
-      body: JSON.stringify(Object.fromEntries(form))
-    });
-    server.channels.push(channel);
-    elements.channelForm.reset();
-    await selectChannel(channel.id);
-  } catch (error) {
-    showToast(error.message);
-  }
-});
-
-elements.messageForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const { formData, content, file, valid } = buildMessageFormData();
-
-  if (!valid) {
-    return;
-  }
-
-  if (!content && !file) {
-    return;
-  }
-
-  if (state.activeConversationType === 'private' || file) {
-    try {
-      await sendMessageWithUpload({ formData, file });
-    } catch (error) {
-      showToast(error.message);
-      return;
-    }
-    clearComposer();
-    return;
-  }
-
-  if (!state.activeChannelId) {
-    return;
-  }
-
-  state.socket.emit('send_message', {
-    token: state.token,
-    channelId: state.activeChannelId,
-    content
-  }, (response) => {
-    if (!response?.ok) {
-      showToast(response?.error || 'Messaggio non inviato');
-      return;
-    }
-    clearComposer();
-  });
-});
-
-elements.messageFileInput.addEventListener('change', () => {
-  const file = elements.messageFileInput.files[0];
-
-  if (!file) {
-    renderSelectedAttachment();
-    return;
-  }
-
-  if (!validateAttachment(file)) {
-    elements.messageFileInput.value = '';
-    renderSelectedAttachment();
-    return;
-  }
-
-  renderSelectedAttachment();
-  showToast(`Allegato selezionato: ${file.name}`);
-});
-
-elements.homeButton.addEventListener('click', () => {
-  showHome();
-});
-
-elements.acceptGameButton.addEventListener('click', () => answerGameInvite(true));
-elements.declineGameButton.addEventListener('click', () => answerGameInvite(false));
-elements.restartGameButton.addEventListener('click', restartGame);
-elements.closeGameButton.addEventListener('click', closeGame);
-elements.videoCallButton.addEventListener('click', startVideoCall);
-elements.acceptCallButton.addEventListener('click', acceptVideoCall);
-elements.declineCallButton.addEventListener('click', declineVideoCall);
-elements.endCallButton.addEventListener('click', () => {
-  resetCall({ notifyPeer: true });
-  loadMessages();
-});
-elements.joinVoiceButton.addEventListener('click', joinVoiceChannel);
-elements.leaveVoiceButton.addEventListener('click', leaveVoiceChannel);
 
 bootstrap().catch((error) => showToast(error.message));

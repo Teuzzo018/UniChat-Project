@@ -98,27 +98,31 @@ Gli eventi Socket.IO sono divisi per responsabilita:
 - `src/sockets/callHandlers.js`: videochiamate private.
 - `src/sockets/gameHandlers.js`: Tris tra amici, inviti, link e mosse.
 
-## Avvio Locale
+## Avvio Iniziale
 
-1. Copia il file `.env` di esempio:
+1. Copia il file `.env` di esempio se non esiste gia:
 
 ```bash
 cp backend/.env.example backend/.env
 ```
 
-2. Controlla `backend/.env`:
+2. Controlla `backend/.env`. Per avviare il backend direttamente dal tuo terminale deve contenere:
 
-- `DATABASE_URL` deve puntare al database PostgreSQL.
-- `SESSION_TOKEN_PEPPER` deve essere lungo, casuale e privato.
-- `ADMIN_SETUP_CODE` e opzionale e abilita la creazione di account admin dalla registrazione.
-
-3. Avvia PostgreSQL:
-
-```bash
-docker compose up -d
+```env
+DATABASE_URL="postgresql://unichat_user:unichat_password@localhost:5433/unichat_db?schema=public"
 ```
 
-4. Installa dipendenze e prepara Prisma:
+Puoi anche cambiare `SESSION_TOKEN_PEPPER` con un valore lungo e casuale. `ADMIN_SETUP_CODE` e opzionale e abilita la creazione di account admin dalla registrazione.
+
+### Backend Locale Con Database Docker
+
+1. Dalla cartella principale del progetto, avvia solo PostgreSQL:
+
+```bash
+docker compose up -d postgres
+```
+
+2. Prepara Prisma e il database:
 
 ```bash
 cd backend
@@ -127,7 +131,7 @@ npm run prisma:generate
 npm run prisma:migrate
 ```
 
-5. Avvia il server:
+3. Avvia il server:
 
 ```bash
 npm run dev
@@ -138,6 +142,22 @@ L'app sara disponibile su:
 ```text
 http://localhost:5000
 ```
+
+### Avvio Completo Con Docker
+
+Se vuoi avviare sia backend sia database dentro Docker, dalla cartella principale del progetto esegui:
+
+```bash
+docker compose up -d
+```
+
+In questo caso il backend usa la variabile gia configurata in `docker-compose.yml`:
+
+```env
+DATABASE_URL=postgresql://unichat_user:unichat_password@postgres:5432/unichat_db?schema=public
+```
+
+Nota: se lanci il backend fuori da Docker usa `localhost:5433`, come in `backend/.env`. Se il backend gira dentro Docker usa `postgres:5432`, come in `docker-compose.yml`.
 
 ## Comandi Utili
 
