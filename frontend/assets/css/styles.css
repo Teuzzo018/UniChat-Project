@@ -126,7 +126,6 @@ button {
 .brand-mark,
 .server-dot,
 .icon-button,
-/* Pulsante giochi nella barra server, con animazione hover. */
 .game-rail-button {
   display: grid;
   width: 44px;
@@ -170,8 +169,11 @@ button {
   background: #ffffff;
   color: #0f2f63;
   isolation: isolate;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+  will-change: transform;
 }
 
+/* Pulsante giochi nella barra server, con controller laterali in hover. */
 .game-rail-button::before,
 .game-rail-button::after {
   position: absolute;
@@ -187,8 +189,9 @@ button {
     #1d4ed8;
   content: "";
   opacity: 0;
+  pointer-events: none;
   transform: translateY(-50%) scale(0.6);
-  transition: 180ms ease;
+  transition: opacity 160ms ease, transform 160ms ease;
 }
 
 .game-rail-button::before {
@@ -199,14 +202,22 @@ button {
   right: -4px;
 }
 
-.game-rail-button:hover::before {
-  opacity: 1;
-  transform: translate(-18px, -62%) rotate(-14deg) scale(1);
+.game-rail-button:hover,
+.game-rail-button:focus-visible {
+  transform: scale(1.06);
+  box-shadow: 0 8px 18px rgba(15, 47, 99, 0.22);
 }
 
-.game-rail-button:hover::after {
+.game-rail-button:hover::before,
+.game-rail-button:focus-visible::before {
   opacity: 1;
-  transform: translate(18px, -38%) rotate(14deg) scale(1);
+  transform: translate(-18px, -50%) rotate(-14deg) scale(1);
+}
+
+.game-rail-button:hover::after,
+.game-rail-button:focus-visible::after {
+  opacity: 1;
+  transform: translate(18px, -50%) rotate(14deg) scale(1);
 }
 
 /* ==========================================================================
