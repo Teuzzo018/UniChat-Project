@@ -37,8 +37,37 @@ UniChat/
 ├── frontend/
 │   ├── index.html
 │   └── assets/
-│       ├── css/styles.css
-│       └── js/app.js
+│       ├── css/
+│       │   └── styles.css
+│       └── js/
+│           ├── app.js
+│           └── modules/
+│               ├── api.js
+│               ├── attachments.js
+│               ├── context.js
+│               ├── dom.js
+│               ├── events.js
+│               ├── startup.js
+│               ├── state.js
+│               ├── ui.js
+│               └── controllers/
+│                   ├── admin.js
+│                   ├── bootstrapData.js
+│                   ├── calls.js
+│                   ├── channels.js
+│                   ├── core.js
+│                   ├── friends.js
+│                   ├── gameBoard.js
+│                   ├── gameLauncher.js
+│                   ├── messageAttachments.js
+│                   ├── messageViews.js
+│                   ├── navigation.js
+│                   ├── serverLists.js
+│                   ├── settings.js
+│                   ├── shell.js
+│                   ├── socket.js
+│                   ├── voiceRtc.js
+│                   └── voiceTranscripts.js
 ├── backend/
 │   ├── prisma/
 │   │   ├── schema.prisma
@@ -69,7 +98,9 @@ Il front-end vive in `frontend/` ed e servito direttamente da Express.
 
 - `frontend/index.html`: layout dell'app, dialog, form e aree principali.
 - `frontend/assets/css/styles.css`: UI responsive, sidebar, rail server, chat, modali, richieste e animazioni.
-- `frontend/assets/js/app.js`: stato client, fetch API, DOM, upload allegati, Socket.IO, WebRTC, amicizie, richieste server e Tris.
+- `frontend/assets/js/app.js`: entry point del client. Crea il contesto, registra i controller e avvia l'app.
+- `frontend/assets/js/modules/`: moduli condivisi per stato, DOM, API, allegati, UI, eventi e startup.
+- `frontend/assets/js/modules/controllers/`: logica client divisa per area funzionale: admin, impostazioni, amici, server, canali, messaggi, chiamate, voce, giochi, Socket.IO e bootstrap dati.
 
 Non serve un server front-end separato.
 
