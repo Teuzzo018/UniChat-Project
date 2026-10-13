@@ -1,4 +1,5 @@
 :root {
+  /* Tema globale: colori, ombre e font dell'app. */
   --bg: #eef6ff;
   --panel: #ffffff;
   --panel-strong: #e4efff;
@@ -13,6 +14,11 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+/* Reset e layout base della pagina. */
 * {
   box-sizing: border-box;
 }
@@ -32,6 +38,11 @@ body {
   color: var(--ink);
 }
 
+/* ==========================================================================
+   Splash Screen
+   ========================================================================== */
+
+/* Schermata iniziale mostrata al caricamento dell'app. */
 .splash-screen {
   position: fixed;
   inset: 0;
@@ -68,6 +79,7 @@ body {
   }
 }
 
+/* Tipografia base per controlli nativi. */
 button,
 input,
 select,
@@ -79,6 +91,11 @@ button {
   cursor: pointer;
 }
 
+/* ==========================================================================
+   App Shell
+   ========================================================================== */
+
+/* Griglia principale: barra server, sidebar e area contenuto. */
 .app-shell {
   display: grid;
   grid-template-columns: 76px 380px 1fr;
@@ -88,6 +105,11 @@ button {
   overflow: hidden;
 }
 
+/* ==========================================================================
+   Server Rail
+   ========================================================================== */
+
+/* Barra verticale dei server e pulsanti rapidi. */
 .server-rail {
   display: flex;
   flex-direction: column;
@@ -100,9 +122,11 @@ button {
   color: #fff;
 }
 
+/* Pulsanti rotondi della barra server. */
 .brand-mark,
 .server-dot,
 .icon-button,
+/* Pulsante giochi nella barra server, con animazione hover. */
 .game-rail-button {
   display: grid;
   width: 44px;
@@ -185,6 +209,11 @@ button {
   transform: translate(18px, -38%) rotate(14deg) scale(1);
 }
 
+/* ==========================================================================
+   Sidebar
+   ========================================================================== */
+
+/* Sidebar sinistra: autenticazione, workspace, profilo e navigazione server. */
 .sidebar {
   display: flex;
   flex-direction: column;
@@ -199,6 +228,7 @@ button {
   text-align: left;
 }
 
+/* Header comuni di sidebar, canali e dialog. */
 .sidebar-header,
 .channel-header,
 .dialog-card header {
@@ -228,6 +258,7 @@ button {
   white-space: nowrap;
 }
 
+/* Testi piccoli di categoria/sottotitolo. */
 .eyebrow {
   margin: 0 0 4px;
   color: var(--muted);
@@ -249,6 +280,7 @@ h2 {
   line-height: 1.15;
 }
 
+/* Pannelli della sidebar: login/registrazione e workspace autenticato. */
 .auth-panel,
 .workspace-panel {
   display: flex;
@@ -256,6 +288,13 @@ h2 {
   gap: 14px;
   width: 100%;
   max-width: none;
+}
+
+.auth-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .workspace-panel {
@@ -275,6 +314,7 @@ h2 {
   text-transform: uppercase;
 }
 
+/* Tab login/registrazione. */
 .tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -303,12 +343,14 @@ h2 {
   border-color: var(--line);
 }
 
+/* Stack verticali usati da form e dialog. */
 .stack,
 .dialog-card {
   display: grid;
   gap: 14px;
 }
 
+/* Campi form e stati focus. */
 label {
   display: grid;
   gap: 7px;
@@ -339,6 +381,7 @@ button:focus-visible {
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.32);
 }
 
+/* Bottoni riutilizzabili. */
 .primary-button,
 .secondary-button,
 .ghost-button {
@@ -384,6 +427,7 @@ button:focus-visible {
   width: 100%;
 }
 
+/* Creazione inline universita nel form registrazione. */
 .inline-create {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -401,6 +445,7 @@ button:focus-visible {
   margin: 12px 0;
 }
 
+/* Box invito server nella sidebar. */
 .invite-panel {
   display: grid;
   gap: 10px;
@@ -424,6 +469,7 @@ button:focus-visible {
   font-weight: 800;
 }
 
+/* Liste sidebar: canali, server disponibili e membri. */
 .channel-list {
   display: grid;
   gap: 6px;
@@ -536,6 +582,7 @@ button:focus-visible {
   background: #eaf2ff;
 }
 
+/* Dock utente nella sidebar: profilo, stato e controlli audio. */
 .user-dock {
   display: grid;
   gap: 10px;
@@ -635,6 +682,7 @@ button:focus-visible {
   color: var(--danger);
 }
 
+/* Form rapido per creare canali. */
 .channel-form {
   display: grid;
   grid-template-columns: 1fr 82px 38px;
@@ -649,6 +697,11 @@ button:focus-visible {
   font-weight: 800;
 }
 
+/* ==========================================================================
+   Main Content
+   ========================================================================== */
+
+/* Area principale: header canale, messaggi, pannelli e composer. */
 .content-area {
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -659,6 +712,7 @@ button:focus-visible {
   text-align: center;
 }
 
+/* Barra panoramica flottante con accesso rapido a canali, amici e richieste. */
 .overview-bar {
   position: fixed;
   top: 12px;
@@ -776,6 +830,7 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
+/* Header della conversazione o pannello corrente. */
 .channel-header {
   justify-content: space-between;
   min-height: 78px;
@@ -813,6 +868,7 @@ button:focus-visible {
   gap: 10px;
 }
 
+/* Stato vuoto mostrato quando non c'e una conversazione attiva. */
 .empty-state {
   display: grid;
   place-content: center;
@@ -836,6 +892,7 @@ button:focus-visible {
   text-align: center;
 }
 
+/* Lista messaggi e storico chiamate. */
 .messages {
   min-height: 0;
   overflow: auto;
@@ -910,6 +967,11 @@ button:focus-visible {
   font-size: 0.84rem;
 }
 
+/* ==========================================================================
+   Games
+   ========================================================================== */
+
+/* Pannello gioco attivo. */
 .game-panel {
   align-self: center;
   justify-self: center;
@@ -938,6 +1000,7 @@ button:focus-visible {
   text-align: center;
 }
 
+/* Board Tris e layout Impiccato. */
 .game-board {
   display: grid;
   grid-template-columns: repeat(3, minmax(72px, 1fr));
@@ -1014,6 +1077,11 @@ button:focus-visible {
   margin-top: 16px;
 }
 
+/* ==========================================================================
+   Admin
+   ========================================================================== */
+
+/* Pannello amministratore. */
 .admin-panel {
   overflow: auto;
   padding: 24px;
@@ -1072,6 +1140,11 @@ button:focus-visible {
   font-weight: 800;
 }
 
+/* ==========================================================================
+   Messages
+   ========================================================================== */
+
+/* Bubble messaggi chat pubblica e privata. */
 .message {
   display: grid;
   grid-template-columns: 42px minmax(0, min(68%, 620px));
@@ -1092,6 +1165,7 @@ button:focus-visible {
   text-align: left;
 }
 
+/* Avatar utente nei messaggi e nelle liste. */
 .avatar {
   display: grid;
   width: 42px;
@@ -1187,6 +1261,11 @@ button:focus-visible {
   overflow-wrap: anywhere;
 }
 
+/* ==========================================================================
+   Friends And Requests
+   ========================================================================== */
+
+/* Amici, richieste amicizia e ricerca utenti. */
 .friend-form {
   display: grid;
   grid-template-columns: 1fr 42px;
@@ -1325,6 +1404,7 @@ button:focus-visible {
   font-size: 0.78rem;
 }
 
+/* Feedback visivo quando una richiesta amicizia viene accettata. */
 .friendship-burst::after {
   position: fixed;
   inset: 0;
@@ -1352,6 +1432,11 @@ button:focus-visible {
   }
 }
 
+/* ==========================================================================
+   Composer
+   ========================================================================== */
+
+/* Composer chat: input testo, chiamata, allegato e invio. */
 .composer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 42px 42px 96px;
@@ -1362,6 +1447,28 @@ button:focus-visible {
   background: #fff;
 }
 
+.composer > #messageInput {
+  grid-column: 1;
+}
+
+.composer > #videoCallButton {
+  grid-column: 2;
+}
+
+.composer > .file-button {
+  grid-column: 3;
+}
+
+.composer > button[type="submit"] {
+  grid-column: 4;
+  justify-self: stretch;
+}
+
+/* ==========================================================================
+   Dialogs
+   ========================================================================== */
+
+/* Dialog generici e modali. */
 dialog {
   border: 0;
   border-radius: 8px;
@@ -1379,6 +1486,7 @@ dialog::backdrop {
   background: #fff;
 }
 
+/* Dialog impostazioni account e blocco utenti. */
 .settings-panel {
   display: grid;
   gap: 18px;
@@ -1486,6 +1594,7 @@ dialog::backdrop {
   padding: 0 10px;
 }
 
+/* Dialog lancio giochi e scelta avversario. */
 .game-launcher {
   gap: 18px;
 }
@@ -1560,6 +1669,7 @@ dialog::backdrop {
   font-size: 0.9rem;
 }
 
+/* Dialog conferma per azioni distruttive. */
 .confirm-dialog {
   overflow: visible;
   background: transparent;
@@ -1613,6 +1723,11 @@ dialog::backdrop {
   min-height: 42px;
 }
 
+/* ==========================================================================
+   Utilities And Feedback
+   ========================================================================== */
+
+/* Notifiche temporanee in basso a destra. */
 .toast {
   position: fixed;
   right: 18px;
@@ -1633,10 +1748,12 @@ dialog::backdrop {
   opacity: 1;
 }
 
+/* Utility per nascondere elementi via JS. */
 .hidden {
   display: none !important;
 }
 
+/* Pulsanti del composer per allegati e chiamata. */
 .file-button,
 .call-composer-button {
   position: relative;
@@ -1719,6 +1836,7 @@ dialog::backdrop {
   display: none;
 }
 
+/* Anteprima allegato selezionato nel composer. */
 .composer-attachment {
   display: inline-grid;
   grid-column: 1 / -1;
@@ -1765,6 +1883,7 @@ dialog::backdrop {
   line-height: 1;
 }
 
+/* Rendering allegati dentro i messaggi. */
 .message-attachment {
   margin-top: 8px;
 }
@@ -1798,6 +1917,11 @@ dialog::backdrop {
   text-decoration: none;
 }
 
+/* ==========================================================================
+   Voice Channels
+   ========================================================================== */
+
+/* Canali vocali: partecipanti, azioni e trascrizione. */
 .voice-panel {
   display: grid;
   align-content: start;
@@ -1901,10 +2025,16 @@ dialog::backdrop {
   overflow-wrap: anywhere;
 }
 
+/* Container audio remoto WebRTC, nascosto ma presente nel DOM. */
 .remote-audio {
   display: none;
 }
 
+/* ==========================================================================
+   Private Calls
+   ========================================================================== */
+
+/* Videochiamate private. */
 .call-panel {
   display: grid;
   align-content: start;
@@ -1951,6 +2081,11 @@ dialog::backdrop {
   gap: 10px;
 }
 
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+/* Layout responsive per tablet e telefoni. */
 @media (max-width: 850px) {
   .app-shell {
     grid-template-columns: 58px 1fr;
@@ -2031,8 +2166,24 @@ dialog::backdrop {
   }
 
   .composer {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) 42px 96px;
     padding: 12px 14px;
+  }
+
+  .composer > #messageInput {
+    grid-column: 1 / -1;
+  }
+
+  .composer > #videoCallButton {
+    grid-column: 1;
+  }
+
+  .composer > .file-button {
+    grid-column: 2;
+  }
+
+  .composer > button[type="submit"] {
+    grid-column: 3;
   }
 
   .composer-attachment {
