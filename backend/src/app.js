@@ -7,14 +7,38 @@ const errorHandler = require('./middleware/errorHandler');
 const notFoundHandler = require('./middleware/notFoundHandler');
 const apiRoutes = require('./routes');
 const { uploadRoot } = require('./utils/uploadParser');
+const prisma = require('./lib/prisma');
 
 const createApp = () => {
   const app = express();
 
+  app.disable('x-powered-by');
+  app.use((req, res, next) => {
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.set('X-Frame-Options', 'DENY');
+    next();
+  });
   app.use(cors({ origin: env.corsOrigin }));
-  app.use(express.json());
+  app.use(express.json({ limit: '1mb' }));
   app.use(express.static(path.join(__dirname, '../../frontend')));
-  app.use('/uploads', express.static(uploadRoot));
+  // Solo gli avatar sono pubblici. Gli allegati passano da /api/uploads con sessione e permessi.
+  app.get('/uploads/:filename', async (req, res, next) => {
+    try {
+      const filename = req.params.filename;
+      if (!/^[a-zA-Z0-9._-]+$/.test(filename) || filename === '.' || filename === '..') {
+        return res.status(404).end();
+      }
+      const avatar = await prisma.user.findFirst({ where: { avatarUrl: `/uploads/${filename}` }, select: { id: true } });
+      if (!avatar) return res.status(404).end();
+      if (!/\.(?:png|jpe?g|gif|webp)$/i.test(filename)) return res.status(404).end();
+      res.set('X-Content-Type-Options', 'nosniff');
+      res.set('Content-Security-Policy', 'sandbox');
+      return res.sendFile(path.join(uploadRoot, filename), (error) => {
+        if (error && !res.headersSent) next(error);
+      });
+    } catch (error) { return next(error); }
+  });
 
   app.use('/api', apiRoutes);
   app.use(notFoundHandler);

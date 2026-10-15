@@ -32,11 +32,8 @@ export const registerCoreController = (app) => {
   };
 
   const activePrivateUser = () => {
-    const server = activeServer();
-    const members = server?.members.map((membership) => membership.user) || [];
-    return members.find((member) => member.id === state.activePrivateUserId)
-      || state.friends.map((friendship) => friendship.friend).find((friend) => friend.id === state.activePrivateUserId)
-      || state.friendSearchResults.find((user) => user.id === state.activePrivateUserId);
+    return state.friends.map((friendship) => friendship.friend)
+      .find((friend) => friend.id === state.activePrivateUserId);
   };
 
   Object.assign(app, {

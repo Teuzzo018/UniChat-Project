@@ -5,6 +5,7 @@ backend/.git
 backend/.agents
 backend/.codex
 backend/uploads/*
+backend/private_uploads/*
 !backend/uploads/.gitkeep
 .git
 .gitignore

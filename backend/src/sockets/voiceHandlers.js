@@ -1,5 +1,6 @@
 const { findAccessibleChannel } = require('../controllers/messageControllers');
-const { getSocketUserSummary, getUserFromToken, getVoiceRoom } = require('./shared');
+const { getSocketUserSummary, getVoiceRoom } = require('./shared');
+const authorizeSocket = require('./authorize');
 
 const voiceRooms = new Map();
 
@@ -44,9 +45,9 @@ const leaveVoiceChannel = (io, socket) => {
 };
 
 const registerVoiceHandlers = ({ io, socket }) => {
-  socket.on('voice_join_channel', async ({ token, channelId }, callback) => {
+  socket.on('voice_join_channel', async ({ token, channelId } = {}, callback) => {
     try {
-      const user = await getUserFromToken(token);
+      const user = await authorizeSocket(socket, 'user', null, token);
 
       if (!user) {
         callback?.({ ok: false, error: 'Sessione non valida' });
@@ -101,33 +102,33 @@ const registerVoiceHandlers = ({ io, socket }) => {
     leaveVoiceChannel(io, socket);
   });
 
-  socket.on('voice_signal', ({ to, signal }) => {
-    if (!to || !signal || !socket.data.voiceChannelId) {
-      return;
-    }
-
-    io.to(to).emit('voice_signal', {
-      from: socket.id,
-      user: socket.data.user ? getSocketUserSummary(socket.data.user) : null,
-      signal
-    });
+  socket.on('voice_signal', async ({ to, signal } = {}) => {
+    try {
+      const user = await authorizeSocket(socket, 'user');
+      const peer = typeof to === 'string' && io.sockets.sockets.get(to);
+      const channelId = socket.data.voiceChannelId;
+      if (!user || !signal || !channelId || peer?.data.voiceChannelId !== channelId || !peer.rooms.has(getVoiceRoom(channelId))) return;
+      if (!await findAccessibleChannel(channelId, user.id)) return;
+      io.to(to).emit('voice_signal', { from: socket.id, user: getSocketUserSummary(user), signal });
+    } catch (error) { console.error('Errore Socket.IO voice_signal:', error); }
   });
 
-  socket.on('voice_transcript', ({ channelId, text }) => {
-    const activeVoiceChannelId = socket.data.voiceChannelId;
-    const cleanText = typeof text === 'string' ? text.trim().slice(0, 500) : '';
+  socket.on('voice_transcript', async ({ channelId, text } = {}) => {
+    try {
+      const user = await authorizeSocket(socket, 'user');
+      const activeVoiceChannelId = socket.data.voiceChannelId;
+      const cleanText = typeof text === 'string' ? text.trim().slice(0, 500) : '';
 
-    if (!activeVoiceChannelId || channelId !== activeVoiceChannelId || !cleanText || !socket.data.user) {
-      return;
-    }
+      if (!user || !activeVoiceChannelId || channelId !== activeVoiceChannelId || !cleanText || !await findAccessibleChannel(channelId, user.id)) return;
 
-    io.to(getVoiceRoom(activeVoiceChannelId)).emit('voice_transcript', {
-      id: `${socket.id}:${Date.now()}`,
-      channelId: activeVoiceChannelId,
-      user: getSocketUserSummary(socket.data.user),
-      text: cleanText,
-      createdAt: new Date().toISOString()
-    });
+      io.to(getVoiceRoom(activeVoiceChannelId)).emit('voice_transcript', {
+        id: `${socket.id}:${Date.now()}`,
+        channelId: activeVoiceChannelId,
+        user: getSocketUserSummary(user),
+        text: cleanText,
+        createdAt: new Date().toISOString()
+      });
+    } catch (error) { console.error('Errore Socket.IO voice_transcript:', error); }
   });
 
   socket.on('disconnect', () => {

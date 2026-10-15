@@ -2,6 +2,7 @@ export const registerSocketController = (app) => {
   const { state, elements, api, formatBytes, isAllowedAttachment, isAudioAttachment, isImageAttachment, isVideoAttachment, MAX_ATTACHMENT_BYTES, appendMessageContent, createUserAvatar, getDisplayHandle, getInitials, renderAvatarContent, setBadgeCount, showConfirm, showToast } = app;
   const joinPendingGameFromUrl = (...args) => app.joinPendingGameFromUrl(...args);
   const renderMessage = (...args) => app.renderMessage(...args);
+  const markMessageDeleted = (...args) => app.markMessageDeleted(...args);
   const loadFriends = (...args) => app.loadFriends(...args);
   const renderVoiceParticipants = (...args) => app.renderVoiceParticipants(...args);
   const closeVoicePeer = (...args) => app.closeVoicePeer(...args);
@@ -15,6 +16,7 @@ export const registerSocketController = (app) => {
   const showGame = (...args) => app.showGame(...args);
   const getGameLabel = (...args) => app.getGameLabel(...args);
   const activePrivateUser = (...args) => app.activePrivateUser(...args);
+  let refreshAfterServerDisconnect = false;
 
   const connectSocket = () => {
     if (state.socket) {
@@ -27,20 +29,35 @@ export const registerSocketController = (app) => {
       elements.connectionStatus.textContent = 'online';
       elements.connectionStatus.classList.add('online');
   
-      if (state.activeChannelId) {
-        state.socket.emit('join_channel', state.activeChannelId);
-      }
-  
       state.socket.emit('authenticate', { token: state.token }, (response) => {
         if (response?.ok) {
+          if (state.activeChannelId) state.socket.emit('join_channel', state.activeChannelId);
           joinPendingGameFromUrl();
+          if (refreshAfterServerDisconnect) {
+            refreshAfterServerDisconnect = false;
+            app.loadWorkspaceData().catch((error) => showToast(error.message));
+          }
+        } else if (refreshAfterServerDisconnect) {
+          refreshAfterServerDisconnect = false;
+          elements.logoutButton.click();
         }
       });
     });
   
-    state.socket.on('disconnect', () => {
+    state.socket.on('disconnect', (reason) => {
+      if (state.call.id) {
+        resetCall();
+        showToast('Chiamata terminata: connessione al server persa');
+        loadMessages().catch(() => {});
+      }
       elements.connectionStatus.textContent = 'offline';
       elements.connectionStatus.classList.remove('online');
+      state.friendPresence = {};
+      app.renderFriends();
+      if (reason === 'io server disconnect' && state.token) {
+        refreshAfterServerDisconnect = true;
+        state.socket.connect();
+      }
     });
   
     state.socket.on('message_created', (message) => {
@@ -54,6 +71,20 @@ export const registerSocketController = (app) => {
   
       renderMessage(message);
       elements.messages.scrollTop = elements.messages.scrollHeight;
+    });
+
+    state.socket.on('message_deleted', ({ id, channelId, deletedAt }) => {
+      if (channelId === state.activeChannelId) {
+        markMessageDeleted({ id, deletedAt });
+      }
+    });
+
+    state.socket.on('private_message_deleted', ({ id, senderId, recipientId, deletedAt }) => {
+      if (state.activeConversationType !== 'private') return;
+      const peerId = state.activePrivateUserId;
+      const ownId = state.user?.id;
+      if (peerId && ownId && [senderId, recipientId].includes(peerId) &&
+          [senderId, recipientId].includes(ownId)) markMessageDeleted({ id, deletedAt });
     });
 
     state.socket.on('private_message_created', (message) => {
@@ -80,6 +111,17 @@ export const registerSocketController = (app) => {
 
     state.socket.on('friendship_changed', () => {
       loadFriends().catch((error) => showToast(error.message));
+    });
+
+    state.socket.on('presence_snapshot', (entries) => {
+      state.friendPresence = Object.fromEntries((Array.isArray(entries) ? entries : [])
+        .filter((item) => typeof item.userId === 'string').map((item) => [item.userId, Boolean(item.online)]));
+      app.renderFriends();
+    });
+    state.socket.on('presence_changed', ({ userId, online } = {}) => {
+      if (!state.friends.some((item) => item.friend.id === userId)) return;
+      state.friendPresence[userId] = Boolean(online);
+      app.renderFriends();
     });
 
     state.socket.on('voice_participants', ({ channelId, participants }) => {
@@ -111,44 +153,16 @@ export const registerSocketController = (app) => {
       addVoiceTranscript(entry);
     });
 
-    state.socket.on('private_video_call_incoming', ({ callId, from }) => {
-      resetCall();
-      state.call.id = callId;
-      state.call.friend = from;
-      state.call.incoming = true;
-      showCallPanel(`Chiamata in arrivo da ${from.fullName}`);
-    });
+    state.socket.on('private_video_call_incoming', (payload) => app.onIncomingCall(payload));
 
-    state.socket.on('private_video_call_answered', async ({ callId, accepted, from }) => {
-      if (callId !== state.call.id) {
-        return;
-      }
-
-      if (!accepted) {
-        showToast('Chiamata rifiutata');
-        resetCall();
-        await loadMessages();
-        return;
-      }
-
-      state.call.friend = from;
-      createCallPeer(from.id);
-      showCallPanel('Connessione in corso...');
-    });
+    state.socket.on('private_video_call_answered', (payload) => app.onCallAnswered(payload));
+    state.socket.on('private_video_call_claimed', (payload) => app.onCallClaimed(payload));
 
     state.socket.on('private_video_call_signal', (payload) => {
       handleVideoSignal(payload).catch(() => showToast('Videochiamata non riuscita'));
     });
 
-    state.socket.on('private_video_call_ended', ({ callId }) => {
-      if (callId !== state.call.id) {
-        return;
-      }
-
-      showToast('Chiamata terminata');
-      resetCall();
-      loadMessages();
-    });
+    state.socket.on('private_video_call_ended', (payload) => app.onCallEnded(payload));
 
     state.socket.on('private_game_invite', (game) => {
       showGame(game);

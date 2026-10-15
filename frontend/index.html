@@ -11,15 +11,17 @@
       <div class="splash-title">UniChat</div>
     </div>
 
-    <main class="app-shell">
+    <main class="app-shell" id="appShell">
       <aside class="server-rail" aria-label="Server">
         <button class="brand-mark" id="homeButton" type="button" title="Home">U</button>
-        <div class="server-list" id="serverList"></div>
-        <button class="icon-button" id="newServerButton" type="button" title="Crea server">+</button>
+        <div class="server-list" id="serverList" role="navigation" aria-label="I miei server"><span class="server-list-empty" id="serverListEmpty">Nessun server</span></div>
+        <button class="icon-button" id="newServerButton" type="button" title="Crea server" aria-label="Crea server">+</button>
+        <button class="icon-button" id="addServerInviteButton" type="button" title="Entra con invito" aria-label="Entra in un server con un invito">↗</button>
         <button class="game-rail-button" id="gameRailButton" type="button" title="Giochi">XO</button>
       </aside>
+      <div class="server-context-menu hidden" id="serverContextMenu" role="menu" aria-label="Azioni server"></div>
 
-      <section class="sidebar">
+      <section class="sidebar" id="appSidebar" aria-label="Navigazione">
         <header class="sidebar-header">
           <div>
             <p class="eyebrow">UniChat</p>
@@ -27,6 +29,11 @@
           </div>
         </header>
 
+        <nav class="sidebar-primary-nav hidden" id="sidebarPrimaryNav" aria-label="Navigazione principale">
+          <button type="button" id="sidebarHomeButton">Home</button>
+          <button type="button" id="sidebarFriendsButton">Amici</button>
+          <button type="button" id="sidebarDmsButton">Messaggi privati</button>
+        </nav>
         <div class="auth-panel" id="authPanel">
           <div class="tabs" role="tablist" aria-label="Autenticazione">
             <button class="tab active" data-auth-tab="login" type="button">Login</button>
@@ -64,7 +71,7 @@
             </label>
             <label>
               Password
-              <input type="password" name="password" autocomplete="new-password" required minlength="6" />
+              <input type="password" name="password" autocomplete="new-password" required minlength="12" />
             </label>
             <label>
               Universita
@@ -74,22 +81,28 @@
               Codice admin
               <input type="password" name="adminCode" autocomplete="off" placeholder="Opzionale" />
             </label>
-            <details class="inline-create">
-              <summary>Aggiungi universita</summary>
-              <div class="two-fields">
-                <input type="text" id="universityName" placeholder="Nome universita" />
-                <input type="text" id="universityDomain" placeholder="Dominio, es. uni.it" />
-              </div>
-              <button class="secondary-button" id="createUniversityButton" type="button">Salva universita</button>
-            </details>
             <button class="primary-button" type="submit">Crea account</button>
+          </form>
+          <form class="stack hidden" id="mfaLoginForm">
+            <h2>Verifica in due passaggi</h2>
+            <p>Inserisci il codice dell’app oppure un codice di recupero.</p>
+            <label>Codice <input id="mfaLoginCode" type="text" name="code" autocomplete="one-time-code" required /></label>
+            <button class="primary-button" type="submit">Verifica</button>
+            <button class="secondary-button" id="mfaLoginCancel" type="button">Annulla</button>
           </form>
         </div>
 
-        <div class="workspace-panel hidden" id="workspacePanel">
+        <div class="workspace-panel hidden" id="workspacePanel" aria-label="Strumenti server">
           <button class="secondary-button full-width" id="createServerFromSidebar" type="button">Nuovo server corso</button>
           <div class="invite-panel">
             <button class="secondary-button full-width" id="copyInviteButton" type="button">Copia invito server</button>
+            <div class="invite-manage hidden" id="inviteManage">
+              <label>Scadenza invito <input id="inviteExpiresAt" type="datetime-local" /></label>
+              <label>Usi massimi <input id="inviteMaxUses" type="number" min="1" max="100000" placeholder="Illimitati" /></label>
+              <button class="secondary-button full-width" id="rotateInviteButton" type="button">Crea nuovo invito</button>
+              <button class="ghost-button full-width" id="revokeInviteButton" type="button">Revoca invito</button>
+              <button class="secondary-button full-width" id="discoverabilityButton" type="button">Rendi scopribile</button>
+            </div>
             <form class="invite-form" id="inviteForm">
               <input type="text" name="inviteCode" id="inviteCodeInput" placeholder="Codice o link invito" autocomplete="off" />
               <button type="submit">Entra</button>
@@ -145,17 +158,38 @@
           </div>
         </section>
       </section>
+      <div class="sidebar-resizer" id="sidebarResizer" role="separator" tabindex="0" aria-label="Ridimensiona barra laterale" aria-orientation="vertical" aria-valuemin="240" aria-valuemax="420" aria-valuenow="320"></div>
+      <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" tabindex="-1" aria-label="Chiudi navigazione"></button>
 
       <section class="content-area" id="contentArea">
         <header class="channel-header">
+          <button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-label="Apri navigazione" aria-controls="appSidebar" aria-expanded="false">☰</button>
           <div>
             <p class="eyebrow" id="channelType">Canale</p>
             <h2 id="channelTitle">Benvenuto in UniChat</h2>
           </div>
           <div class="header-actions">
+            <input class="global-search-trigger hidden" id="globalSearchButton" type="search" readonly placeholder="Cerca ovunque…" aria-label="Apri ricerca globale" />
             <button class="secondary-button hidden" id="adminButton" type="button">Admin</button>
           </div>
         </header>
+
+        <dialog id="globalSearchDialog" class="global-search-dialog">
+          <div class="global-search-head"><h2>Ricerca globale</h2><button type="button" id="globalSearchClose">Chiudi</button></div>
+          <div class="global-search-controls">
+            <input id="globalSearchInput" type="search" maxlength="80" placeholder="Cerca server, canali o persone" autocomplete="off" aria-label="Ricerca globale" />
+            <select id="globalSearchScope" aria-label="Categoria">
+              <option value="explore">Server da esplorare</option>
+              <option value="member">I miei server</option>
+              <option value="channels">Canali accessibili</option>
+              <option value="users">Utenti</option>
+              <option value="friends">Amici</option>
+            </select>
+          </div>
+          <p id="globalSearchStatus" role="status"></p>
+          <div id="globalSearchResults" class="global-search-results"></div>
+          <div class="global-search-pages"><button id="globalSearchPrevious" type="button">Precedente</button><span id="globalSearchPage">1</span><button id="globalSearchNext" type="button">Successiva</button></div>
+        </dialog>
 
         <section class="overview-bar hidden" id="overviewBar" aria-label="Strumenti rapidi">
           <div class="overview-tabs">
@@ -179,6 +213,7 @@
               <span>Cerca amico</span>
               <strong id="friendSearchBadge">0</strong>
             </button>
+            <button class="overview-tab" type="button" data-overview-panel="directMessages" title="Messaggi privati"><span>Messaggi privati</span><strong id="directMessagesBadge">0</strong></button>
             <button class="overview-tab" type="button" data-overview-panel="friendRequests" title="Richieste amicizia">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
@@ -237,6 +272,7 @@
               <div class="friend-list" id="friendList"></div>
               <div class="friend-search-list" id="friendSearchList"></div>
             </section>
+            <section class="overview-section hidden" data-overview-content="directMessages"><h2>Messaggi privati</h2><div class="direct-message-list" id="directMessageList"></div></section>
             <section class="overview-section hidden" data-overview-content="friendRequests">
               <h2>Richieste amicizia</h2>
               <div class="friend-request-list" id="friendRequestList"></div>
@@ -276,8 +312,29 @@
 
         <section class="admin-panel hidden" id="adminPanel" aria-label="Pannello admin">
           <div class="admin-section">
+            <h2>Verifica in due passaggi</h2>
+            <p id="mfaStatus" role="status"></p>
+            <div class="admin-toolbar">
+              <label>Password <input id="mfaPassword" type="password" autocomplete="current-password" /></label>
+              <label>Codice app o recupero <input id="mfaCode" type="text" autocomplete="one-time-code" /></label>
+            </div>
+            <div class="admin-toolbar">
+              <button class="secondary-button" id="mfaSetup" type="button">Configura</button>
+              <button class="secondary-button" id="mfaEnable" type="button">Conferma attivazione</button>
+              <button class="secondary-button" id="mfaStepUp" type="button">Verifica ora</button>
+              <button class="secondary-button" id="mfaRegenerate" type="button">Rigenera codici</button>
+              <button class="danger-button" id="mfaDisable" type="button">Disattiva</button>
+            </div>
+            <p id="mfaSecret" class="hidden"></p>
+            <textarea id="mfaRecoveryCodes" class="hidden" readonly aria-label="Codici di recupero appena generati"></textarea>
+            <button class="secondary-button hidden" id="mfaCodesSaved" type="button">Ho salvato i codici</button>
+          </div>
+          <div class="admin-section">
             <h2>Utenti</h2>
+            <form id="adminSearchForm" class="admin-toolbar"><input id="adminSearchInput" type="search" maxlength="80" placeholder="Cerca nome, email o username" aria-label="Cerca account" /><button class="secondary-button" type="submit">Cerca</button></form>
+            <p id="adminStatus" role="status"></p>
             <div class="admin-list" id="adminUsers"></div>
+            <div class="admin-toolbar"><button class="secondary-button" id="adminPrevPage" type="button">Precedente</button><span id="adminPageLabel"></span><button class="secondary-button" id="adminNextPage" type="button">Successiva</button></div>
           </div>
           <div class="admin-section">
             <h2>Server</h2>
@@ -286,6 +343,10 @@
           <div class="admin-section">
             <h2>Ultimi messaggi</h2>
             <div class="admin-list" id="adminMessages"></div>
+          </div>
+          <div class="admin-section">
+            <h2>Registro operazioni</h2>
+            <div class="admin-list" id="adminAudit"></div>
           </div>
         </section>
 
@@ -319,34 +380,38 @@
           <div class="remote-audio" id="remoteAudio"></div>
         </section>
 
-        <section class="call-panel hidden" id="callPanel" aria-label="Videochiamata privata">
+        <section class="call-panel hidden" id="callPanel" aria-label="Chiamata privata">
           <div class="call-header">
             <div>
-              <p class="eyebrow">Videochiamata</p>
+              <p class="eyebrow">Chiamata privata</p>
               <h2 id="callTitle">Chiamata privata</h2>
             </div>
-            <p id="callStatus">Connessione in corso...</p>
+            <p id="callStatus" role="status" aria-live="polite">Connessione in corso...</p>
           </div>
           <div class="call-videos">
             <video id="remoteVideo" autoplay playsinline></video>
             <video id="localVideo" autoplay playsinline muted></video>
           </div>
+          <audio id="remoteCallAudio" autoplay controls aria-label="Audio della chiamata"></audio>
           <div class="call-actions">
             <button class="primary-button hidden" id="acceptCallButton" type="button">Accetta</button>
             <button class="ghost-button hidden" id="declineCallButton" type="button">Rifiuta</button>
-            <button class="danger-button" id="endCallButton" type="button">Chiudi</button>
+            <button class="secondary-button hidden" id="callMicButton" type="button" aria-pressed="true">Disattiva microfono</button>
+            <button class="secondary-button hidden" id="callCameraButton" type="button" aria-pressed="true">Disattiva videocamera</button>
+            <button class="danger-button" id="endCallButton" type="button">Termina chiamata</button>
           </div>
         </section>
 
         <form class="composer hidden" id="messageForm">
           <input type="text" name="content" id="messageInput" maxlength="1000" placeholder="Scrivi un messaggio..." autocomplete="off" />
-          <button class="call-composer-button hidden" id="videoCallButton" type="button" title="Chiama">
+          <button class="call-composer-button hidden" id="audioCallButton" type="button" title="Chiamata audio" aria-label="Avvia chiamata audio">♫</button>
+          <button class="call-composer-button hidden" id="videoCallButton" type="button" title="Videochiamata" aria-label="Avvia videochiamata">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7A2 2 0 0 1 22 16.9Z"></path>
             </svg>
           </button>
           <label class="file-button" title="Allega file">
-            <input type="file" id="messageFileInput" accept="image/*,audio/*,video/*,.jpg,.jpeg,.png,.gif,.webp,.avif,.heic,.heif,.mp3,.wav,.ogg,.m4a,.aac,.mp4,.mov,.m4v,.webm,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip" />
+            <input type="file" id="messageFileInput" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.zip,.txt,.wav,.ogg,.mp3,.mp4,.webm" />
             <span>+</span>
           </label>
           <div class="composer-attachment hidden" id="messageAttachmentPreview" aria-live="polite"></div>

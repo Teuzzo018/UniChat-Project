@@ -1,12 +1,14 @@
 const crypto = require('crypto');
 
 const prisma = require('../lib/prisma');
+const { canManageServer, isSuperadmin } = require('../lib/authorization');
+const { parseInviteCode, isInviteActive, redeemInvite } = require('../utils/serverInvites');
 
 const serverSelect = {
   id: true,
   name: true,
   description: true,
-  inviteCode: true,
+  isDiscoverable: true,
   universityId: true,
   ownerId: true,
   createdAt: true,
@@ -21,12 +23,12 @@ const serverSelect = {
   },
   members: {
     select: {
+      isAdmin: true,
       user: {
         select: {
           id: true,
           username: true,
           fullName: true,
-          email: true,
           avatarUrl: true,
           role: true
         }
@@ -35,7 +37,7 @@ const serverSelect = {
   }
 };
 
-const createInviteCode = () => crypto.randomBytes(6).toString('hex');
+const createInviteCode = () => crypto.randomBytes(16).toString('hex');
 
 const createUniqueInviteCode = async () => {
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -113,6 +115,7 @@ const listAvailableServers = async (req, res) => {
   const servers = await prisma.server.findMany({
     where: {
       universityId: req.user.universityId,
+      isDiscoverable: true,
       members: {
         none: {
           userId: req.user.id
@@ -126,21 +129,13 @@ const listAvailableServers = async (req, res) => {
       }
     },
     orderBy: { createdAt: 'asc' },
+    take: 50,
     select: {
       id: true,
       name: true,
       description: true,
       createdAt: true,
-      owner: {
-        select: {
-          fullName: true
-        }
-      },
-      _count: {
-        select: {
-          members: true
-        }
-      }
+      isDiscoverable: true
     }
   });
 
@@ -151,9 +146,10 @@ const listServerJoinRequests = async (req, res) => {
   const requests = await prisma.serverJoinRequest.findMany({
     where: {
       status: 'PENDING',
-      server: {
-        ownerId: req.user.id
-      }
+      ...(!isSuperadmin(req.user) ? { server: { OR: [
+        { ownerId: req.user.id },
+        { members: { some: { userId: req.user.id, isAdmin: true } } }
+      ] } } : {})
     },
     orderBy: { createdAt: 'asc' },
     select: joinRequestSelect
@@ -163,13 +159,13 @@ const listServerJoinRequests = async (req, res) => {
 };
 
 const createServer = async (req, res) => {
-  const { name, description } = req.body;
+  const { name, description } = req.body || {};
 
   if (!req.user.universityId) {
     return res.status(400).json({ error: 'Per creare un server devi avere una università associata' });
   }
 
-  if (!name || name.trim().length < 2) {
+  if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80 || (description != null && (typeof description !== 'string' || description.length > 1000))) {
     return res.status(400).json({ error: 'Il nome del server deve contenere almeno 2 caratteri' });
   }
 
@@ -178,6 +174,7 @@ const createServer = async (req, res) => {
       name: name.trim(),
       description: description?.trim() || null,
       inviteCode: await createUniqueInviteCode(),
+      isDiscoverable: req.body?.isDiscoverable === true,
       universityId: req.user.universityId,
       ownerId: req.user.id,
       members: {
@@ -200,47 +197,69 @@ const createServer = async (req, res) => {
 };
 
 const joinServerByInvite = async (req, res) => {
-  const inviteCode = String(req.body.inviteCode || '').trim();
+  const inviteCode = parseInviteCode(req.body?.inviteCode);
 
   if (!inviteCode) {
     return res.status(400).json({ error: 'Codice invito mancante' });
   }
 
-  const server = await prisma.server.findUnique({
-    where: { inviteCode },
-    select: { id: true }
-  });
-
-  if (!server) {
-    return res.status(404).json({ error: 'Invito non valido' });
+  let result;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      result = await prisma.$transaction((tx) => redeemInvite(tx, inviteCode, req.user.id));
+      break;
+    } catch (error) {
+      if (!['P2002', 'P2034'].includes(error.code) || attempt === 2) throw error;
+    }
   }
-
-  const membership = await ensureServerMember(server.id, req.user.id);
-
-  if (membership) {
+  if (result.alreadyMember) {
     const joinedServer = await prisma.server.findUnique({
-      where: { id: server.id },
+      where: { id: result.serverId },
       select: serverSelect
     });
 
     return res.status(200).json(joinedServer);
   }
 
-  await prisma.serverJoinRequest.upsert({
-    where: {
-      userId_serverId: {
-        userId: req.user.id,
-        serverId: server.id
-      }
-    },
-    update: { status: 'PENDING' },
-    create: {
-      userId: req.user.id,
-      serverId: server.id
-    }
-  });
-
   return res.status(202).json({ message: 'Richiesta inviata. Il creatore del server deve accettarti.' });
+};
+
+const getServerInvite = async (req, res) => {
+  if (!await canManageServer(req.user, req.params.id)) return res.status(403).json({ error: 'Permesso server richiesto' });
+  const server = await prisma.server.findUnique({ where: { id: req.params.id }, select: {
+    inviteCode: true, inviteExpiresAt: true, inviteMaxUses: true, inviteUses: true, inviteRevokedAt: true
+  } });
+  return res.json({ ...server, active: isInviteActive(server) });
+};
+
+const rotateServerInvite = async (req, res) => {
+  if (!await canManageServer(req.user, req.params.id)) return res.status(403).json({ error: 'Permesso server richiesto' });
+  const { expiresAt = null, maxUses = null } = req.body || {};
+  const expiry = expiresAt === null ? null : new Date(expiresAt);
+  if ((expiry && (!Number.isFinite(expiry.getTime()) || expiry <= new Date())) ||
+      (maxUses !== null && (!Number.isSafeInteger(maxUses) || maxUses < 1 || maxUses > 100000))) {
+    return res.status(400).json({ error: 'Scadenza o limite invito non valido' });
+  }
+  const updated = await prisma.server.update({ where: { id: req.params.id }, data: {
+    inviteCode: await createUniqueInviteCode(), inviteExpiresAt: expiry,
+    inviteMaxUses: maxUses, inviteUses: 0, inviteRevokedAt: null
+  }, select: { inviteCode: true, inviteExpiresAt: true, inviteMaxUses: true, inviteUses: true } });
+  return res.status(201).json({ ...updated, active: true });
+};
+
+const revokeServerInvite = async (req, res) => {
+  if (!await canManageServer(req.user, req.params.id)) return res.status(403).json({ error: 'Permesso server richiesto' });
+  await prisma.server.update({ where: { id: req.params.id }, data: { inviteRevokedAt: new Date() } });
+  return res.json({ message: 'Invito revocato' });
+};
+
+const setDiscoverability = async (req, res) => {
+  if (!await canManageServer(req.user, req.params.id)) return res.status(403).json({ error: 'Permesso server richiesto' });
+  if (typeof req.body?.isDiscoverable !== 'boolean') return res.status(400).json({ error: 'Visibilità non valida' });
+  const server = await prisma.server.update({ where: { id: req.params.id }, data: {
+    isDiscoverable: req.body.isDiscoverable
+  }, select: { id: true, isDiscoverable: true } });
+  return res.json(server);
 };
 
 const getServer = async (req, res) => {
@@ -262,7 +281,8 @@ const joinServer = async (req, res) => {
   const server = await prisma.server.findFirst({
     where: {
       id: req.params.id,
-      universityId: req.user.universityId
+      universityId: req.user.universityId,
+      isDiscoverable: true
     },
     select: { id: true }
   });
@@ -311,7 +331,7 @@ const acceptServerJoinRequest = async (req, res) => {
     }
   });
 
-  if (!request || request.server.ownerId !== req.user.id || request.status !== 'PENDING') {
+  if (!request || request.status !== 'PENDING' || !await canManageServer(req.user, request.serverId)) {
     return res.status(404).json({ error: 'Richiesta non trovata' });
   }
 
@@ -349,12 +369,13 @@ const declineServerJoinRequest = async (req, res) => {
     where: { id: req.params.requestId },
     select: {
       id: true,
+      serverId: true,
       status: true,
       server: { select: { ownerId: true } }
     }
   });
 
-  if (!request || request.server.ownerId !== req.user.id || request.status !== 'PENDING') {
+  if (!request || request.status !== 'PENDING' || !await canManageServer(req.user, request.serverId)) {
     return res.status(404).json({ error: 'Richiesta non trovata' });
   }
 
@@ -405,20 +426,22 @@ const deleteOrLeaveServer = async (req, res) => {
       }
     }
   });
+  const sockets = await req.app.get('io')?.in(`user:${req.user.id}`).fetchSockets() || [];
+  sockets.forEach((socket) => socket.disconnect(true));
 
   return res.status(200).json({ message: 'Sei uscito dal server', action: 'left' });
 };
 
 const createChannel = async (req, res) => {
-  const { name, type = 'TEXT' } = req.body;
+  const { name, type = 'TEXT' } = req.body || {};
   const serverId = req.params.id;
-  const membership = await ensureServerMember(serverId, req.user.id);
+  const membership = await canManageServer(req.user, serverId);
 
   if (!membership) {
-    return res.status(404).json({ error: 'Server non trovato' });
+    return res.status(403).json({ error: 'Permesso server richiesto' });
   }
 
-  if (!name || name.trim().length < 2) {
+  if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) {
     return res.status(400).json({ error: 'Il nome del canale deve contenere almeno 2 caratteri' });
   }
 
@@ -446,9 +469,13 @@ module.exports = {
   ensureServerMember,
   ensureServerOwner,
   getServer,
+  getServerInvite,
   joinServer,
   joinServerByInvite,
   listServerJoinRequests,
   listAvailableServers,
-  listServers
+  listServers,
+  revokeServerInvite,
+  rotateServerInvite,
+  setDiscoverability
 };

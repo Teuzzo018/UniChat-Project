@@ -20,6 +20,7 @@ services:
       - "5000:5000"
     volumes:
       - backend_uploads:/app/uploads
+      - backend_private_uploads:/app/private_uploads
 
   postgres:
     image: postgres:15-alpine
@@ -42,3 +43,4 @@ services:
 volumes:
   postgres_data:
   backend_uploads:
+  backend_private_uploads:

@@ -11,6 +11,8 @@ enum Role {
   STUDENT
   PROFESSOR
   ADMIN
+  PLATFORM_ADMIN
+  SUPERADMIN
 }
 
 enum ChannelType {
@@ -46,6 +48,15 @@ model User {
   fullName     String
   avatarUrl    String?
   role         Role           @default(STUDENT)
+  suspendedAt  DateTime?
+  totpSecretEncrypted String?
+  totpPendingEncrypted String?
+  totpPendingExpiresAt DateTime?
+  totpEnabledAt DateTime?
+  totpLastTimeStep Int?
+  mfaFailedAttempts Int @default(0)
+  mfaLockedUntil DateTime?
+  recoveryCodes MfaRecoveryCode[]
 
   universityId String?
   university   University?   @relation(fields: [universityId], references: [id])
@@ -66,6 +77,8 @@ model User {
   serverJoinRequests ServerJoinRequest[]
 
   createdAt    DateTime       @default(now())
+
+  @@index([role, suspendedAt])
 }
 
 model Session {
@@ -77,6 +90,18 @@ model Session {
 
   expiresAt DateTime
   createdAt DateTime @default(now())
+  secondFactorPending Boolean @default(false)
+  secondFactorVerifiedAt DateTime?
+}
+
+model MfaRecoveryCode {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash String @unique
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Server {
@@ -84,6 +109,11 @@ model Server {
   name         String
   description  String?
   inviteCode   String   @unique
+  inviteExpiresAt DateTime?
+  inviteMaxUses Int?
+  inviteUses Int @default(0)
+  inviteRevokedAt DateTime?
+  isDiscoverable Boolean @default(false)
 
   universityId String
   university   University @relation(fields: [universityId], references: [id])
@@ -96,17 +126,21 @@ model Server {
   joinRequests ServerJoinRequest[]
 
   createdAt    DateTime @default(now())
+
+  @@index([isDiscoverable, universityId, name])
 }
 
 model ServerMember {
   id       String @id @default(uuid())
   userId   String
   serverId String
+  isAdmin  Boolean @default(false)
 
   user     User   @relation(fields: [userId], references: [id])
   server   Server @relation(fields: [serverId], references: [id])
 
   @@unique([userId, serverId])
+  @@index([serverId, isAdmin])
 }
 
 model Channel {
@@ -120,6 +154,8 @@ model Channel {
   messages  Message[]
 
   createdAt DateTime @default(now())
+
+  @@index([serverId, name])
 }
 
 model Message {
@@ -129,6 +165,8 @@ model Message {
   attachmentName     String?
   attachmentMimeType String?
   attachmentSize     Int?
+  deletedAt          DateTime?
+  deletedById        String?
 
   userId    String
   user      User     @relation(fields: [userId], references: [id])
@@ -146,6 +184,8 @@ model PrivateMessage {
   attachmentName     String?
   attachmentMimeType String?
   attachmentSize     Int?
+  deletedAt          DateTime?
+  deletedById        String?
 
   senderId    String
   sender      User     @relation("PrivateMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
@@ -191,6 +231,8 @@ model Friendship {
   updatedAt   DateTime @updatedAt
 
   @@unique([requesterId, addresseeId])
+  @@index([requesterId, status])
+  @@index([addresseeId, status])
 }
 
 model BlockedUser {
@@ -221,4 +263,19 @@ model ServerJoinRequest {
 
   @@unique([userId, serverId])
   @@index([serverId, status])
+}
+
+model AdminAuditLog {
+  id           String   @id @default(uuid())
+  actorId      String
+  action       String
+  resourceType String
+  resourceId   String
+  serverId     String?
+  outcome      String
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([serverId, createdAt])
+  @@index([actorId, createdAt])
 }

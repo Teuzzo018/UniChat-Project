@@ -2,7 +2,7 @@ const crypto = require('crypto');
 
 const prisma = require('../lib/prisma');
 const { ensureServerMember } = require('../controllers/serverControllers');
-const { getSocketUserSummary, getUserFromToken, getUserRoom } = require('./shared');
+const { getSocketUserSummary, getAuthenticatedSocketUser, getUserRoom } = require('./shared');
 
 const games = new Map();
 const gameTypes = {
@@ -155,9 +155,9 @@ const resetGame = (game) => {
 };
 
 const registerGameHandlers = ({ io, socket }) => {
-  socket.on('private_game_request', async ({ token, opponentId, serverId, type }, callback) => {
+  socket.on('private_game_request', async ({ token, opponentId, serverId, type } = {}, callback) => {
     try {
-      const user = await getUserFromToken(token);
+      const user = await getAuthenticatedSocketUser(socket, token);
 
       if (!user || !opponentId || opponentId === user.id) {
         callback?.({ ok: false, error: 'Richiesta non valida' });
@@ -206,9 +206,9 @@ const registerGameHandlers = ({ io, socket }) => {
     }
   });
 
-  socket.on('private_game_accept', async ({ token, gameId, accepted }, callback) => {
+  socket.on('private_game_accept', async ({ token, gameId, accepted } = {}, callback) => {
     try {
-      const user = await getUserFromToken(token);
+      const user = await getAuthenticatedSocketUser(socket, token);
       const game = games.get(gameId);
 
       if (!user || !game || game.status !== 'pending') {
@@ -240,9 +240,9 @@ const registerGameHandlers = ({ io, socket }) => {
     }
   });
 
-  socket.on('private_game_move', async ({ token, gameId, index }, callback) => {
+  socket.on('private_game_move', async ({ token, gameId, index } = {}, callback) => {
     try {
-      const user = await getUserFromToken(token);
+      const user = await getAuthenticatedSocketUser(socket, token);
       const game = games.get(gameId);
       const player = game?.players.find((item) => item.id === user?.id);
 
@@ -315,9 +315,9 @@ const registerGameHandlers = ({ io, socket }) => {
     }
   });
 
-  socket.on('private_game_restart', async ({ token, gameId }, callback) => {
+  socket.on('private_game_restart', async ({ token, gameId } = {}, callback) => {
     try {
-      const user = await getUserFromToken(token);
+      const user = await getAuthenticatedSocketUser(socket, token);
       const game = games.get(gameId);
       const player = game?.players.find((item) => item.id === user?.id);
 
@@ -336,9 +336,9 @@ const registerGameHandlers = ({ io, socket }) => {
     }
   });
 
-  socket.on('private_game_link_create', async ({ token, serverId, type }, callback) => {
+  socket.on('private_game_link_create', async ({ token, serverId, type } = {}, callback) => {
     try {
-      const user = await getUserFromToken(token);
+      const user = await getAuthenticatedSocketUser(socket, token);
 
       if (!user || !serverId) {
         callback?.({ ok: false, error: 'Richiesta non valida' });
@@ -366,9 +366,9 @@ const registerGameHandlers = ({ io, socket }) => {
     }
   });
 
-  socket.on('private_game_link_join', async ({ token, gameId }, callback) => {
+  socket.on('private_game_link_join', async ({ token, gameId } = {}, callback) => {
     try {
-      const user = await getUserFromToken(token);
+      const user = await getAuthenticatedSocketUser(socket, token);
       const game = games.get(gameId);
 
       if (!user || !game || game.status !== 'waiting_link') {

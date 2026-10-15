@@ -3,6 +3,10 @@ const bcrypt = require('bcryptjs');
 const env = require('../config/env');
 const prisma = require('../lib/prisma');
 const { createSessionToken, hashSessionToken } = require('../utils/sessionTokens');
+const { lockRoles } = require('../lib/roleManagement');
+const { matchesAdminCode, registrationRole } = require('../lib/bootstrap');
+const disconnectUserSockets = require('../utils/disconnectUserSockets');
+const { parseInviteCode, isInviteActive, redeemInvite } = require('../utils/serverInvites');
 
 const userSelect = {
   id: true,
@@ -11,6 +15,7 @@ const userSelect = {
   fullName: true,
   avatarUrl: true,
   role: true,
+  suspendedAt: true,
   universityId: true,
   createdAt: true
 };
@@ -19,6 +24,7 @@ const normalizeUsername = (value) => {
   return String(value || '').trim().toLowerCase();
 };
 
+const isValidEmail = (value) => typeof value === 'string' && value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 const normalizeOptionalUrl = (value) => {
   const trimmedValue = String(value || '').trim();
 
@@ -44,6 +50,10 @@ const register = async (req, res) => {
     const fields = req.upload?.fields || req.body || {};
     const uploadedFile = req.upload?.file || null;
     const { email, password, fullName, universityId, inviteCode, adminCode } = fields;
+    const bootstrapRequested = matchesAdminCode(adminCode);
+    const bootstrapAdmin = bootstrapRequested && await prisma.user.count({
+      where: { role: { in: ['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'] } }
+    }) === 0;
     const username = normalizeUsername(fields.username);
     const avatarUrl = normalizeOptionalUrl(fields.avatarUrl);
 
@@ -51,6 +61,13 @@ const register = async (req, res) => {
       return res.status(400).json({
         error: 'Username, email, password e nome completo sono obbligatori'
       });
+    }
+
+    if (!isValidEmail(email) || typeof password !== 'string' || password.length < 12 || password.length > 128 || typeof fullName !== 'string' || fullName.trim().length > 100) {
+      return res.status(400).json({ error: 'Email, password o nome non validi (password: 12-128 caratteri)' });
+    }
+    if (uploadedFile && (!uploadedFile.mimeType?.startsWith('image/') || !/\.(avif|gif|heic|heif|jpe?g|png|webp)$/i.test(uploadedFile.originalName))) {
+      return res.status(400).json({ error: 'Il file profilo deve essere un\'immagine' });
     }
 
     if (!/^[a-z0-9._-]{3,24}$/.test(username)) {
@@ -66,7 +83,7 @@ const register = async (req, res) => {
     }
 
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email: email.trim().toLowerCase() }
     });
 
     if (existingUser) {
@@ -88,7 +105,16 @@ const register = async (req, res) => {
     let university = null;
     let invitedServer = null;
 
-    if (universityId) {
+    const normalizedInvite = inviteCode ? parseInviteCode(inviteCode) : null;
+    if (inviteCode && !normalizedInvite) return res.status(404).json({ error: 'Invito non valido' });
+    if (normalizedInvite) {
+      invitedServer = await prisma.server.findUnique({
+        where: { inviteCode: normalizedInvite },
+        select: { id: true, universityId: true, inviteExpiresAt: true,
+          inviteMaxUses: true, inviteUses: true, inviteRevokedAt: true }
+      });
+      if (!isInviteActive(invitedServer)) return res.status(404).json({ error: 'Invito non valido' });
+    } else if (universityId) {
       university = await prisma.university.findUnique({
         where: { id: universityId }
       });
@@ -98,33 +124,27 @@ const register = async (req, res) => {
           error: 'Università non trovata'
         });
       }
-    } else if (inviteCode) {
-      invitedServer = await prisma.server.findUnique({
-        where: { inviteCode: String(inviteCode).trim() },
-        select: { id: true, universityId: true }
-      });
-
-      if (!invitedServer) {
-        return res.status(404).json({
-          error: 'Invito non valido'
-        });
-      }
-    } else {
+    } else if (!bootstrapAdmin) {
       return res.status(400).json({
         error: 'Se non usi un invito, devi scegliere una università'
       });
     }
 
     const passwordHash = await bcrypt.hash(password, env.saltRounds);
-    const role = env.adminSetupCode && adminCode === env.adminSetupCode ? 'ADMIN' : 'STUDENT';
 
     const user = await prisma.$transaction(async (tx) => {
+      const role = await registrationRole(tx, adminCode);
+      if (role !== 'SUPERADMIN' && !university && !invitedServer) {
+        const error = new Error('Bootstrap superadmin non più disponibile');
+        error.statusCode = 409;
+        throw error;
+      }
       const createdUser = await tx.user.create({
         data: {
-          email,
+          email: email.trim().toLowerCase(),
           username,
           passwordHash,
-          fullName,
+          fullName: fullName.trim(),
           avatarUrl: uploadedFile?.url || avatarUrl,
           universityId: university?.id || invitedServer?.universityId || null,
           role
@@ -133,12 +153,7 @@ const register = async (req, res) => {
       });
 
       if (invitedServer) {
-        await tx.serverJoinRequest.create({
-          data: {
-            userId: createdUser.id,
-            serverId: invitedServer.id
-          }
-        });
+        await redeemInvite(tx, normalizedInvite, createdUser.id);
       }
 
       return createdUser;
@@ -152,8 +167,8 @@ const register = async (req, res) => {
   } catch (error) {
     console.error('Errore register:', error);
 
-    return res.status(500).json({
-      error: 'Errore durante la registrazione'
+    return res.status(error.statusCode || 500).json({
+      error: error.statusCode ? error.message : 'Errore durante la registrazione'
     });
   }
 };
@@ -162,14 +177,14 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
+    if (!isValidEmail(email) || typeof password !== 'string') {
       return res.status(400).json({
         error: 'Email e password sono obbligatorie'
       });
     }
 
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email: email.trim().toLowerCase() }
     });
 
     if (!user) {
@@ -189,6 +204,8 @@ const login = async (req, res) => {
       });
     }
 
+    if (user.suspendedAt) return res.status(403).json({ error: 'Account sospeso' });
+
     const token = createSessionToken();
     const tokenHash = hashSessionToken(token);
     const expiresAt = new Date();
@@ -196,18 +213,25 @@ const login = async (req, res) => {
     expiresAt.setDate(
       expiresAt.getDate() + env.sessionDurationDays
     );
+    if (user.totpEnabledAt) expiresAt.setTime(Date.now() + 10 * 60 * 1000);
 
     await prisma.session.create({
       data: {
         tokenHash,
         userId: user.id,
-        expiresAt
+        expiresAt,
+        secondFactorPending: Boolean(user.totpEnabledAt)
       }
     });
+
+    if (user.totpEnabledAt) {
+      return res.status(200).json({ message: 'Verifica del secondo fattore richiesta', token, mfaRequired: true });
+    }
 
     return res.status(200).json({
       message: 'Login effettuato con successo',
       token,
+      mfaEnrollmentRecommended: ['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'].includes(user.role),
       user: {
         id: user.id,
         email: user.email,
@@ -215,6 +239,7 @@ const login = async (req, res) => {
         fullName: user.fullName,
         avatarUrl: user.avatarUrl,
         role: user.role,
+        suspendedAt: user.suspendedAt,
         universityId: user.universityId
       }
     });
@@ -247,6 +272,8 @@ const logout = async (req, res) => {
         tokenHash
       }
     });
+    const sockets = await req.app.get('io')?.fetchSockets() || [];
+    sockets.filter((socket) => socket.data.token === token).forEach((socket) => socket.disconnect(true));
 
     return res.status(200).json({
       message: 'Logout effettuato con successo'
@@ -259,6 +286,27 @@ const logout = async (req, res) => {
       error: 'Errore durante il logout'
     });
   }
+};
+
+const bootstrapSuperadmin = async (req, res) => {
+  if (!['ADMIN', 'PLATFORM_ADMIN'].includes(req.user.role) || !matchesAdminCode(req.body?.adminCode)) {
+    return res.status(403).json({ error: 'Bootstrap non autorizzato' });
+  }
+  const result = await prisma.$transaction(async (tx) => {
+    await lockRoles(tx);
+    const actor = await tx.user.findUnique({ where: { id: req.user.id }, select: { role: true, suspendedAt: true } });
+    if (!actor || actor.suspendedAt || !['ADMIN', 'PLATFORM_ADMIN'].includes(actor.role)) {
+      return { status: 403, error: 'Bootstrap non autorizzato' };
+    }
+    if (await tx.user.count({ where: { role: 'SUPERADMIN' } }) > 0) {
+      return { status: 409, error: 'Superadmin già presente' };
+    }
+    await tx.user.update({ where: { id: req.user.id }, data: { role: 'SUPERADMIN' } });
+    await tx.session.deleteMany({ where: { userId: req.user.id } });
+    return { status: 200, message: 'Bootstrap completato. Effettua nuovamente il login.' };
+  });
+  if (result.status === 200) await disconnectUserSockets(req.app, req.user.id);
+  return res.status(result.status).json(result);
 };
 
 
@@ -345,5 +393,6 @@ module.exports = {
   login,
   logout,
   getAuthenticatedUser,
-  updateAuthenticatedUser
+  updateAuthenticatedUser,
+  bootstrapSuperadmin
 };

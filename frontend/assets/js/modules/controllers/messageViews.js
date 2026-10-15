@@ -10,6 +10,7 @@ export const registerMessageViewsController = (app) => {
     const ownMessage = authorUser.id === state.user?.id;
     article.className = `message ${ownMessage ? 'own' : 'other'}`;
     article.dataset.messageId = message.id;
+    if (message.deletedAt) article.dataset.deletedAt = message.deletedAt;
 
     const avatar = createUserAvatar(authorUser);
   
@@ -30,19 +31,67 @@ export const registerMessageViewsController = (app) => {
   
     const content = document.createElement('p');
     content.className = 'message-content';
-    appendMessageContent(content, message.content || '');
+    if (message.deletedAt) content.textContent = 'Messaggio eliminato';
+    else appendMessageContent(content, message.content || '');
 
     meta.append(author, time);
     body.append(meta);
-    if (message.content) {
+    if (message.content || message.deletedAt) {
       body.append(content);
     }
-    const attachment = renderAttachment(message);
+    const attachment = message.deletedAt ? null : renderAttachment(message);
     if (attachment) {
       body.append(attachment);
     }
+    if (!message.deletedAt) {
+      const server = state.servers.find((item) => item.channels.some((channel) => channel.id === message.channelId));
+      const localAdmin = message.channelId && server && (server.ownerId === state.user?.id
+        || server.members.some((membership) => membership.user.id === state.user?.id && membership.isAdmin));
+      const canDeleteChannel = message.channelId && (ownMessage || localAdmin ||
+        ['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'].includes(state.user?.role));
+      const canDeletePrivate = !message.channelId && ownMessage && message.senderId === state.user?.id;
+      if (canDeleteChannel || canDeletePrivate) {
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'danger-button message-delete-button';
+        remove.textContent = 'Elimina messaggio';
+        remove.addEventListener('click', async () => {
+          if (!await showConfirm('Eliminare questo messaggio?', 'Elimina')) return;
+          remove.disabled = true;
+          try {
+            const path = message.channelId
+              ? `/channels/${message.channelId}/messages/${message.id}`
+              : `/private/${message.recipientId}/messages/${message.id}`;
+            const result = await api(path, { method: 'DELETE' });
+            markMessageDeleted({ id: message.id, deletedAt: result.deletedAt });
+          } catch (error) {
+            remove.disabled = false;
+            showToast(error.message);
+          }
+        });
+        body.append(remove);
+      }
+    }
     article.append(avatar, body);
     elements.messages.append(article);
+  };
+
+  const markMessageDeleted = ({ id, deletedAt }) => {
+    const article = Array.from(elements.messages.querySelectorAll('[data-message-id]'))
+      .find((item) => item.dataset.messageId === id);
+    if (!article || article.dataset.deletedAt) return;
+    article.dataset.deletedAt = deletedAt || new Date().toISOString();
+    const body = article.querySelector('.message-meta')?.parentElement;
+    if (!body) return;
+    body.querySelector('.message-content')?.remove();
+    const attachment = body.querySelector('.message-attachment');
+    app.releaseAttachmentElement(attachment);
+    attachment?.remove();
+    body.querySelector('.message-delete-button')?.remove();
+    const content = document.createElement('p');
+    content.className = 'message-content';
+    content.textContent = 'Messaggio eliminato';
+    body.append(content);
   };
 
   const getCallStatusText = (call) => {
@@ -51,6 +100,8 @@ export const registerMessageViewsController = (app) => {
     if (call.status === 'DECLINED') {
       return ownCall ? 'Rifiutata' : 'Rifiutata da te';
     }
+    if (call.status === 'CANCELLED') return 'Annullata';
+    if (call.status === 'TIMEOUT') return ownCall ? 'Senza risposta' : 'Persa';
 
     if (call.status === 'RINGING') {
       return ownCall ? 'In uscita' : 'In arrivo';
@@ -108,7 +159,7 @@ export const registerMessageViewsController = (app) => {
   };
 
   const showCallHistoryForUser = async (user) => {
-    resetCall();
+    resetCall({ notifyPeer: true });
     state.activePrivateUserId = user.id;
     state.activeChannelId = null;
     state.activeConversationType = 'private';
@@ -136,6 +187,7 @@ export const registerMessageViewsController = (app) => {
 
   Object.assign(app, {
     renderMessage,
+    markMessageDeleted,
     getCallStatusText,
     renderCallHistory,
     loadCallHistory,

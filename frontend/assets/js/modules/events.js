@@ -70,14 +70,46 @@ export const setupEventListeners = ({
         body: JSON.stringify(Object.fromEntries(form))
       });
       state.token = result.token;
-      state.user = result.user;
       localStorage.setItem('unichat:token', result.token);
+      if (result.mfaRequired) {
+        elements.loginForm.classList.add('hidden');
+        elements.registerForm.classList.add('hidden');
+        elements.mfaLoginForm.classList.remove('hidden');
+        elements.mfaLoginCode.focus();
+        return;
+      }
+      state.user = result.user;
+      state.activeOverviewPanel = 'friendSearch';
+      state.friendsExpanded = true;
       setAuthenticatedUi(true);
       connectSocket();
       await loadWorkspaceData();
     } catch (error) {
       showToast(error.message);
     }
+  });
+
+  elements.mfaLoginForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    try {
+      await api('/auth/2fa/verify', { method: 'POST', body: JSON.stringify({ code: elements.mfaLoginCode.value.trim() }) });
+      elements.mfaLoginCode.value = '';
+      elements.mfaLoginForm.classList.add('hidden');
+      state.user = await api('/auth/me');
+      state.activeOverviewPanel = 'friendSearch';
+      state.friendsExpanded = true;
+      setAuthenticatedUi(true);
+      connectSocket();
+      await loadWorkspaceData();
+    } catch (error) { showToast(error.message); }
+  });
+  elements.mfaLoginCancel.addEventListener('click', async () => {
+    try { await api('/auth/logout', { method: 'POST' }); } catch {}
+    state.token = null;
+    state.user = null;
+    localStorage.removeItem('unichat:token');
+    elements.mfaLoginForm.classList.add('hidden');
+    elements.loginForm.classList.remove('hidden');
   });
   
   elements.registerForm.addEventListener('submit', async (event) => {
@@ -110,27 +142,9 @@ export const setupEventListeners = ({
     }
   });
   
-  elements.createUniversityButton.addEventListener('click', async () => {
-    try {
-      await api('/universities', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: elements.universityName.value,
-          domain: elements.universityDomain.value
-        })
-      });
-      elements.universityName.value = '';
-      elements.universityDomain.value = '';
-      await loadUniversities();
-      showToast('Universita aggiunta');
-    } catch (error) {
-      showToast(error.message);
-    }
-  });
-  
   elements.logoutButton.addEventListener('click', async () => {
     await leaveVoiceChannel();
-    resetCall();
+    resetCall({ notifyPeer: true });
 
     try {
       await api('/auth/logout', { method: 'POST' });
@@ -142,6 +156,7 @@ export const setupEventListeners = ({
     state.servers = [];
     state.availableServers = [];
     state.friends = [];
+    state.friendPresence = {};
     state.friendRequests = [];
     state.friendsExpanded = false;
     state.friendSearchResults = [];
@@ -350,7 +365,7 @@ export const setupEventListeners = ({
   elements.declineGameButton.addEventListener('click', () => answerGameInvite(false));
   elements.restartGameButton.addEventListener('click', restartGame);
   elements.closeGameButton.addEventListener('click', closeGame);
-  elements.videoCallButton.addEventListener('click', startVideoCall);
+  elements.videoCallButton.addEventListener('click', () => startVideoCall('video'));
   elements.acceptCallButton.addEventListener('click', acceptVideoCall);
   elements.declineCallButton.addEventListener('click', declineVideoCall);
   elements.endCallButton.addEventListener('click', () => {

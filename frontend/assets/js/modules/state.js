@@ -10,12 +10,13 @@ export const state = {
   activePrivateUserId: null,
   activeConversationType: 'channel',
   friends: [],
+  friendPresence: {},
   friendRequests: [],
-  friendsExpanded: false,
+  friendsExpanded: true,
   friendSearchResults: [],
   serverJoinRequests: [],
   blockedUsers: [],
-  activeOverviewPanel: null,
+  activeOverviewPanel: 'friendSearch',
   game: null,
   selectedGameType: 'TICTACTOE',
   userDock: {
@@ -40,6 +41,8 @@ export const state = {
     localStream: null,
     pendingIceCandidates: [],
     incoming: false,
-    active: false
+    active: false,
+    mode: 'video',
+    cameraEnabled: true
   }
 };

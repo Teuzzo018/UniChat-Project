@@ -1,4 +1,5 @@
 const prisma = require('../lib/prisma');
+const { isOnline } = require('../sockets/presence');
 
 const userSummarySelect = {
   id: true,
@@ -53,6 +54,15 @@ const emitFriendshipEvent = (req, userIds, eventName, payload = {}) => {
   userIds.forEach((userId) => {
     io.to(getUserRoom(userId)).emit(eventName, payload);
   });
+  if (userIds.length === 2 && payload.status === 'ACCEPTED') {
+    Promise.all(userIds.map((id) => isOnline(io, id))).then(([first, second]) => {
+      io.to(getUserRoom(userIds[0])).emit('presence_changed', { userId: userIds[1], online: second });
+      io.to(getUserRoom(userIds[1])).emit('presence_changed', { userId: userIds[0], online: first });
+    }).catch((error) => console.error('Presenza amicizia non aggiornata:', error.code || error.name));
+  } else if (userIds.length === 2 && ['REMOVED', 'BLOCKED'].includes(payload.status)) {
+    io.to(getUserRoom(userIds[0])).emit('presence_changed', { userId: userIds[1], online: false });
+    io.to(getUserRoom(userIds[1])).emit('presence_changed', { userId: userIds[0], online: false });
+  }
 };
 
 const formatFriendship = (friendship, currentUserId) => {
@@ -120,6 +130,7 @@ const searchUsers = async (req, res) => {
     prisma.user.findMany({
       where: {
         id: { notIn: [req.user.id, ...blockedUserIds] },
+        suspendedAt: null,
         OR: [
           { username: { contains: query, mode: 'insensitive' } },
           { fullName: { contains: query, mode: 'insensitive' } },
@@ -167,7 +178,7 @@ const addFriend = async (req, res) => {
 
   const targetUser = await prisma.user.findUnique({
     where: { username },
-    select: userSummarySelect
+    select: { ...userSummarySelect, suspendedAt: true }
   });
 
   if (!targetUser) {
@@ -177,6 +188,8 @@ const addFriend = async (req, res) => {
   if (targetUser.id === req.user.id) {
     return res.status(400).json({ error: 'Non puoi aggiungere te stesso' });
   }
+
+  if (targetUser.suspendedAt) return res.status(403).json({ error: 'Utente non disponibile' });
 
   const existingBlock = await prisma.blockedUser.findFirst({
     where: {
@@ -193,32 +206,37 @@ const addFriend = async (req, res) => {
   }
 
   const [requesterId, addresseeId] = getFriendshipPair(req.user.id, targetUser.id);
-  const friendship = await prisma.friendship.upsert({
-    where: {
-      requesterId_addresseeId: {
-        requesterId,
-        addresseeId
-      }
-    },
-    update: {},
-    create: {
-      requesterId,
-      addresseeId,
-      requestedById: req.user.id,
-      status: 'PENDING'
-    },
-    include: {
-      requester: { select: userSummarySelect },
-      addressee: { select: userSummarySelect }
-    }
-  });
+  const pair = { requesterId, addresseeId };
+  let friendship;
+  try {
+    friendship = await prisma.friendship.upsert({
+      where: { requesterId_addresseeId: pair },
+      update: {},
+      create: { ...pair, requestedById: req.user.id, status: 'PENDING' }
+    });
+  } catch (error) {
+    if (error.code !== 'P2002') throw error;
+    friendship = await prisma.friendship.findUnique({ where: { requesterId_addresseeId: pair } });
+    if (!friendship) throw error;
+  }
 
+  if (friendship.status === 'PENDING' && friendship.requestedById !== req.user.id) {
+    const accepted = await prisma.friendship.updateMany({
+      where: { id: friendship.id, status: 'PENDING', requestedById: { not: req.user.id } },
+      data: { status: 'ACCEPTED' }
+    });
+    if (!accepted.count) return res.status(409).json({ error: 'Richiesta già gestita' });
+    friendship.status = 'ACCEPTED';
+  }
   emitFriendshipEvent(req, [req.user.id, targetUser.id], 'friendship_changed', {
     friendshipId: friendship.id,
     status: friendship.status
   });
 
-  return res.status(friendship.status === 'ACCEPTED' ? 200 : 201).json(formatFriendship(friendship, req.user.id));
+  const { suspendedAt: _suspendedAt, ...publicTarget } = targetUser;
+  return res.status(friendship.status === 'ACCEPTED' ? 200 : 201).json({
+    ...formatFriendship(friendship, req.user.id), friend: publicTarget
+  });
 };
 
 const acceptFriendRequest = async (req, res) => {
@@ -239,9 +257,21 @@ const acceptFriendRequest = async (req, res) => {
     return res.status(404).json({ error: 'Richiesta non trovata' });
   }
 
-  const acceptedFriendship = await prisma.friendship.update({
+  const otherId = friendship.requesterId === req.user.id ? friendship.addresseeId : friendship.requesterId;
+  const [other, blocked] = await Promise.all([
+    prisma.user.findUnique({ where: { id: otherId }, select: { suspendedAt: true } }),
+    prisma.blockedUser.findFirst({ where: { OR: [
+      { blockerId: req.user.id, blockedId: otherId }, { blockerId: otherId, blockedId: req.user.id }
+    ] }, select: { id: true } })
+  ]);
+  if (!other || other.suspendedAt || blocked) return res.status(403).json({ error: 'Utente non disponibile' });
+  const updated = await prisma.friendship.updateMany({
+    where: { id: friendship.id, status: 'PENDING', requestedById: { not: req.user.id } },
+    data: { status: 'ACCEPTED' }
+  });
+  if (!updated.count) return res.status(409).json({ error: 'Richiesta già gestita' });
+  const acceptedFriendship = await prisma.friendship.findUnique({
     where: { id: friendship.id },
-    data: { status: 'ACCEPTED' },
     include: {
       requester: { select: userSummarySelect },
       addressee: { select: userSummarySelect }
@@ -277,7 +307,10 @@ const declineFriendRequest = async (req, res) => {
     return res.status(404).json({ error: 'Richiesta non trovata' });
   }
 
-  await prisma.friendship.delete({ where: { id: friendship.id } });
+  const deleted = await prisma.friendship.deleteMany({
+    where: { id: friendship.id, status: 'PENDING', requestedById: { not: req.user.id } }
+  });
+  if (!deleted.count) return res.status(409).json({ error: 'Richiesta già gestita' });
   emitFriendshipEvent(req, [friendship.requesterId, friendship.addresseeId], 'friendship_changed', {
     friendshipId: friendship.id,
     status: 'DECLINED'
@@ -285,11 +318,29 @@ const declineFriendRequest = async (req, res) => {
   return res.status(200).json({ message: 'Richiesta rifiutata' });
 };
 
+const cancelFriendRequest = async (req, res) => {
+  const friendship = await prisma.friendship.findUnique({ where: { id: req.params.id }, select: {
+    id: true, requesterId: true, addresseeId: true, requestedById: true, status: true
+  } });
+  if (!friendship || friendship.status !== 'PENDING' || friendship.requestedById !== req.user.id) {
+    return res.status(404).json({ error: 'Richiesta non trovata' });
+  }
+  const deleted = await prisma.friendship.deleteMany({ where: {
+    id: friendship.id, status: 'PENDING', requestedById: req.user.id
+  } });
+  if (!deleted.count) return res.status(409).json({ error: 'Richiesta già gestita' });
+  emitFriendshipEvent(req, [friendship.requesterId, friendship.addresseeId], 'friendship_changed', {
+    friendshipId: friendship.id, status: 'CANCELLED'
+  });
+  return res.status(200).json({ message: 'Richiesta annullata' });
+};
+
 const removeFriend = async (req, res) => {
   const friendId = req.params.userId;
 
   const deletedFriendships = await prisma.friendship.findMany({
     where: {
+      status: 'ACCEPTED',
       OR: [
         { requesterId: req.user.id, addresseeId: friendId },
         { requesterId: friendId, addresseeId: req.user.id }
@@ -302,13 +353,13 @@ const removeFriend = async (req, res) => {
     }
   });
 
-  await prisma.friendship.deleteMany({
+  const removed = await prisma.friendship.deleteMany({
     where: {
-      id: { in: deletedFriendships.map((friendship) => friendship.id) }
+      id: { in: deletedFriendships.map((friendship) => friendship.id) }, status: 'ACCEPTED'
     }
   });
 
-  deletedFriendships.forEach((friendship) => {
+  if (removed.count) deletedFriendships.forEach((friendship) => {
     emitFriendshipEvent(req, [friendship.requesterId, friendship.addresseeId], 'friendship_changed', {
       friendshipId: friendship.id,
       status: 'REMOVED'
@@ -405,6 +456,7 @@ module.exports = {
   acceptFriendRequest,
   addFriend,
   blockUser,
+  cancelFriendRequest,
   declineFriendRequest,
   listBlockedUsers,
   listFriends,

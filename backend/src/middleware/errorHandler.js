@@ -1,5 +1,5 @@
 const errorHandler = (error, req, res, next) => {
-  console.error('Errore applicativo:', error);
+  console.error('Errore applicativo:', error.code || error.name || 'Error');
 
   if (res.headersSent) {
     return next(error);
@@ -11,8 +11,11 @@ const errorHandler = (error, req, res, next) => {
     });
   }
 
-  return res.status(error.statusCode || 500).json({
-    error: error.message || 'Errore interno del server'
+  const status = error.statusCode || error.status || 500;
+  return res.status(status).json({
+    error: status === 503 && error.message === 'Chiave TOTP non configurata'
+      ? 'Secondo fattore non configurato sul server'
+      : status >= 500 ? 'Errore interno del server' : (error.message || 'Richiesta non valida')
   });
 };
 

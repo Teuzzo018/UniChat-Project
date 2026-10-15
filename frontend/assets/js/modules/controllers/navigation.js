@@ -21,6 +21,7 @@ export const registerNavigationController = (app) => {
     elements.callPanel.classList.add('hidden');
     elements.voicePanel.classList.add('hidden');
     elements.callHistory.classList.add('hidden');
+    app.releaseAttachments();
     elements.messages.replaceChildren();
     const hasConversation = state.activeConversationType === 'private' ? Boolean(privateUser) : Boolean(channel);
     elements.emptyState.classList.toggle('hidden', hasConversation);
@@ -32,6 +33,7 @@ export const registerNavigationController = (app) => {
       elements.channelTitle.textContent = state.user ? 'Home' : 'Benvenuto in UniChat';
       elements.channelType.textContent = state.user ? 'Panoramica' : 'Canale';
       elements.videoCallButton.classList.add('hidden');
+      document.querySelector('#audioCallButton').classList.add('hidden');
       return;
     }
 
@@ -39,6 +41,7 @@ export const registerNavigationController = (app) => {
       elements.channelTitle.textContent = privateUser.fullName;
       elements.channelType.textContent = `Privato ${getDisplayHandle(privateUser)}`;
       elements.videoCallButton.classList.remove('hidden');
+      document.querySelector('#audioCallButton').classList.remove('hidden');
       const messages = await api(`/private/${privateUser.id}/messages`);
       messages.forEach(renderMessage);
       elements.messages.scrollTop = elements.messages.scrollHeight;
@@ -48,6 +51,7 @@ export const registerNavigationController = (app) => {
     elements.channelTitle.textContent = channel.name;
     elements.channelType.textContent = channel.type === 'TEXT' ? 'Canale testuale' : 'Canale vocale';
     elements.videoCallButton.classList.add('hidden');
+    document.querySelector('#audioCallButton').classList.add('hidden');
 
     if (channel.type !== 'TEXT') {
       renderVoicePanel();
@@ -60,7 +64,7 @@ export const registerNavigationController = (app) => {
   };
 
   const selectChannel = async (channelId) => {
-    resetCall();
+    resetCall({ notifyPeer: true });
     if (state.voice.channelId && state.voice.channelId !== channelId) {
       await leaveVoiceChannel();
     }
@@ -70,23 +74,31 @@ export const registerNavigationController = (app) => {
     state.socket?.emit('join_channel', channelId);
     renderChannels();
     await loadMessages();
+    app.closeMobileNav?.();
   };
 
   const selectPrivateChat = async (user) => {
+    if (!state.friends.some((friendship) => friendship.friend.id === user?.id)) {
+      showToast('Puoi scrivere solo agli amici');
+      return;
+    }
     await leaveVoiceChannel();
-    resetCall();
+    resetCall({ notifyPeer: true });
     state.activePrivateUserId = user.id;
     state.activeChannelId = null;
     state.activeConversationType = 'private';
+    state.activeOverviewPanel = 'directMessages';
     state.game = null;
     renderChannels();
     await loadMessages();
+    app.closeMobileNav?.();
   };
 
   const selectServer = async (serverId) => {
     await leaveVoiceChannel();
-    resetCall();
+    resetCall({ notifyPeer: true });
     state.activeServerId = serverId;
+    state.activeOverviewPanel = 'channels';
     state.activePrivateUserId = null;
     state.activeConversationType = 'channel';
     state.game = null;
@@ -100,6 +112,7 @@ export const registerNavigationController = (app) => {
     }
   
     await loadMessages();
+    app.closeMobileNav?.();
   };
 
   Object.assign(app, {

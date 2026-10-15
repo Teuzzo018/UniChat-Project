@@ -22,6 +22,13 @@ export const registerChannelsController = (app) => {
     elements.memberList.replaceChildren();
     elements.copyInviteButton.disabled = !server;
     elements.deleteServerButton.classList.toggle('hidden', !server);
+    const canManageServer = Boolean(server && (server.ownerId === state.user?.id
+      || server.members.some((membership) => membership.user.id === state.user?.id && membership.isAdmin)
+      || state.user?.role === 'SUPERADMIN'));
+    elements.copyInviteButton.disabled = !canManageServer;
+    elements.inviteManage.classList.toggle('hidden', !canManageServer);
+    elements.discoverabilityButton.textContent = server?.isDiscoverable ? 'Nascondi dalla ricerca' : 'Rendi scopribile';
+    elements.channelForm.classList.toggle('hidden', !canManageServer);
   
     if (!server) {
       elements.workspaceTitle.textContent = state.user?.fullName || 'Accesso';
@@ -39,13 +46,21 @@ export const registerChannelsController = (app) => {
       button.className = `channel-item ${channel.id === state.activeChannelId ? 'active' : ''}`;
       button.type = 'button';
       button.textContent = `${channel.type === 'TEXT' ? '#' : '◉'} ${channel.name}`;
+      button.title = channel.name;
+      if (channel.id === state.activeChannelId) button.setAttribute('aria-current', 'page');
       button.addEventListener('click', () => selectChannel(channel.id));
       elements.channelList.append(button);
     });
+    if (!server.channels.length) {
+      const empty = document.createElement('p');
+      empty.className = 'sidebar-empty';
+      empty.textContent = 'Nessun canale accessibile.';
+      elements.channelList.append(empty);
+    }
   
     server.members
       .map((membership) => membership.user)
-      .filter((member) => member.id !== state.user.id)
+      .filter((member) => member.id !== state.user.id && state.friends.some((friendship) => friendship.friend.id === member.id))
       .forEach((member) => {
         const row = document.createElement('div');
         row.className = 'member-row';
@@ -69,11 +84,18 @@ export const registerChannelsController = (app) => {
         row.append(button, historyButton);
         elements.memberList.append(row);
       });
+    if (!elements.memberList.childElementCount) {
+      const empty = document.createElement('p');
+      empty.className = 'sidebar-empty';
+      empty.textContent = 'Nessun amico in questo server.';
+      elements.memberList.append(empty);
+    }
     renderOverviewBar();
   };
 
   const loadServers = async () => {
     state.servers = await api('/servers');
+    app.setAuthenticatedUi(Boolean(state.user));
 
     if (state.activeServerId && !state.servers.some((server) => server.id === state.activeServerId)) {
       state.activeServerId = null;
@@ -93,7 +115,8 @@ export const registerChannelsController = (app) => {
     await Promise.all([
       loadServers(),
       loadFriends(),
-      loadServerJoinRequests()
+      loadServerJoinRequests(),
+      app.loadAttachmentLimits()
     ]);
   };
 
@@ -137,12 +160,16 @@ export const registerChannelsController = (app) => {
   const copyActiveServerInvite = async () => {
     const server = activeServer();
   
-    if (!server?.inviteCode) {
+    if (!server) {
       showToast('Seleziona prima un server');
       return;
     }
+    let invite;
+    try { invite = await api(`/servers/${server.id}/invite`); }
+    catch (error) { showToast(error.message); return; }
+    if (!invite.active) { showToast('Invito non attivo: creane uno nuovo'); return; }
   
-    const inviteUrl = `${window.location.origin}${window.location.pathname}?invite=${server.inviteCode}`;
+    const inviteUrl = `${window.location.origin}${window.location.pathname}?invite=${invite.inviteCode}`;
   
     try {
       await navigator.clipboard.writeText(inviteUrl);
@@ -152,6 +179,39 @@ export const registerChannelsController = (app) => {
       showToast('Link inserito nel campo invito');
     }
   };
+
+  elements.rotateInviteButton.addEventListener('click', async () => {
+    const server = activeServer();
+    if (!server) return;
+    const expiry = elements.inviteExpiresAt.value;
+    const max = elements.inviteMaxUses.value;
+    try {
+      await api(`/servers/${server.id}/invite`, { method: 'POST', body: JSON.stringify({
+        expiresAt: expiry ? new Date(expiry).toISOString() : null,
+        maxUses: max ? Number(max) : null
+      }) });
+      showToast('Nuovo invito creato; il precedente non è più valido');
+    } catch (error) { showToast(error.message); }
+  });
+  elements.revokeInviteButton.addEventListener('click', async () => {
+    const server = activeServer();
+    if (!server) return;
+    try {
+      await api(`/servers/${server.id}/invite`, { method: 'DELETE' });
+      showToast('Invito revocato');
+    } catch (error) { showToast(error.message); }
+  });
+  elements.discoverabilityButton.addEventListener('click', async () => {
+    const server = activeServer();
+    if (!server) return;
+    try {
+      const result = await api(`/servers/${server.id}/discoverability`, { method: 'PATCH',
+        body: JSON.stringify({ isDiscoverable: !server.isDiscoverable }) });
+      server.isDiscoverable = result.isDiscoverable;
+      renderChannels();
+      showToast(result.isDiscoverable ? 'Server visibile nella ricerca' : 'Server nascosto dalla ricerca');
+    } catch (error) { showToast(error.message); }
+  });
 
   const deleteOrLeaveActiveServer = async () => {
     const server = activeServer();

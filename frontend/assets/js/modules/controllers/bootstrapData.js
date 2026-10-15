@@ -7,7 +7,7 @@ export const registerBootstrapDataController = (app) => {
   const loadUniversities = async () => {
     const universities = await api('/universities');
     elements.universitySelect.replaceChildren();
-    elements.universitySelect.required = !state.pendingInviteCode;
+    elements.universitySelect.required = !state.pendingInviteCode && universities.length > 0;
   
     universities.forEach((university) => {
       const option = document.createElement('option');
@@ -19,7 +19,7 @@ export const registerBootstrapDataController = (app) => {
     if (universities.length === 0) {
       const option = document.createElement('option');
       option.value = '';
-      option.textContent = state.pendingInviteCode ? 'Nessuna universita, uso un invito' : 'Aggiungi prima una universita';
+      option.textContent = state.pendingInviteCode ? 'Nessuna universita, uso un invito' : 'Solo primo admin: nessuna universita';
       elements.universitySelect.append(option);
       return;
     }
@@ -48,6 +48,13 @@ export const registerBootstrapDataController = (app) => {
       connectSocket();
       await loadWorkspaceData();
     } catch (error) {
+      if (error.mfaRequired) {
+        elements.loginForm.classList.add('hidden');
+        elements.registerForm.classList.add('hidden');
+        elements.mfaLoginForm.classList.remove('hidden');
+        elements.mfaLoginCode.focus();
+        return;
+      }
       localStorage.removeItem('unichat:token');
       state.token = null;
       setAuthenticatedUi(false);

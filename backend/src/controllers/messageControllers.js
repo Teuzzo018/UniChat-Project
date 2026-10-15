@@ -1,5 +1,7 @@
 const prisma = require('../lib/prisma');
 const { ensureServerMember } = require('./serverControllers');
+const { canModerateServer } = require('../lib/authorization');
+const { tombstoneChannelMessage, tombstonePrivateMessage } = require('../utils/messageDeletion');
 
 const messageSelect = {
   id: true,
@@ -8,6 +10,7 @@ const messageSelect = {
   attachmentName: true,
   attachmentMimeType: true,
   attachmentSize: true,
+  deletedAt: true,
   createdAt: true,
   channelId: true,
   user: {
@@ -28,6 +31,7 @@ const privateMessageSelect = {
   attachmentName: true,
   attachmentMimeType: true,
   attachmentSize: true,
+  deletedAt: true,
   createdAt: true,
   senderId: true,
   recipientId: true,
@@ -149,8 +153,46 @@ const createMessage = async (req, res) => {
     select: messageSelect
   });
 
+  req.uploadCommitted = true;
+
   emitChannelMessage(req, message);
   return res.status(201).json(message);
+};
+
+const deleteChannelMessage = async (req, res) => {
+  const channel = await findAccessibleChannel(req.params.channelId, req.user.id);
+  if (!channel) return res.status(404).json({ error: 'Messaggio non trovato' });
+  const message = await prisma.message.findUnique({ where: { id: req.params.messageId }, select: {
+    id: true, channelId: true, userId: true, attachmentUrl: true, deletedAt: true
+  } });
+  if (!message || message.channelId !== channel.id) return res.status(404).json({ error: 'Messaggio non trovato' });
+  if (message.userId !== req.user.id && !await canModerateServer(req.user, channel.serverId)) {
+    return res.status(403).json({ error: 'Permesso messaggio richiesto' });
+  }
+  const result = await tombstoneChannelMessage(message, req.user.id);
+  if (!result.alreadyDeleted) req.app.get('io')?.to(getChannelRoom(channel.id)).emit('message_deleted', {
+    id: message.id, channelId: channel.id, deletedAt: result.deletedAt
+  });
+  return res.status(200).json({ message: 'Messaggio eliminato', ...result });
+};
+
+const deleteServerMessage = async (req, res) => {
+  const message = await prisma.message.findUnique({
+    where: { id: req.params.messageId },
+    select: { id: true, channelId: true, attachmentUrl: true, deletedAt: true,
+      channel: { select: { serverId: true } } }
+  });
+  if (!message || message.channel.serverId !== req.params.id) {
+    return res.status(404).json({ error: 'Messaggio non trovato' });
+  }
+  if (!await canModerateServer(req.user, req.params.id)) {
+    return res.status(403).json({ error: 'Permesso server richiesto' });
+  }
+  const result = await tombstoneChannelMessage(message, req.user.id);
+  if (!result.alreadyDeleted) req.app.get('io')?.to(getChannelRoom(message.channelId)).emit('message_deleted', {
+    id: message.id, channelId: message.channelId, deletedAt: result.deletedAt
+  });
+  return res.status(200).json({ message: 'Messaggio eliminato', ...result });
 };
 
 const ensurePrivateRecipient = async (currentUserId, recipientId) => {
@@ -170,11 +212,31 @@ const ensurePrivateRecipient = async (currentUserId, recipientId) => {
   });
 };
 
+const canContact = async (firstId, secondId) => {
+  if (!firstId || !secondId || firstId === secondId) return false;
+  const [friendship, block, target] = await Promise.all([
+    prisma.friendship.findFirst({ where: { status: 'ACCEPTED', OR: [
+      { requesterId: firstId, addresseeId: secondId },
+      { requesterId: secondId, addresseeId: firstId }
+    ] }, select: { id: true } }),
+    prisma.blockedUser.findFirst({ where: { OR: [
+      { blockerId: firstId, blockedId: secondId },
+      { blockerId: secondId, blockedId: firstId }
+    ] }, select: { id: true } }),
+    prisma.user.findUnique({ where: { id: secondId }, select: { id: true, suspendedAt: true } })
+  ]);
+  return Boolean(friendship && !block && target && !target.suspendedAt);
+};
+
 const listPrivateMessages = async (req, res) => {
   const recipient = await ensurePrivateRecipient(req.user.id, req.params.userId);
 
   if (!recipient) {
     return res.status(404).json({ error: 'Utente non trovato' });
+  }
+
+  if (!await canContact(req.user.id, recipient.id)) {
+    return res.status(404).json({ error: 'Conversazione non disponibile' });
   }
 
   const messages = await prisma.privateMessage.findMany({
@@ -192,11 +254,38 @@ const listPrivateMessages = async (req, res) => {
   return res.status(200).json(messages);
 };
 
+const deletePrivateMessage = async (req, res) => {
+  const recipient = await ensurePrivateRecipient(req.user.id, req.params.userId);
+  if (!recipient) return res.status(404).json({ error: 'Messaggio non trovato' });
+  if (!await canContact(req.user.id, recipient.id)) return res.status(404).json({ error: 'Conversazione non disponibile' });
+  const message = await prisma.privateMessage.findUnique({ where: { id: req.params.messageId }, select: {
+    id: true, senderId: true, recipientId: true, attachmentUrl: true, deletedAt: true
+  } });
+  if (!message || !(
+    (message.senderId === req.user.id && message.recipientId === recipient.id) ||
+    (message.senderId === recipient.id && message.recipientId === req.user.id)
+  )) return res.status(404).json({ error: 'Messaggio non trovato' });
+  if (message.senderId !== req.user.id) return res.status(403).json({ error: 'Solo l’autore può eliminare il messaggio privato' });
+  const result = await tombstonePrivateMessage(message, req.user.id);
+  if (!result.alreadyDeleted) {
+    const payload = { id: message.id, senderId: message.senderId, recipientId: message.recipientId,
+      deletedAt: result.deletedAt };
+    const io = req.app.get('io');
+    io?.to(`user:${message.senderId}`).emit('private_message_deleted', payload);
+    io?.to(`user:${message.recipientId}`).emit('private_message_deleted', payload);
+  }
+  return res.status(200).json({ message: 'Messaggio eliminato', ...result });
+};
+
 const listPrivateCalls = async (req, res) => {
   const recipient = await ensurePrivateRecipient(req.user.id, req.params.userId);
 
   if (!recipient) {
     return res.status(404).json({ error: 'Utente non trovato' });
+  }
+
+  if (!await canContact(req.user.id, recipient.id)) {
+    return res.status(403).json({ error: 'Conversazione non disponibile' });
   }
 
   const calls = await prisma.privateCall.findMany({
@@ -246,6 +335,10 @@ const createPrivateMessage = async (req, res) => {
     return res.status(404).json({ error: 'Utente non trovato' });
   }
 
+  if (!await canContact(req.user.id, recipient.id)) {
+    return res.status(403).json({ error: 'Conversazione non disponibile' });
+  }
+
   if (!content && !file) {
     return res.status(400).json({ error: 'Il messaggio non puo essere vuoto' });
   }
@@ -260,14 +353,20 @@ const createPrivateMessage = async (req, res) => {
     select: privateMessageSelect
   });
 
+  req.uploadCommitted = true;
+
   emitPrivateMessage(req, message);
   return res.status(201).json(message);
 };
 
 module.exports = {
+  deleteChannelMessage,
+  deletePrivateMessage,
   createMessage,
+  deleteServerMessage,
   createPrivateMessage,
   findAccessibleChannel,
+  canContact,
   listPrivateCalls,
   listMessages,
   listPrivateMessages,

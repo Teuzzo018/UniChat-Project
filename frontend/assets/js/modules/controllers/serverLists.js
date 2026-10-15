@@ -5,15 +5,40 @@ export const registerServerListsController = (app) => {
 
   const renderServers = () => {
     elements.serverList.replaceChildren();
+
+    if (!state.servers.length) {
+      const empty = document.createElement('span');
+      empty.className = 'server-list-empty';
+      empty.textContent = 'Nessun server';
+      elements.serverList.append(empty);
+    }
   
     state.servers.forEach((server) => {
       const button = document.createElement('button');
       button.className = `server-dot ${server.id === state.activeServerId ? 'active' : ''}`;
       button.type = 'button';
       button.title = server.name;
+      button.setAttribute('aria-label', `Apri server ${server.name}`);
+      if (server.id === state.activeServerId) button.setAttribute('aria-current', 'page');
       button.textContent = getInitials(server.name);
       button.addEventListener('click', () => selectServer(server.id));
-      elements.serverList.append(button);
+      button.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        app.showServerMenu(server, button, event.clientX, event.clientY);
+      });
+      const item = document.createElement('div');
+      item.className = 'server-rail-item';
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'server-menu-trigger';
+      more.textContent = '⋯';
+      more.setAttribute('aria-label', `Azioni per ${server.name}`);
+      more.addEventListener('click', () => {
+        const rect = more.getBoundingClientRect();
+        app.showServerMenu(server, more, rect.right + 4, rect.top);
+      });
+      item.append(button, more);
+      elements.serverList.append(item);
     });
   };
 
@@ -30,7 +55,7 @@ export const registerServerListsController = (app) => {
       name.textContent = server.name;
   
       const details = document.createElement('span');
-      details.textContent = `${server._count.members} membri`;
+      details.textContent = server.description || 'Server scopribile';
   
       const button = document.createElement('button');
       button.className = 'secondary-button';
@@ -42,6 +67,12 @@ export const registerServerListsController = (app) => {
       item.append(info, button);
       elements.availableServerList.append(item);
     });
+    if (!state.availableServers.length) {
+      const empty = document.createElement('p');
+      empty.className = 'sidebar-empty';
+      empty.textContent = 'Nessun server da esplorare al momento.';
+      elements.availableServerList.append(empty);
+    }
     renderOverviewBar();
   };
 

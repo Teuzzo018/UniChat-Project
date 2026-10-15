@@ -1,35 +1,53 @@
 export const registerCallsController = (app) => {
-  const { state, elements, api, formatBytes, isAllowedAttachment, isAudioAttachment, isImageAttachment, isVideoAttachment, MAX_ATTACHMENT_BYTES, appendMessageContent, createUserAvatar, getDisplayHandle, getInitials, renderAvatarContent, setBadgeCount, showConfirm, showToast } = app;
-  const activePrivateUser = (...args) => app.activePrivateUser(...args);
-  const loadMessages = (...args) => app.loadMessages(...args);
+  const { state, elements, api, showToast } = app;
+  const audioButton = document.querySelector('#audioCallButton');
+  const callMicButton = document.querySelector('#callMicButton');
+  const callCameraButton = document.querySelector('#callCameraButton');
+  const remoteCallAudio = document.querySelector('#remoteCallAudio');
+  let connectionTimer = null;
+
+  const messageForMediaError = (error) => {
+    if (!navigator.mediaDevices?.getUserMedia || !window.isSecureContext) return 'Audio e video richiedono HTTPS o localhost.';
+    if (['NotAllowedError', 'PermissionDeniedError'].includes(error?.name)) return 'Consenti l’accesso a microfono e videocamera nel browser.';
+    if (['NotFoundError', 'DevicesNotFoundError'].includes(error?.name)) return 'Microfono o videocamera non trovati.';
+    if (['NotReadableError', 'TrackStartError'].includes(error?.name)) return 'Dispositivo audio o video già in uso o non disponibile.';
+    return 'Impossibile avviare audio o video.';
+  };
+
+  const emitCall = (event, payload, timeoutMs = 8000) => new Promise((resolve, reject) => {
+    if (!state.socket?.connected) return reject(new Error('Connessione al server assente'));
+    const timer = setTimeout(() => reject(new Error('Il server non risponde')), timeoutMs);
+    state.socket.emit(event, { token: state.token, ...payload }, (response) => {
+      clearTimeout(timer);
+      if (response?.ok) resolve(response);
+      else reject(new Error(response?.error || 'Operazione non riuscita'));
+    });
+  });
 
   const resetCall = ({ notifyPeer = false } = {}) => {
-    if (notifyPeer && state.call.id && state.call.friend) {
-      state.socket?.emit('private_video_call_end', {
-        token: state.token,
-        callId: state.call.id,
-        recipientId: state.call.friend.id
-      });
-    }
-
-    state.call.peer?.close();
-    state.call.localStream?.getTracks().forEach((track) => track.stop());
-    state.call = {
-      id: null,
-      peer: null,
-      friend: null,
-      localStream: null,
-      pendingIceCandidates: [],
-      incoming: false,
-      active: false
-    };
+    const old = state.call;
+    if (notifyPeer && old.id) state.socket?.emit('private_video_call_end', { token: state.token, callId: old.id });
+    clearTimeout(connectionTimer);
+    connectionTimer = null;
+    old.peer?.close();
+    old.localStream?.getTracks().forEach((track) => track.stop());
+    state.call = { id: null, peer: null, friend: null, localStream: null,
+      pendingIceCandidates: [], incoming: false, active: false, mode: 'video', cameraEnabled: true };
     elements.localVideo.srcObject = null;
     elements.remoteVideo.srcObject = null;
+    remoteCallAudio.srcObject = null;
     elements.callPanel.classList.add('hidden');
+    app.renderUserDock();
+  };
+
+  const closeCall = (reason, notifyPeer = true) => {
+    if (reason) showToast(reason);
+    resetCall({ notifyPeer });
+    app.loadMessages().catch((error) => showToast(error.message));
   };
 
   const showCallPanel = (status) => {
-    const friend = state.call.friend;
+    const call = state.call;
     elements.emptyState.classList.add('hidden');
     elements.adminPanel.classList.add('hidden');
     elements.gamePanel.classList.add('hidden');
@@ -38,202 +56,229 @@ export const registerCallsController = (app) => {
     elements.messages.classList.add('hidden');
     elements.messageForm.classList.add('hidden');
     elements.callPanel.classList.remove('hidden');
-    elements.callTitle.textContent = friend ? `Con ${friend.fullName}` : 'Chiamata privata';
+    elements.callPanel.classList.toggle('audio-only', call.mode === 'audio');
+    elements.callTitle.textContent = call.friend ? `Con ${call.friend.fullName}` : 'Chiamata privata';
     elements.callStatus.textContent = status;
-    elements.acceptCallButton.classList.toggle('hidden', !state.call.incoming);
-    elements.declineCallButton.classList.toggle('hidden', !state.call.incoming);
+    elements.acceptCallButton.classList.toggle('hidden', !call.incoming);
+    elements.declineCallButton.classList.toggle('hidden', !call.incoming);
+    elements.endCallButton.classList.toggle('hidden', call.incoming);
+    elements.endCallButton.textContent = call.active ? 'Termina chiamata' : 'Annulla chiamata';
+    callMicButton.classList.toggle('hidden', !call.localStream);
+    callCameraButton.classList.toggle('hidden', !call.localStream || call.mode !== 'video' || !call.localStream.getVideoTracks().length);
+    callMicButton.setAttribute('aria-pressed', String(!state.userDock.muted && !state.userDock.deafened));
+    callMicButton.textContent = state.userDock.muted || state.userDock.deafened ? 'Attiva microfono' : 'Disattiva microfono';
+    callCameraButton.setAttribute('aria-pressed', String(call.cameraEnabled));
+    callCameraButton.textContent = call.cameraEnabled ? 'Disattiva videocamera' : 'Attiva videocamera';
   };
 
-  const createCallPeer = (recipientId) => {
-    const peer = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    });
+  const startLocalMedia = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || !window.isSecureContext) {
+      const error = new Error('secure-context'); error.isMediaError = true; throw error;
+    }
+    const callId = state.call.id;
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: state.call.mode === 'video' }); }
+    catch (error) { error.isMediaError = true; throw error; }
+    if (state.call.id !== callId) { stream.getTracks().forEach((track) => track.stop()); return false; }
+    state.call.localStream = stream;
+    stream.getAudioTracks().forEach((track) => { track.enabled = !state.userDock.muted && !state.userDock.deafened; });
+    elements.localVideo.srcObject = stream;
+    app.renderUserDock();
+    showCallPanel(state.call.incoming ? 'Chiamata in arrivo' : 'Connessione in corso…');
+    return true;
+  };
 
-    state.call.localStream?.getTracks().forEach((track) => {
-      peer.addTrack(track, state.call.localStream);
+  const sendSignal = (signal) => {
+    if (!state.call.id) return;
+    emitCall('private_video_call_signal', { callId: state.call.id, signal }).catch((error) => {
+      if (state.call.id) closeCall(error.message);
     });
+  };
 
+  const createCallPeer = () => {
+    const call = state.call;
+    if (call.peer) return call.peer;
+    const peer = new RTCPeerConnection({ iceServers: call.iceServers || [] });
+    call.localStream?.getTracks().forEach((track) => peer.addTrack(track, call.localStream));
     peer.addEventListener('icecandidate', (event) => {
-      if (event.candidate) {
-        state.socket.emit('private_video_call_signal', {
-          token: state.token,
-          callId: state.call.id,
-          recipientId,
-          signal: {
-            type: 'ice',
-            candidate: event.candidate
-          }
-        });
-      }
+      if (event.candidate && state.call.peer === peer) sendSignal({ type: 'ice', candidate: event.candidate.toJSON() });
     });
-
     peer.addEventListener('track', (event) => {
-      elements.remoteVideo.srcObject = event.streams[0];
+      const stream = event.streams[0] || new MediaStream([event.track]);
+      if (state.call.mode === 'audio') remoteCallAudio.srcObject = stream;
+      else elements.remoteVideo.srcObject = stream;
     });
-
     peer.addEventListener('connectionstatechange', () => {
+      if (state.call.peer !== peer) return;
       if (peer.connectionState === 'connected') {
+        clearTimeout(connectionTimer);
+        connectionTimer = null;
         state.call.active = true;
         showCallPanel('Chiamata attiva');
-      }
-      if (peer.connectionState === 'disconnected') {
-        showCallPanel('Connessione instabile...');
-      }
-      if (['closed', 'failed'].includes(peer.connectionState)) {
-        resetCall();
-        loadMessages();
-      }
+      } else if (peer.connectionState === 'disconnected') {
+        showCallPanel('Connessione instabile…');
+        clearTimeout(connectionTimer);
+        connectionTimer = setTimeout(() => {
+          if (state.call.peer === peer && peer.connectionState !== 'connected') closeCall('Connessione interrotta');
+        }, 10000);
+      } else if (peer.connectionState === 'failed') closeCall('Connessione WebRTC non riuscita');
     });
-
-    state.call.peer = peer;
+    call.peer = peer;
     return peer;
   };
 
-  const startLocalVideo = async () => {
-    state.call.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-    elements.localVideo.srcObject = state.call.localStream;
+  const startConnectionTimer = () => {
+    clearTimeout(connectionTimer);
+    connectionTimer = setTimeout(() => {
+      if (state.call.id && !state.call.active) closeCall('Tempo di connessione esaurito');
+    }, 25000);
   };
 
-  const startVideoCall = async () => {
-    const friend = activePrivateUser();
-
-    if (!friend || !state.socket?.connected) {
-      showToast('Apri una chat privata prima di chiamare');
-      return;
-    }
-
+  const startVideoCall = async (mode = 'video') => {
+    const friend = app.activePrivateUser();
+    if (!friend || !state.friends.some((item) => item.friend.id === friend.id)) return showToast('Apri la chat di un amico per chiamarlo');
+    if (state.call.id) return showToast('Hai già una chiamata in corso');
+    if (!state.socket?.connected) return showToast('Connessione al server assente');
+    if (!navigator.mediaDevices?.getUserMedia || !window.isSecureContext) return showToast('Audio e video richiedono HTTPS o localhost.');
+    if (!window.RTCPeerConnection) return showToast('WebRTC non supportato da questo browser.');
+    await app.leaveVoiceChannel();
+    state.call.id = crypto.randomUUID();
+    state.call.friend = friend;
+    state.call.mode = mode;
+    const callId = state.call.id;
     try {
-      resetCall();
-      state.call.id = crypto.randomUUID();
-      state.call.friend = friend;
-      await startLocalVideo();
-      showCallPanel('Chiamata in uscita...');
-      state.socket.emit('private_video_call_request', {
-        token: state.token,
-        recipientId: friend.id,
-        callId: state.call.id
-      }, (response) => {
-        if (!response?.ok) {
-          showToast(response?.error || 'Chiamata non avviata');
-          resetCall();
-          loadMessages();
-        }
-      });
-    } catch {
-      showToast('Camera o microfono non disponibili');
-      resetCall();
+      state.call.iceServers = (await api('/rtc/config')).iceServers;
+      if (!await startLocalMedia()) return;
+      showCallPanel('Chiamata in uscita…');
+      await emitCall('private_video_call_request', { callId, recipientId: friend.id, mode });
+      if (state.call.id !== callId) return;
+      showCallPanel('In attesa di risposta…');
+    } catch (error) {
+      if (state.call.id === callId) closeCall(error.isMediaError ? messageForMediaError(error) : error.message, false);
     }
   };
 
   const acceptVideoCall = async () => {
-    if (!state.call.incoming || !state.call.friend) {
-      return;
-    }
-
+    const call = state.call;
+    if (!call.incoming || !call.friend || call.accepting) return;
+    call.accepting = true;
+    const callId = call.id;
     try {
-      await startLocalVideo();
+      if (!window.RTCPeerConnection) throw new Error('WebRTC non supportato da questo browser.');
+      await app.leaveVoiceChannel();
+      call.iceServers = (await api('/rtc/config')).iceServers;
+      if (!await startLocalMedia()) return;
+      await emitCall('private_video_call_answer', { callId, accepted: true });
+      if (state.call.id !== callId) return;
       state.call.incoming = false;
-      const peer = createCallPeer(state.call.friend.id);
+      showCallPanel('Connessione in corso…');
+      const peer = createCallPeer();
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
-      showCallPanel('Connessione in corso...');
-      state.socket.emit('private_video_call_answer', {
-        token: state.token,
-        callId: state.call.id,
-        callerId: state.call.friend.id,
-        accepted: true
-      });
-      state.socket.emit('private_video_call_signal', {
-        token: state.token,
-        callId: state.call.id,
-        recipientId: state.call.friend.id,
-        signal: {
-          type: 'offer',
-          description: offer
-        }
-      });
-    } catch {
-      showToast('Camera o microfono non disponibili');
-      declineVideoCall();
+      sendSignal({ type: 'offer', description: { type: offer.type, sdp: offer.sdp } });
+      startConnectionTimer();
+    } catch (error) {
+      if (state.call.id === callId) {
+        if (state.call.incoming) state.socket?.emit('private_video_call_answer', { token: state.token, callId, accepted: false });
+        closeCall(error.isMediaError ? messageForMediaError(error) : error.message);
+      }
     }
   };
 
   const declineVideoCall = () => {
-    if (state.call.friend) {
-      state.socket.emit('private_video_call_answer', {
-        token: state.token,
-        callId: state.call.id,
-        callerId: state.call.friend.id,
-        accepted: false
-      });
-    }
-    resetCall();
-    loadMessages();
+    if (!state.call.incoming) return;
+    state.socket?.emit('private_video_call_answer', { token: state.token, callId: state.call.id, accepted: false });
+    closeCall(null, false);
   };
 
   const flushVideoIceCandidates = async () => {
-    if (!state.call.peer?.remoteDescription) {
-      return;
-    }
-
-    const candidates = state.call.pendingIceCandidates.splice(0);
-
-    for (const candidate of candidates) {
-      await state.call.peer.addIceCandidate(new RTCIceCandidate(candidate));
-    }
+    const call = state.call;
+    if (!call.peer?.remoteDescription) return;
+    for (const candidate of call.pendingIceCandidates.splice(0)) await call.peer.addIceCandidate(candidate);
   };
 
-  const handleVideoSignal = async ({ callId, from, signal }) => {
-    if (!state.call.id || callId !== state.call.id || !state.call.friend || from.id !== state.call.friend.id) {
-      return;
-    }
-
-    if (!state.call.peer) {
-      createCallPeer(state.call.friend.id);
-    }
-
-    if (signal.type === 'offer') {
-      await state.call.peer.setRemoteDescription(new RTCSessionDescription(signal.description));
-      await flushVideoIceCandidates();
-      const answer = await state.call.peer.createAnswer();
-      await state.call.peer.setLocalDescription(answer);
-      state.socket.emit('private_video_call_signal', {
-        token: state.token,
-        callId: state.call.id,
-        recipientId: state.call.friend.id,
-        signal: {
-          type: 'answer',
-          description: answer
-        }
-      });
-      return;
-    }
-
-    if (signal.type === 'answer') {
-      await state.call.peer.setRemoteDescription(new RTCSessionDescription(signal.description));
-      await flushVideoIceCandidates();
-      return;
-    }
-
-    if (signal.type === 'ice' && signal.candidate) {
-      if (!state.call.peer.remoteDescription) {
-        state.call.pendingIceCandidates.push(signal.candidate);
-        return;
+  const handleVideoSignal = async ({ callId, from, signal } = {}) => {
+    const call = state.call;
+    if (!call.id || callId !== call.id || !call.friend || from?.id !== call.friend.id || !signal) return;
+    if (call.incoming || !call.localStream) return;
+    const peer = createCallPeer();
+    try {
+      if (signal.type === 'offer' && !call.offerReceived) {
+        call.offerReceived = true;
+        await peer.setRemoteDescription(signal.description);
+        await flushVideoIceCandidates();
+        const answer = await peer.createAnswer();
+        await peer.setLocalDescription(answer);
+        sendSignal({ type: 'answer', description: { type: answer.type, sdp: answer.sdp } });
+        startConnectionTimer();
+      } else if (signal.type === 'answer' && !call.answerReceived) {
+        call.answerReceived = true;
+        await peer.setRemoteDescription(signal.description);
+        await flushVideoIceCandidates();
+      } else if (signal.type === 'ice' && signal.candidate) {
+        if (peer.remoteDescription) await peer.addIceCandidate(signal.candidate);
+        else if (call.pendingIceCandidates.length < 200) call.pendingIceCandidates.push(signal.candidate);
       }
-
-      await state.call.peer.addIceCandidate(new RTCIceCandidate(signal.candidate));
+    } catch (error) {
+      if (state.call.id === callId) closeCall('Segnalazione WebRTC non valida');
     }
   };
 
-  Object.assign(app, {
-    resetCall,
-    showCallPanel,
-    createCallPeer,
-    startLocalVideo,
-    startVideoCall,
-    acceptVideoCall,
-    declineVideoCall,
-    flushVideoIceCandidates,
-    handleVideoSignal
-  });
+  const onIncomingCall = ({ callId, from, mode = 'video' } = {}) => {
+    if (!callId || !from || !['audio', 'video'].includes(mode)) return;
+    if (state.call.id) {
+      showToast('Hai già una chiamata in corso');
+      return;
+    }
+    state.call.id = callId;
+    state.call.friend = from;
+    state.call.mode = mode;
+    state.call.incoming = true;
+    showCallPanel(`${mode === 'audio' ? 'Chiamata audio' : 'Videochiamata'} in arrivo da ${from.fullName}`);
+  };
+
+  const onCallAnswered = ({ callId, accepted, from } = {}) => {
+    if (callId !== state.call.id || state.call.incoming) return;
+    if (!accepted) return closeCall('Chiamata rifiutata', false);
+    state.call.friend = from;
+    try {
+      createCallPeer();
+      showCallPanel('Connessione in corso…');
+      startConnectionTimer();
+    } catch { closeCall('Impossibile preparare la connessione WebRTC'); }
+  };
+
+  const onCallClaimed = ({ callId, socketId } = {}) => {
+    if (callId === state.call.id && state.call.incoming && socketId !== state.socket?.id) closeCall(null, false);
+  };
+
+  const onCallEnded = ({ callId, reason } = {}) => {
+    if (callId !== state.call.id) return;
+    const text = { timeout: 'Nessuna risposta', declined: 'Chiamata rifiutata', cancelled: 'Chiamata annullata',
+      disconnected: 'L’altro utente si è disconnesso', permission: 'Conversazione non più disponibile',
+      ended: 'Chiamata terminata', duration: 'Durata massima della chiamata raggiunta' }[reason] || 'Chiamata terminata';
+    closeCall(text, false);
+  };
+
+  const toggleCamera = () => {
+    const call = state.call;
+    const tracks = call.localStream?.getVideoTracks() || [];
+    if (!tracks.length) return;
+    call.cameraEnabled = !call.cameraEnabled;
+    tracks.forEach((track) => { track.enabled = call.cameraEnabled; });
+    showCallPanel(elements.callStatus.textContent);
+  };
+
+  const toggleCallMic = () => {
+    if (state.userDock.deafened) app.toggleDeafen();
+    app.toggleMute();
+    showCallPanel(elements.callStatus.textContent);
+  };
+  audioButton.addEventListener('click', () => startVideoCall('audio'));
+  callMicButton.addEventListener('click', toggleCallMic);
+  callCameraButton.addEventListener('click', toggleCamera);
+
+  Object.assign(app, { resetCall, showCallPanel, createCallPeer, startVideoCall, acceptVideoCall,
+    declineVideoCall, flushVideoIceCandidates, handleVideoSignal, onIncomingCall, onCallAnswered,
+    onCallClaimed, onCallEnded, closeCall });
 };

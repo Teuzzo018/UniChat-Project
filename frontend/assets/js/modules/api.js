@@ -14,7 +14,11 @@ export const api = async (path, options = {}) => {
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(payload.error || 'Richiesta non riuscita');
+    const error = new Error(payload.error || 'Richiesta non riuscita');
+    error.mfaRequired = Boolean(payload.mfaRequired);
+    error.mfaStepUpRequired = Boolean(payload.mfaStepUpRequired);
+    error.mfaSetupRequired = Boolean(payload.mfaSetupRequired);
+    throw error;
   }
 
   return payload;

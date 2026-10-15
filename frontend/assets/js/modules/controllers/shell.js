@@ -12,10 +12,15 @@ export const registerShellController = (app) => {
     state.voice.localStream?.getAudioTracks().forEach((track) => {
       track.enabled = !state.userDock.muted && !state.userDock.deafened;
     });
+    state.call.localStream?.getAudioTracks().forEach((track) => {
+      track.enabled = !state.userDock.muted && !state.userDock.deafened;
+    });
 
     elements.remoteAudio.querySelectorAll('audio').forEach((audio) => {
       audio.muted = state.userDock.deafened;
     });
+    elements.remoteVideo.muted = state.userDock.deafened;
+    document.querySelector('#remoteCallAudio').muted = state.userDock.deafened;
   };
 
   const renderUserDock = () => {
@@ -41,8 +46,15 @@ export const registerShellController = (app) => {
     elements.deafenButton.title = state.userDock.deafened ? 'Riattiva audio' : 'Disattiva audio';
     elements.deafenButton.setAttribute('aria-label', state.userDock.deafened ? 'Riattiva audio' : 'Disattiva audio');
 
-    elements.permissionsButton.classList.toggle('active', state.user.role === 'ADMIN');
+    const hasAudioSession = Boolean(state.voice.channelId || state.call.localStream);
+    elements.muteButton.classList.toggle('hidden', !hasAudioSession);
+    elements.deafenButton.classList.toggle('hidden', !hasAudioSession);
+    elements.permissionsButton.classList.toggle('hidden', !['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'].includes(state.user.role)
+      && !state.servers.some((server) => server.ownerId === state.user.id || server.members?.some((member) => member.user.id === state.user.id && member.isAdmin)));
+
+    elements.permissionsButton.classList.toggle('active', ['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'].includes(state.user.role));
     updateVoiceAudioState();
+    if (state.call.id && !elements.callPanel.classList.contains('hidden')) app.showCallPanel(elements.callStatus.textContent);
   };
 
   const renderOverviewBar = () => {
@@ -51,6 +63,8 @@ export const registerShellController = (app) => {
 
     elements.overviewBar.classList.toggle('hidden', !authenticated);
     elements.contentArea.classList.toggle('has-overview', authenticated);
+    if (authenticated && !server && state.activeOverviewPanel === 'channels') state.activeOverviewPanel = 'friendSearch';
+    app.renderLayout?.();
 
     if (!authenticated) {
       state.activeOverviewPanel = null;
@@ -66,6 +80,8 @@ export const registerShellController = (app) => {
 
     elements.overviewTabs.forEach((button) => {
       button.classList.toggle('active', button.dataset.overviewPanel === state.activeOverviewPanel);
+      button.classList.toggle('hidden', button.dataset.overviewPanel === 'channels' && !server);
+      button.setAttribute('aria-pressed', String(button.dataset.overviewPanel === state.activeOverviewPanel));
     });
 
     elements.overviewPanel.classList.toggle('hidden', !state.activeOverviewPanel);
@@ -75,7 +91,7 @@ export const registerShellController = (app) => {
   };
 
   const toggleOverviewPanel = (panelName) => {
-    state.activeOverviewPanel = state.activeOverviewPanel === panelName ? null : panelName;
+    state.activeOverviewPanel = panelName;
     renderOverviewBar();
   };
 
@@ -89,6 +105,7 @@ export const registerShellController = (app) => {
   };
 
   const closeOverviewPanelOnOutsideClick = (event) => {
+    if (elements.overviewBar.classList.contains('sidebar-overview')) return;
     if (
       !state.activeOverviewPanel
       || elements.overviewBar.classList.contains('hidden')
@@ -109,23 +126,30 @@ export const registerShellController = (app) => {
 
   const showHome = async () => {
     await leaveVoiceChannel();
-    resetCall();
+    resetCall({ notifyPeer: true });
     state.activeServerId = null;
     state.activeChannelId = null;
     state.activePrivateUserId = null;
     state.activeConversationType = 'channel';
+    state.activeOverviewPanel = 'friendSearch';
     state.game = null;
     renderServers();
     renderChannels();
     await loadMessages();
+    app.closeMobileNav?.();
   };
 
   const setAuthenticatedUi = (authenticated) => {
     elements.authPanel.classList.toggle('hidden', authenticated);
     elements.workspacePanel.classList.toggle('hidden', !authenticated);
     elements.logoutButton.classList.toggle('hidden', !authenticated);
-    elements.adminButton.classList.toggle('hidden', !authenticated || state.user?.role !== 'ADMIN');
+    elements.globalSearchButton.classList.toggle('hidden', !authenticated);
+    if (!authenticated && elements.globalSearchDialog.open) elements.globalSearchDialog.close();
+    const localAdmin = state.servers.some((server) => server.ownerId === state.user?.id ||
+      server.members?.some((member) => member.user.id === state.user?.id && member.isAdmin));
+    elements.adminButton.classList.toggle('hidden', !authenticated || !(['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'].includes(state.user?.role) || localAdmin));
     elements.videoCallButton.classList.toggle('hidden', state.activeConversationType !== 'private' || !state.activePrivateUserId);
+    document.querySelector('#audioCallButton').classList.toggle('hidden', state.activeConversationType !== 'private' || !state.activePrivateUserId);
     elements.workspaceTitle.textContent = authenticated ? state.user.fullName : 'Accesso';
     renderUserDock();
     renderOverviewBar();
@@ -154,17 +178,20 @@ export const registerShellController = (app) => {
     }
 
     const server = activeServer();
-    const role = state.user.role === 'ADMIN' ? 'Admin' : 'Utente';
+    const role = state.user.role === 'SUPERADMIN' ? 'Superadmin'
+      : ['ADMIN', 'PLATFORM_ADMIN'].includes(state.user.role) ? 'Admin piattaforma' : 'Utente';
     showToast(`${state.user.fullName} ${getDisplayHandle(state.user)} - ${role}${server ? ` in ${server.name}` : ''}`);
   };
 
   const openPermissionsPanel = () => {
-    if (state.user?.role === 'ADMIN') {
+    if (['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'].includes(state.user?.role) ||
+        state.servers.some((server) => server.ownerId === state.user?.id ||
+          server.members?.some((member) => member.user.id === state.user?.id && member.isAdmin))) {
       showAdminPanel();
       return;
     }
 
-    showToast('Permessi standard: puoi creare server, canali, chat e giochi.');
+    showToast('I permessi di gestione del server dipendono dall’assegnazione locale.');
   };
 
   Object.assign(app, {

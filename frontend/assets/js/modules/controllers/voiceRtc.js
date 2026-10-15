@@ -141,6 +141,7 @@ export const registerVoiceRtcController = (app) => {
         }
 
         state.voice.channelId = channel.id;
+        renderUserDock();
         state.voice.participants = response.participants || state.voice.participants;
         state.voice.transcripts = [];
         renderVoicePanel();

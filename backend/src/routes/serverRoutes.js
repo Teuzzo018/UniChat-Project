@@ -7,13 +7,19 @@ const {
   declineServerJoinRequest,
   deleteOrLeaveServer,
   getServer,
+  getServerInvite,
   joinServer,
   joinServerByInvite,
   listAvailableServers,
   listServerJoinRequests,
-  listServers
+  listServers,
+  revokeServerInvite,
+  rotateServerInvite,
+  setDiscoverability
 } = require('../controllers/serverControllers');
 const authMiddleware = require('../middleware/authMiddleware');
+const { deleteServerMessage } = require('../controllers/messageControllers');
+const audit = require('../middleware/adminAudit');
 
 const router = express.Router();
 const asyncHandler = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
@@ -28,8 +34,13 @@ router.post('/join-by-invite', asyncHandler(joinServerByInvite));
 router.post('/join-requests/:requestId/accept', asyncHandler(acceptServerJoinRequest));
 router.delete('/join-requests/:requestId', asyncHandler(declineServerJoinRequest));
 router.get('/:id', asyncHandler(getServer));
+router.get('/:id/invite', asyncHandler(getServerInvite));
+router.post('/:id/invite', asyncHandler(rotateServerInvite));
+router.delete('/:id/invite', asyncHandler(revokeServerInvite));
+router.patch('/:id/discoverability', asyncHandler(setDiscoverability));
 router.post('/:id/join', asyncHandler(joinServer));
-router.delete('/:id', asyncHandler(deleteOrLeaveServer));
-router.post('/:id/channels', asyncHandler(createChannel));
+router.delete('/:id', audit('SERVER_DELETE_OR_LEAVE', 'SERVER', 'id', 'id'), asyncHandler(deleteOrLeaveServer));
+router.post('/:id/channels', audit('CHANNEL_CREATE', 'SERVER', 'id', 'id'), asyncHandler(createChannel));
+router.delete('/:id/messages/:messageId', audit('MESSAGE_DELETE', 'MESSAGE', 'messageId', 'id'), asyncHandler(deleteServerMessage));
 
 module.exports = router;

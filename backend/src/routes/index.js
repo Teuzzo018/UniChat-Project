@@ -7,6 +7,9 @@ const messageRoutes = require('./messageRoutes');
 const privateRoutes = require('./privateRoutes');
 const serverRoutes = require('./serverRoutes');
 const universityRoutes = require('./universityRoutes');
+const uploadRoutes = require('./uploadRoutes');
+const searchRoutes = require('./searchRoutes');
+const rtcRoutes = require('./rtcRoutes');
 
 const router = express.Router();
 
@@ -22,5 +25,8 @@ router.use('/servers', serverRoutes);
 router.use('/channels', messageRoutes);
 router.use('/universities', universityRoutes);
 router.use('/university', universityRoutes);
+router.use('/uploads', uploadRoutes);
+router.use('/search', searchRoutes);
+router.use('/rtc', rtcRoutes);
 
 module.exports = router;

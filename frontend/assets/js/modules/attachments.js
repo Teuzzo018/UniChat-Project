@@ -1,36 +1,20 @@
 export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
 export const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
-  'avif',
-  'aac',
-  'doc',
-  'docx',
   'gif',
-  'heic',
-  'heif',
   'jpeg',
   'jpg',
-  'm4a',
-  'm4v',
-  'mov',
   'mp3',
   'mp4',
   'ogg',
   'pdf',
   'png',
-  'ppt',
-  'pptx',
   'txt',
   'wav',
   'webp',
-  'xls',
-  'xlsx',
+  'webm',
   'zip'
 ]);
-
-const IMAGE_ATTACHMENT_EXTENSIONS = new Set(['avif', 'gif', 'heic', 'heif', 'jpeg', 'jpg', 'png', 'webp']);
-const VIDEO_ATTACHMENT_EXTENSIONS = new Set(['mp4', 'mov', 'm4v', 'webm']);
-const AUDIO_ATTACHMENT_EXTENSIONS = new Set(['aac', 'm4a', 'mp3', 'ogg', 'wav', 'webm']);
 
 export const formatBytes = (bytes = 0) => {
   if (bytes < 1024) {
@@ -46,29 +30,23 @@ export const formatBytes = (bytes = 0) => {
 
 export const getFileExtension = (filename = '') => filename.split('.').pop()?.toLowerCase() || '';
 
-const getAttachmentExtension = (message) => getFileExtension(message.attachmentName || message.attachmentUrl || '');
-
 export const isImageAttachment = (message) => (
-  message.attachmentMimeType?.startsWith('image/')
-  || IMAGE_ATTACHMENT_EXTENSIONS.has(getAttachmentExtension(message))
+  message.attachmentUrl?.startsWith('/private-uploads/')
+  && ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(message.attachmentMimeType)
 );
 
 export const isVideoAttachment = (message) => (
-  message.attachmentMimeType?.startsWith('video/')
-  || VIDEO_ATTACHMENT_EXTENSIONS.has(getAttachmentExtension(message))
+  message.attachmentUrl?.startsWith('/private-uploads/')
+  && ['video/mp4', 'video/webm'].includes(message.attachmentMimeType)
 );
 
 export const isAudioAttachment = (message) => (
-  message.attachmentMimeType?.startsWith('audio/')
-  || AUDIO_ATTACHMENT_EXTENSIONS.has(getAttachmentExtension(message))
+  message.attachmentUrl?.startsWith('/private-uploads/')
+  && ['audio/mpeg', 'audio/ogg', 'audio/wav'].includes(message.attachmentMimeType)
 );
 
 export const isAllowedAttachment = (file) => {
   if (!file) {
-    return true;
-  }
-
-  if (file.type?.startsWith('image/') || file.type?.startsWith('audio/') || file.type?.startsWith('video/')) {
     return true;
   }
 

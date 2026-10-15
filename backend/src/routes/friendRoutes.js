@@ -4,6 +4,7 @@ const {
   acceptFriendRequest,
   addFriend,
   blockUser,
+  cancelFriendRequest,
   declineFriendRequest,
   listBlockedUsers,
   listFriends,
@@ -26,6 +27,7 @@ router.get('/search', asyncHandler(searchUsers));
 router.post('/', asyncHandler(addFriend));
 router.post('/:userId/block', asyncHandler(blockUser));
 router.post('/requests/:id/accept', asyncHandler(acceptFriendRequest));
+router.delete('/requests/:id/cancel', asyncHandler(cancelFriendRequest));
 router.delete('/requests/:id', asyncHandler(declineFriendRequest));
 router.delete('/blocked/:userId', asyncHandler(unblockUser));
 router.delete('/:userId', asyncHandler(removeFriend));

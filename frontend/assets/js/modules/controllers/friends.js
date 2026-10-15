@@ -44,6 +44,10 @@ export const registerFriendsController = (app) => {
 
     info.append(name, handle);
     if (isFriend) {
+      const presence = document.createElement('span');
+      presence.className = state.friendPresence[user.id] ? 'friend-presence online' : 'friend-presence';
+      presence.textContent = state.friendPresence[user.id] ? 'Online' : 'Offline';
+      info.append(presence);
       actions.append(chatButton, historyButton, button);
     } else {
       actions.append(button);
@@ -66,6 +70,13 @@ export const registerFriendsController = (app) => {
         isFriend: true
       }));
     });
+    if (!state.friends.length) {
+      const empty = document.createElement('p');
+      empty.className = 'sidebar-empty';
+      empty.textContent = 'Non hai ancora amici. Cerca un username qui sopra.';
+      elements.friendList.append(empty);
+    }
+    app.renderDirectMessages?.();
 
     state.friendRequests.forEach((request) => {
       const item = document.createElement('div');
@@ -96,9 +107,12 @@ export const registerFriendsController = (app) => {
         declineButton.addEventListener('click', () => answerFriendRequest(request.id, false));
         actions.append(acceptButton, declineButton);
       } else {
-        const status = document.createElement('span');
-        status.textContent = 'In attesa';
-        actions.append(status);
+        const cancelButton = document.createElement('button');
+        cancelButton.className = 'ghost-button';
+        cancelButton.type = 'button';
+        cancelButton.textContent = 'Annulla';
+        cancelButton.addEventListener('click', () => cancelFriendRequest(request.id));
+        actions.append(cancelButton);
       }
 
       item.append(info, actions);
@@ -127,7 +141,18 @@ export const registerFriendsController = (app) => {
     ]);
     state.friends = friends;
     state.friendRequests = requests;
+    const visible = new Set(friends.map((item) => item.friend.id));
+    for (const id of Object.keys(state.friendPresence)) if (!visible.has(id)) delete state.friendPresence[id];
+    if (state.call.id && state.call.friend && !visible.has(state.call.friend.id)) {
+      app.closeCall('Conversazione privata non più disponibile');
+    }
+    if (state.activeConversationType === 'private' && !visible.has(state.activePrivateUserId)) {
+      state.activePrivateUserId = null;
+      state.activeConversationType = 'channel';
+      app.loadMessages().catch((error) => showToast(error.message));
+    }
     renderFriends();
+    app.renderChannels();
     renderSettingsLists();
   };
 
@@ -181,11 +206,18 @@ export const registerFriendsController = (app) => {
     }
   };
 
+  const cancelFriendRequest = async (requestId) => {
+    try {
+      await api(`/friends/requests/${requestId}/cancel`, { method: 'DELETE' });
+      await loadFriends();
+      showToast('Richiesta annullata');
+    } catch (error) { showToast(error.message); }
+  };
+
   const removeFriend = async (userId) => {
     try {
       await api(`/friends/${userId}`, { method: 'DELETE' });
-      state.friends = state.friends.filter((friendship) => friendship.friend.id !== userId);
-      renderFriends();
+      await loadFriends();
       showToast('Amico rimosso');
     } catch (error) {
       showToast(error.message);

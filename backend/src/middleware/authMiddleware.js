@@ -1,7 +1,7 @@
 const prisma = require('../lib/prisma');
 const { hashSessionToken } = require('../utils/sessionTokens');
 
-const authMiddleware = async (req, res, next) => {
+const authenticate = (allowPending = false) => async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
@@ -13,7 +13,7 @@ const authMiddleware = async (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
 
-    if (!token) {
+    if (!/^[a-f0-9]{64}$/.test(token || '')) {
       return res.status(401).json({
         error: 'Token non valido'
       });
@@ -48,6 +48,15 @@ const authMiddleware = async (req, res, next) => {
       });
     }
 
+    if (session.user.suspendedAt) {
+      return res.status(403).json({ error: 'Account sospeso' });
+    }
+
+    if (!allowPending && (session.secondFactorPending ||
+        (session.user.totpEnabledAt && !session.secondFactorVerifiedAt))) {
+      return res.status(403).json({ error: 'Secondo fattore richiesto', mfaRequired: true });
+    }
+
     req.user = session.user;
     req.session = session;
 
@@ -62,4 +71,6 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
+const authMiddleware = authenticate(false);
+authMiddleware.allowPending = authenticate(true);
 module.exports = authMiddleware;
