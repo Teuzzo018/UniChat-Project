@@ -79,7 +79,7 @@ export const setupEventListeners = ({
         return;
       }
       state.user = result.user;
-      state.activeOverviewPanel = 'friendSearch';
+      state.activeOverviewPanel = 'directMessages';
       state.friendsExpanded = true;
       setAuthenticatedUi(true);
       connectSocket();
@@ -96,7 +96,7 @@ export const setupEventListeners = ({
       elements.mfaLoginCode.value = '';
       elements.mfaLoginForm.classList.add('hidden');
       state.user = await api('/auth/me');
-      state.activeOverviewPanel = 'friendSearch';
+      state.activeOverviewPanel = 'directMessages';
       state.friendsExpanded = true;
       setAuthenticatedUi(true);
       connectSocket();
@@ -293,6 +293,8 @@ export const setupEventListeners = ({
       });
       server.channels.push(channel);
       elements.channelForm.reset();
+      elements.channelForm.classList.add('hidden');
+      document.querySelector('#createChannelToggle').setAttribute('aria-expanded', 'false');
       await selectChannel(channel.id);
     } catch (error) {
       showToast(error.message);

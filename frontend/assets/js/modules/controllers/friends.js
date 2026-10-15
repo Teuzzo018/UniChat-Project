@@ -4,6 +4,8 @@ export const registerFriendsController = (app) => {
   const showCallHistoryForUser = (...args) => app.showCallHistoryForUser(...args);
   const renderOverviewBar = (...args) => app.renderOverviewBar(...args);
   const renderSettingsLists = (...args) => app.renderSettingsLists(...args);
+  let friendSearchSequence = 0;
+  let friendSearchController;
 
   const renderFriendRow = ({ user, isFriend, friendshipStatus, requestedByMe }) => {
     const item = document.createElement('div');
@@ -81,7 +83,6 @@ export const registerFriendsController = (app) => {
     state.friendRequests.forEach((request) => {
       const item = document.createElement('div');
       item.className = 'friend-item request-item';
-      item.append(createUserAvatar(request.friend, 'member-avatar'));
 
       const info = document.createElement('div');
       const name = document.createElement('strong');
@@ -115,9 +116,15 @@ export const registerFriendsController = (app) => {
         actions.append(cancelButton);
       }
 
-      item.append(info, actions);
+      item.append(createUserAvatar(request.friend, 'member-avatar'), info, actions);
       elements.friendRequestList.append(item);
     });
+    if (!state.friendRequests.length) {
+      const empty = document.createElement('p');
+      empty.className = 'sidebar-empty';
+      empty.textContent = 'Nessuna richiesta in attesa.';
+      elements.friendRequestList.append(empty);
+    }
 
     state.friendSearchResults.forEach((user) => {
       if (state.friends.some((friendship) => friendship.friend.id === user.id)) {
@@ -131,6 +138,12 @@ export const registerFriendsController = (app) => {
         requestedByMe: user.requestedByMe
       }));
     });
+    if (!elements.friendSearchList.childElementCount && elements.friendUsernameInput.value.trim().length >= 2) {
+      const empty = document.createElement('p');
+      empty.className = 'sidebar-empty';
+      empty.textContent = 'Nessun utente trovato.';
+      elements.friendSearchList.append(empty);
+    }
     renderOverviewBar();
   };
 
@@ -157,15 +170,26 @@ export const registerFriendsController = (app) => {
   };
 
   const searchFriends = async (query) => {
+    const currentSearch = ++friendSearchSequence;
+    friendSearchController?.abort();
     if (query.trim().length < 2) {
       state.friendSearchResults = [];
       renderFriends();
       return;
     }
 
-    state.friendSearchResults = await api(`/friends/search?q=${encodeURIComponent(query.trim())}`);
-    state.friendsExpanded = true;
-    renderFriends();
+    friendSearchController = new AbortController();
+    elements.friendSearchList.textContent = 'Ricerca in corso…';
+    try {
+      const results = await api(`/friends/search?q=${encodeURIComponent(query.trim())}`, { signal: friendSearchController.signal });
+      if (currentSearch !== friendSearchSequence) return;
+      state.friendSearchResults = results;
+      state.friendsExpanded = true;
+      renderFriends();
+    } catch (error) {
+      if (error.name === 'AbortError' || currentSearch !== friendSearchSequence) return;
+      elements.friendSearchList.textContent = `Ricerca non riuscita: ${error.message}`;
+    }
   };
 
   const addFriend = async (username) => {

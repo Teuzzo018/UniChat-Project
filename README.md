@@ -131,7 +131,7 @@ Gli eventi Socket.IO sono divisi per responsabilita:
 
 ## Avvio Iniziale
 
-1. Copia il file `.env` di esempio se non esiste gia:
+1. Copia il file `.env` di esempio se non esiste già (dalla cartella principale del progetto; in PowerShell `cp` è un alias di `Copy-Item`):
 
 ```bash
 cp backend/.env.example backend/.env
@@ -143,7 +143,7 @@ cp backend/.env.example backend/.env
 DATABASE_URL="postgresql://unichat_user:unichat_password@localhost:5433/unichat_db?schema=public"
 ```
 
-Imposta `SESSION_TOKEN_PEPPER` con un valore lungo e casuale. `ADMIN_SETUP_CODE` è opzionale e serve solo al bootstrap del superadmin.
+Imposta `SESSION_TOKEN_PEPPER` con un valore lungo e casuale. Per registrare il primo superadmin, sostituisci anche il segnaposto di `ADMIN_SETUP_CODE` con un codice casuale scelto da te. `ADMIN_SETUP_CODE` è opzionale se non devi effettuare il bootstrap. Non pubblicare questi valori.
 
 ### Configurazione sensibile
 
@@ -198,32 +198,37 @@ Per distribuire questa versione, verifica prima lo stato delle migrazioni sul da
 
 ### Backend Locale Con Database Docker
 
-1. Dalla cartella principale del progetto, avvia solo PostgreSQL:
+In Windows, apri **Docker Desktop** e attendi che il motore Linux sia in esecuzione. In PowerShell, dalla cartella principale del progetto, verifica Docker e avvia PostgreSQL:
 
-```bash
+```powershell
+docker info
 docker compose up -d postgres
 ```
 
-2. Prepara Prisma e il database:
+Prepara le dipendenze e il database **nello stesso ambiente in cui avvierai Node.js**. Se usi PowerShell, installa le dipendenze da PowerShell: una cartella `node_modules` installata da WSL non va considerata valida per Windows. Il progetto ha `backend/package-lock.json`, quindi usa `npm ci` alla prima installazione o quando cambiano le dipendenze:
 
-```bash
+```powershell
 cd backend
-npm install
+npm ci
 npm run prisma:generate
-npm run prisma:migrate
+npx prisma migrate deploy
 ```
 
-3. Avvia il server:
+Avvia il server dallo stesso terminale:
 
-```bash
+```powershell
 npm run dev
 ```
 
-L'app sara disponibile su:
+L'app sarà disponibile su `http://localhost:5000`. Il frontend è servito dal backend Express: non occorre avviare Vite o un secondo server. Il database è esposto da Docker sulla porta `5433`, già usata dalla `DATABASE_URL` di esempio per il backend locale. Per i riavvii successivi bastano `docker compose up -d postgres` dalla cartella principale e `npm run dev` da `backend`.
 
-```text
-http://localhost:5000
-```
+Se esegui i comandi da WSL, abilita la distribuzione in **Docker Desktop → Settings → Resources → WSL Integration**. Esegui anche `npm ci` e il backend da WSL, senza riutilizzare i `node_modules` installati da PowerShell.
+
+#### Errori comuni in PowerShell
+
+- `failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine`: Docker Desktop o il suo motore Linux non è ancora in esecuzione. Avvialo, attendi che sia pronto e ripeti `docker info`, poi `docker compose up -d postgres`. Non proseguire con la migrazione finché PostgreSQL non è avviato.
+- `"prisma" non è riconosciuto` oppure `"nodemon" non è riconosciuto`: mancano le dipendenze npm per l'ambiente corrente. Da `backend` esegui `npm ci`, poi ripeti `npm run prisma:generate`, `npx prisma migrate deploy` e `npm run dev`.
+- Se hai già eseguito `cd backend`, torna alla cartella principale con `cd ..` prima di `docker compose up -d postgres`, poi rientra con `cd backend`.
 
 ### Avvio Completo Con Docker
 

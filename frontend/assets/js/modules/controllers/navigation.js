@@ -11,8 +11,10 @@ export const registerNavigationController = (app) => {
   const loadAvailableServers = (...args) => app.loadAvailableServers(...args);
   const renderMessage = (...args) => app.renderMessage(...args);
   const setDefaultEmptyState = (...args) => app.setDefaultEmptyState(...args);
+  let messageLoadSequence = 0;
 
   const loadMessages = async () => {
+    const currentLoad = ++messageLoadSequence;
     const channel = activeChannel();
     const privateUser = activePrivateUser();
 
@@ -21,10 +23,12 @@ export const registerNavigationController = (app) => {
     elements.callPanel.classList.add('hidden');
     elements.voicePanel.classList.add('hidden');
     elements.callHistory.classList.add('hidden');
+    document.querySelector('#homePanel').classList.add('hidden');
     app.releaseAttachments();
     elements.messages.replaceChildren();
     const hasConversation = state.activeConversationType === 'private' ? Boolean(privateUser) : Boolean(channel);
-    elements.emptyState.classList.toggle('hidden', hasConversation);
+    elements.emptyState.classList.toggle('hidden', hasConversation || Boolean(state.user));
+    document.querySelector('#homePanel').classList.toggle('hidden', hasConversation || !state.user);
     elements.messages.classList.toggle('hidden', !hasConversation || channel?.type === 'VOICE');
     elements.messageForm.classList.toggle('hidden', !hasConversation || channel?.type === 'VOICE');
 
@@ -42,9 +46,20 @@ export const registerNavigationController = (app) => {
       elements.channelType.textContent = `Privato ${getDisplayHandle(privateUser)}`;
       elements.videoCallButton.classList.remove('hidden');
       document.querySelector('#audioCallButton').classList.remove('hidden');
-      const messages = await api(`/private/${privateUser.id}/messages`);
-      messages.forEach(renderMessage);
-      elements.messages.scrollTop = elements.messages.scrollHeight;
+      const loading = document.createElement('p');
+      loading.className = 'message-loading';
+      loading.textContent = 'Caricamento messaggi…';
+      loading.setAttribute('role', 'status');
+      elements.messages.append(loading);
+      try {
+        const messages = await api(`/private/${privateUser.id}/messages`);
+        if (currentLoad !== messageLoadSequence) return;
+        elements.messages.replaceChildren();
+        messages.forEach(renderMessage);
+        elements.messages.scrollTop = elements.messages.scrollHeight;
+      } catch (error) {
+        if (currentLoad === messageLoadSequence) loading.textContent = `Impossibile caricare i messaggi: ${error.message}`;
+      }
       return;
     }
 
@@ -58,9 +73,20 @@ export const registerNavigationController = (app) => {
       return;
     }
   
-    const messages = await api(`/channels/${channel.id}/messages`);
-    messages.forEach(renderMessage);
-    elements.messages.scrollTop = elements.messages.scrollHeight;
+    const loading = document.createElement('p');
+    loading.className = 'message-loading';
+    loading.textContent = 'Caricamento messaggi…';
+    loading.setAttribute('role', 'status');
+    elements.messages.append(loading);
+    try {
+      const messages = await api(`/channels/${channel.id}/messages`);
+      if (currentLoad !== messageLoadSequence) return;
+      elements.messages.replaceChildren();
+      messages.forEach(renderMessage);
+      elements.messages.scrollTop = elements.messages.scrollHeight;
+    } catch (error) {
+      if (currentLoad === messageLoadSequence) loading.textContent = `Impossibile caricare i messaggi: ${error.message}`;
+    }
   };
 
   const selectChannel = async (channelId) => {
@@ -85,10 +111,12 @@ export const registerNavigationController = (app) => {
     await leaveVoiceChannel();
     resetCall({ notifyPeer: true });
     state.activePrivateUserId = user.id;
+    state.activeServerId = null;
     state.activeChannelId = null;
     state.activeConversationType = 'private';
     state.activeOverviewPanel = 'directMessages';
     state.game = null;
+    renderServers();
     renderChannels();
     await loadMessages();
     app.closeMobileNav?.();

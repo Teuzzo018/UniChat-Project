@@ -63,7 +63,7 @@ export const registerShellController = (app) => {
 
     elements.overviewBar.classList.toggle('hidden', !authenticated);
     elements.contentArea.classList.toggle('has-overview', authenticated);
-    if (authenticated && !server && state.activeOverviewPanel === 'channels') state.activeOverviewPanel = 'friendSearch';
+    if (authenticated && !server && state.activeOverviewPanel === 'channels') state.activeOverviewPanel = 'directMessages';
     app.renderLayout?.();
 
     if (!authenticated) {
@@ -131,7 +131,7 @@ export const registerShellController = (app) => {
     state.activeChannelId = null;
     state.activePrivateUserId = null;
     state.activeConversationType = 'channel';
-    state.activeOverviewPanel = 'friendSearch';
+    state.activeOverviewPanel = 'directMessages';
     state.game = null;
     renderServers();
     renderChannels();

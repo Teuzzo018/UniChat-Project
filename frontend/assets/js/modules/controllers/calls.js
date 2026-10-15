@@ -56,6 +56,7 @@ export const registerCallsController = (app) => {
     elements.messages.classList.add('hidden');
     elements.messageForm.classList.add('hidden');
     elements.callPanel.classList.remove('hidden');
+    document.querySelector('#homePanel').classList.add('hidden');
     elements.callPanel.classList.toggle('audio-only', call.mode === 'audio');
     elements.callTitle.textContent = call.friend ? `Con ${call.friend.fullName}` : 'Chiamata privata';
     elements.callStatus.textContent = status;

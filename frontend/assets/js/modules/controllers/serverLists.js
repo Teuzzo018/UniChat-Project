@@ -78,6 +78,7 @@ export const registerServerListsController = (app) => {
 
   const renderServerJoinRequests = () => {
     elements.serverJoinRequestList.replaceChildren();
+    elements.serverJoinRequestList.closest('section')?.classList.toggle('hidden', !state.serverJoinRequests.length);
 
     state.serverJoinRequests.forEach((request) => {
       const item = document.createElement('div');
@@ -108,6 +109,12 @@ export const registerServerListsController = (app) => {
       item.append(createUserAvatar(request.user, 'member-avatar'), info, actions);
       elements.serverJoinRequestList.append(item);
     });
+    if (!state.serverJoinRequests.length) {
+      const empty = document.createElement('p');
+      empty.className = 'sidebar-empty';
+      empty.textContent = 'Nessuna richiesta di ingresso in attesa.';
+      elements.serverJoinRequestList.append(empty);
+    }
     renderOverviewBar();
   };
 

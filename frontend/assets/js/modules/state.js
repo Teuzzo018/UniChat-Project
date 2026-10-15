@@ -16,7 +16,7 @@ export const state = {
   friendSearchResults: [],
   serverJoinRequests: [],
   blockedUsers: [],
-  activeOverviewPanel: 'friendSearch',
+  activeOverviewPanel: 'directMessages',
   game: null,
   selectedGameType: 'TICTACTOE',
   userDock: {

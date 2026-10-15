@@ -2,6 +2,7 @@ export const registerMessageViewsController = (app) => {
   const { state, elements, api, formatBytes, isAllowedAttachment, isAudioAttachment, isImageAttachment, isVideoAttachment, MAX_ATTACHMENT_BYTES, appendMessageContent, createUserAvatar, getDisplayHandle, getInitials, renderAvatarContent, setBadgeCount, showConfirm, showToast } = app;
   const resetCall = (...args) => app.resetCall(...args);
   const renderChannels = (...args) => app.renderChannels(...args);
+  const renderServers = (...args) => app.renderServers(...args);
   const renderAttachment = (...args) => app.renderAttachment(...args);
 
   const renderMessage = (message) => {
@@ -51,6 +52,11 @@ export const registerMessageViewsController = (app) => {
         ['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'].includes(state.user?.role));
       const canDeletePrivate = !message.channelId && ownMessage && message.senderId === state.user?.id;
       if (canDeleteChannel || canDeletePrivate) {
+        const actions = document.createElement('details');
+        actions.className = 'message-actions';
+        const summary = document.createElement('summary');
+        summary.setAttribute('aria-label', 'Azioni messaggio');
+        summary.textContent = '⋯';
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'danger-button message-delete-button';
@@ -69,7 +75,8 @@ export const registerMessageViewsController = (app) => {
             showToast(error.message);
           }
         });
-        body.append(remove);
+        actions.append(summary, remove);
+        body.append(actions);
       }
     }
     article.append(avatar, body);
@@ -87,7 +94,7 @@ export const registerMessageViewsController = (app) => {
     const attachment = body.querySelector('.message-attachment');
     app.releaseAttachmentElement(attachment);
     attachment?.remove();
-    body.querySelector('.message-delete-button')?.remove();
+    body.querySelector('.message-actions')?.remove();
     const content = document.createElement('p');
     content.className = 'message-content';
     content.textContent = 'Messaggio eliminato';
@@ -161,9 +168,12 @@ export const registerMessageViewsController = (app) => {
   const showCallHistoryForUser = async (user) => {
     resetCall({ notifyPeer: true });
     state.activePrivateUserId = user.id;
+    state.activeServerId = null;
     state.activeChannelId = null;
     state.activeConversationType = 'private';
+    state.activeOverviewPanel = 'directMessages';
     state.game = null;
+    renderServers();
     renderChannels();
 
     elements.emptyState.classList.add('hidden');
@@ -174,6 +184,7 @@ export const registerMessageViewsController = (app) => {
     elements.messages.classList.add('hidden');
     elements.messageForm.classList.add('hidden');
     elements.callHistory.classList.remove('hidden');
+    document.querySelector('#homePanel').classList.add('hidden');
     elements.videoCallButton.classList.remove('hidden');
     elements.channelTitle.textContent = `Chiamate con ${user.fullName}`;
     elements.channelType.textContent = `Storico ${getDisplayHandle(user)}`;

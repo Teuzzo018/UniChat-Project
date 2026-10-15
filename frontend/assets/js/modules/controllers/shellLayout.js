@@ -17,6 +17,11 @@ export const registerShellLayoutController = (app) => {
   const inviteButton = document.querySelector('#addServerInviteButton');
   const directMessageList = document.querySelector('#directMessageList');
   const directMessagesBadge = document.querySelector('#directMessagesBadge');
+  const homePanel = document.querySelector('#homePanel');
+  const memberPanel = document.querySelector('#memberPanel');
+  const memberToggle = document.querySelector('#memberToggleButton');
+  const friendDialog = document.querySelector('#friendDialog');
+  const inviteDialog = document.querySelector('#inviteDialog');
   let menuServer = null;
   let menuTrigger = null;
   let lastMobileTrigger = null;
@@ -26,7 +31,7 @@ export const registerShellLayoutController = (app) => {
     const next = width(value);
     shell.style.setProperty('--sidebar-width', `${next}px`);
     resizer.setAttribute('aria-valuenow', String(next));
-    if (persist) localStorage.setItem(STORAGE_KEY, String(next));
+    if (persist) { try { localStorage.setItem(STORAGE_KEY, String(next)); } catch {} }
   };
   try { setWidth(localStorage.getItem(STORAGE_KEY)); } catch { setWidth(320); }
 
@@ -34,7 +39,7 @@ export const registerShellLayoutController = (app) => {
     const visible = Boolean(open && state.user && matchMedia('(max-width: 850px)').matches);
     shell.classList.toggle('mobile-nav-open', visible);
     mobileToggle.setAttribute('aria-expanded', String(visible));
-    mobileToggle.setAttribute('aria-label', visible ? 'Chiudi navigazione' : 'Apri navigazione');
+    mobileToggle.setAttribute('aria-label', visible ? 'Chiudi navigazione' : state.activeChannelId || state.activePrivateUserId ? 'Torna all’elenco' : 'Apri navigazione');
     if (visible) {
       sidebar.inert = false;
       sidebar.removeAttribute('aria-hidden');
@@ -101,7 +106,7 @@ export const registerShellLayoutController = (app) => {
       contextMenu.append(button);
     };
     if (canManage) {
-      action('Crea canale', () => { setMobileNav(true); showPanel('channels'); elements.channelForm.querySelector('input').focus(); });
+      action('Crea canale', () => { setMobileNav(true); showPanel('channels'); elements.channelForm.classList.remove('hidden'); document.querySelector('#createChannelToggle').setAttribute('aria-expanded', 'true'); elements.channelForm.querySelector('input').focus(); });
       action('Copia invito', () => app.copyActiveServerInvite());
       action('Impostazioni server', () => { setMobileNav(true); setToolsOpen(true); elements.inviteManage.querySelector('input, button')?.focus(); });
     }
@@ -143,6 +148,7 @@ export const registerShellLayoutController = (app) => {
   const renderLayout = () => {
     const authenticated = Boolean(state.user);
     shell.classList.toggle('authenticated', authenticated);
+    shell.classList.toggle('has-server', authenticated && Boolean(state.activeServerId));
     primaryNav.classList.toggle('hidden', !authenticated);
     inviteButton.classList.toggle('hidden', !authenticated);
     elements.newServerButton.classList.toggle('hidden', !authenticated);
@@ -161,21 +167,88 @@ export const registerShellLayoutController = (app) => {
       else button.removeAttribute('aria-current');
     }
     renderDirectMessages();
+    mobileToggle.textContent = state.activeChannelId || state.activePrivateUserId ? '←' : '☰';
+    if (!shell.classList.contains('mobile-nav-open')) mobileToggle.setAttribute('aria-label', state.activeChannelId || state.activePrivateUserId ? 'Torna all’elenco' : 'Apri navigazione');
+    memberToggle.classList.toggle('hidden', !authenticated || !state.activeServerId);
+    if (!authenticated || !state.activeServerId) {
+      memberPanel.classList.add('hidden');
+      memberToggle.setAttribute('aria-expanded', 'false');
+      elements.contentArea.classList.remove('members-open');
+    }
+  };
+
+  const setupSectionNavigation = (container, labels) => {
+    const sections = [...container.querySelectorAll(':scope > .admin-section, :scope > .settings-section, :scope > .settings-form')];
+    const nav = document.createElement('nav');
+    nav.className = 'section-navigation';
+    nav.setAttribute('aria-label', labels.aria);
+    const body = document.createElement('div');
+    body.className = 'section-content';
+    sections.forEach((section, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = labels.items[index];
+      button.addEventListener('click', () => {
+        sections.forEach((item, itemIndex) => item.classList.toggle('hidden', itemIndex !== index));
+        [...nav.children].forEach((item, itemIndex) => {
+          item.classList.toggle('active', itemIndex === index);
+          item.setAttribute('aria-current', itemIndex === index ? 'page' : 'false');
+        });
+        const heading = section.querySelector('h2, h3');
+        if (heading) { heading.tabIndex = -1; heading.focus(); }
+        else section.querySelector('input')?.focus();
+      });
+      nav.append(button);
+      body.append(section);
+      section.classList.toggle('hidden', index !== 0);
+    });
+    nav.firstElementChild?.classList.add('active');
+    nav.firstElementChild?.setAttribute('aria-current', 'page');
+    container.append(nav, body);
   };
 
   const setupShellLayout = () => {
     sidebar.insertBefore(elements.overviewBar, elements.userDock);
     elements.overviewBar.classList.add('sidebar-overview');
+    document.querySelector('#homeFriendsSlot').append(elements.friendCounterButton, elements.friendList);
+    document.querySelector('#homeRequestsSlot').append(elements.friendRequestList);
+    document.querySelector('#homeServerRequestsSlot').append(elements.serverJoinRequestList);
+    document.querySelector('#friendDialogSlot').append(elements.friendForm, elements.friendSearchList);
+    document.querySelector('#inviteDialogSlot').append(elements.inviteForm);
+    setupSectionNavigation(elements.adminPanel, { aria: 'Sezioni amministrazione', items: ['Sicurezza', 'Utenti', 'Server', 'Messaggi', 'Registro'] });
+    setupSectionNavigation(document.querySelector('.settings-panel'), { aria: 'Sezioni impostazioni', items: ['Profilo', 'Blocca amici', 'Utenti bloccati'] });
+    document.querySelector('#addFriendButton').addEventListener('click', () => { friendDialog.showModal(); elements.friendUsernameInput.focus(); });
+    document.querySelector('#closeFriendDialog').addEventListener('click', () => friendDialog.close());
+    document.querySelector('#closeInviteDialog').addEventListener('click', () => inviteDialog.close());
+    document.querySelector('#createChannelToggle').addEventListener('click', (event) => {
+      const open = elements.channelForm.classList.toggle('hidden') === false;
+      event.currentTarget.setAttribute('aria-expanded', String(open));
+      if (open) elements.channelForm.querySelector('input').focus();
+    });
+    memberToggle.addEventListener('click', () => {
+      const open = memberPanel.classList.toggle('hidden') === false;
+      elements.contentArea.classList.toggle('members-open', open);
+      memberToggle.setAttribute('aria-expanded', String(open));
+    });
+    document.querySelector('#closeMemberPanel').addEventListener('click', () => { memberPanel.classList.add('hidden'); elements.contentArea.classList.remove('members-open'); memberToggle.setAttribute('aria-expanded', 'false'); memberToggle.focus(); });
     mobileToggle.addEventListener('click', () => setMobileNav(!shell.classList.contains('mobile-nav-open')));
     backdrop.addEventListener('click', () => setMobileNav(false));
-    homeNav.addEventListener('click', async () => { await app.showHome(); showPanel('friendSearch'); setMobileNav(false); });
-    friendsNav.addEventListener('click', () => showPanel('friendSearch'));
-    dmsNav.addEventListener('click', () => showPanel('directMessages'));
-    inviteButton.addEventListener('click', () => { setMobileNav(true); setToolsOpen(true); elements.inviteCodeInput.focus(); });
+    homeNav.addEventListener('click', async () => { await app.showHome(); setMobileNav(false); });
+    friendsNav.addEventListener('click', async () => { await app.showHome(); setMobileNav(false); homePanel.querySelector('h2')?.focus(); });
+    dmsNav.addEventListener('click', async () => { await app.showHome(); setMobileNav(true); directMessageList.querySelector('button')?.focus(); });
+    inviteButton.addEventListener('click', () => { inviteDialog.showModal(); elements.inviteCodeInput.focus(); });
     elements.overviewTabs.forEach((button) => button.addEventListener('click', () => { if (button.dataset.overviewPanel === 'channels' && !state.activeServerId) return; setToolsOpen(false); }));
     document.addEventListener('pointerdown', (event) => { if (!contextMenu.contains(event.target) && !event.target.closest('.server-menu-trigger')) closeMenu(); });
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') { if (!contextMenu.classList.contains('hidden')) closeMenu(true); else setMobileNav(false); }
+      if (event.key === 'Escape') {
+        if (!contextMenu.classList.contains('hidden')) closeMenu(true);
+        else if (!memberPanel.classList.contains('hidden')) {
+          memberPanel.classList.add('hidden');
+          elements.contentArea.classList.remove('members-open');
+          memberToggle.setAttribute('aria-expanded', 'false');
+          memberToggle.focus();
+        } else setMobileNav(false);
+      }
       if (event.key === 'Tab' && shell.classList.contains('mobile-nav-open') && !document.querySelector('dialog[open]')) {
         const focusable = [...sidebar.querySelectorAll('button, input, select, textarea, a[href]')]
           .filter((item) => !item.disabled && item.getClientRects().length);

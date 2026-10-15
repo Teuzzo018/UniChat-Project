@@ -90,9 +90,6 @@ export const registerGlobalSearchController = (app) => {
     search();
   };
   elements.globalSearchButton.addEventListener('click', openSearch);
-  elements.globalSearchButton.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openSearch(); }
-  });
   elements.globalSearchClose.addEventListener('click', () => elements.globalSearchDialog.close());
   elements.globalSearchDialog.addEventListener('close', () => { ++sequence; pending?.abort(); clearTimeout(debounce); });
   elements.globalSearchInput.addEventListener('input', schedule);

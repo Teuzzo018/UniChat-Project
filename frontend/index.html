@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>UniChat</title>
     <link rel="stylesheet" href="./assets/css/styles.css" />
+    <link rel="stylesheet" href="./assets/css/redesign.css" />
   </head>
   <body>
     <div class="splash-screen" id="splashScreen" aria-hidden="true">
@@ -13,11 +14,11 @@
 
     <main class="app-shell" id="appShell">
       <aside class="server-rail" aria-label="Server">
-        <button class="brand-mark" id="homeButton" type="button" title="Home">U</button>
+        <button class="brand-mark" id="homeButton" type="button" title="Home" aria-label="Vai alla home">U</button>
         <div class="server-list" id="serverList" role="navigation" aria-label="I miei server"><span class="server-list-empty" id="serverListEmpty">Nessun server</span></div>
         <button class="icon-button" id="newServerButton" type="button" title="Crea server" aria-label="Crea server">+</button>
         <button class="icon-button" id="addServerInviteButton" type="button" title="Entra con invito" aria-label="Entra in un server con un invito">↗</button>
-        <button class="game-rail-button" id="gameRailButton" type="button" title="Giochi">XO</button>
+        <button class="game-rail-button" id="gameRailButton" type="button" title="Giochi" aria-label="Apri giochi">XO</button>
       </aside>
       <div class="server-context-menu hidden" id="serverContextMenu" role="menu" aria-label="Azioni server"></div>
 
@@ -104,7 +105,7 @@
               <button class="secondary-button full-width" id="discoverabilityButton" type="button">Rendi scopribile</button>
             </div>
             <form class="invite-form" id="inviteForm">
-              <input type="text" name="inviteCode" id="inviteCodeInput" placeholder="Codice o link invito" autocomplete="off" />
+              <input type="text" name="inviteCode" id="inviteCodeInput" placeholder="Codice o link invito" aria-label="Codice o link invito" autocomplete="off" />
               <button type="submit">Entra</button>
             </form>
           </div>
@@ -169,7 +170,8 @@
             <h2 id="channelTitle">Benvenuto in UniChat</h2>
           </div>
           <div class="header-actions">
-            <input class="global-search-trigger hidden" id="globalSearchButton" type="search" readonly placeholder="Cerca ovunque…" aria-label="Apri ricerca globale" />
+            <button class="global-search-trigger hidden" id="globalSearchButton" type="button" aria-label="Apri ricerca globale"><span aria-hidden="true">⌕</span><span class="search-trigger-label">Cerca</span></button>
+            <button class="secondary-button hidden" id="memberToggleButton" type="button" aria-controls="memberPanel" aria-expanded="false">Membri</button>
             <button class="secondary-button hidden" id="adminButton" type="button">Admin</button>
           </div>
         </header>
@@ -248,22 +250,21 @@
             <section class="overview-section hidden" data-overview-content="channels">
               <h2>Canali</h2>
               <div class="channel-list" id="channelList"></div>
-              <form class="channel-form" id="channelForm">
-                <input type="text" name="name" placeholder="nuovo-canale" minlength="2" />
+              <form class="channel-form hidden" id="channelForm">
+                <input type="text" name="name" placeholder="nuovo-canale" aria-label="Nome del nuovo canale" minlength="2" />
                 <select name="type" aria-label="Tipo canale">
                   <option value="TEXT">Testo</option>
                   <option value="VOICE">Voce</option>
                 </select>
-                <button type="submit">+</button>
+                <button type="submit" aria-label="Crea canale">+</button>
               </form>
-              <h2>Privati</h2>
-              <div class="member-list" id="memberList"></div>
+              <button class="secondary-button full-width" id="createChannelToggle" type="button" aria-expanded="false" aria-controls="channelForm">Crea canale</button>
             </section>
             <section class="overview-section hidden" data-overview-content="friendSearch">
               <h2>Cerca amico</h2>
               <form class="friend-form" id="friendForm">
-                <input type="text" name="username" id="friendUsernameInput" placeholder="username" autocomplete="off" />
-                <button type="submit">+</button>
+                <input type="text" name="username" id="friendUsernameInput" placeholder="username" aria-label="Username dell'amico" autocomplete="off" />
+                <button type="submit" aria-label="Invia richiesta di amicizia">+</button>
               </form>
               <button class="friend-counter" id="friendCounterButton" type="button">
                 <span>Amici</span>
@@ -287,6 +288,16 @@
             </section>
           </div>
         </section>
+
+        <section class="home-panel hidden" id="homePanel" aria-label="Home e amici">
+          <header class="home-panel-header"><div><h2 tabindex="-1">Amici</h2><p>Persone e richieste</p></div><button class="primary-button" id="addFriendButton" type="button">Aggiungi amico</button></header>
+          <div class="home-panel-body">
+            <section aria-labelledby="homeFriendsTitle"><h3 id="homeFriendsTitle">I tuoi amici</h3><div id="homeFriendsSlot"></div></section>
+            <section aria-labelledby="homeRequestsTitle"><h3 id="homeRequestsTitle">Richieste di amicizia</h3><div id="homeRequestsSlot"></div></section>
+            <section aria-labelledby="homeServerRequestsTitle"><h3 id="homeServerRequestsTitle">Richieste server</h3><div id="homeServerRequestsSlot"></div></section>
+          </div>
+        </section>
+        <aside class="member-panel hidden" id="memberPanel" aria-label="Membri del server"><header><h3>Membri</h3><button type="button" id="closeMemberPanel" aria-label="Chiudi elenco membri">Chiudi</button></header><div class="member-list" id="memberList"></div></aside>
 
         <div class="empty-state" id="emptyState">
           <h2>Chat universitaria senza distrazioni</h2>
@@ -403,7 +414,7 @@
         </section>
 
         <form class="composer hidden" id="messageForm">
-          <input type="text" name="content" id="messageInput" maxlength="1000" placeholder="Scrivi un messaggio..." autocomplete="off" />
+          <input type="text" name="content" id="messageInput" maxlength="1000" placeholder="Scrivi un messaggio..." aria-label="Scrivi un messaggio" autocomplete="off" />
           <button class="call-composer-button hidden" id="audioCallButton" type="button" title="Chiamata audio" aria-label="Avvia chiamata audio">♫</button>
           <button class="call-composer-button hidden" id="videoCallButton" type="button" title="Videochiamata" aria-label="Avvia videochiamata">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -411,7 +422,7 @@
             </svg>
           </button>
           <label class="file-button" title="Allega file">
-            <input type="file" id="messageFileInput" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.zip,.txt,.wav,.ogg,.mp3,.mp4,.webm" />
+            <input type="file" id="messageFileInput" aria-label="Allega file" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.zip,.txt,.wav,.ogg,.mp3,.mp4,.webm" />
             <span>+</span>
           </label>
           <div class="composer-attachment hidden" id="messageAttachmentPreview" aria-live="polite"></div>
@@ -437,6 +448,9 @@
         <button class="primary-button" value="default" type="submit">Crea</button>
       </form>
     </dialog>
+
+    <dialog id="friendDialog" class="compact-dialog" aria-labelledby="friendDialogTitle"><div class="dialog-card"><header><h2 id="friendDialogTitle">Aggiungi un amico</h2><button type="button" class="icon-button" id="closeFriendDialog" aria-label="Chiudi">×</button></header><div id="friendDialogSlot"></div></div></dialog>
+    <dialog id="inviteDialog" class="compact-dialog" aria-labelledby="inviteDialogTitle"><div class="dialog-card"><header><h2 id="inviteDialogTitle">Entra in un server</h2><button type="button" class="icon-button" id="closeInviteDialog" aria-label="Chiudi">×</button></header><p>Incolla un codice o un link invito.</p><div id="inviteDialogSlot"></div></div></dialog>
 
     <dialog class="confirm-dialog" id="confirmDialog" aria-labelledby="confirmDialogTitle" aria-describedby="confirmDialogMessage">
       <div class="confirm-card">

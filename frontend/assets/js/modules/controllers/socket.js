@@ -69,8 +69,9 @@ export const registerSocketController = (app) => {
         return;
       }
   
+      const atBottom = elements.messages.scrollHeight - elements.messages.scrollTop - elements.messages.clientHeight < 96;
       renderMessage(message);
-      elements.messages.scrollTop = elements.messages.scrollHeight;
+      if (atBottom || message.userId === state.user?.id || message.user?.id === state.user?.id) elements.messages.scrollTop = elements.messages.scrollHeight;
     });
 
     state.socket.on('message_deleted', ({ id, channelId, deletedAt }) => {
@@ -105,8 +106,9 @@ export const registerSocketController = (app) => {
         return;
       }
 
+      const atBottom = elements.messages.scrollHeight - elements.messages.scrollTop - elements.messages.clientHeight < 96;
       renderMessage(message);
-      elements.messages.scrollTop = elements.messages.scrollHeight;
+      if (atBottom || message.senderId === state.user?.id) elements.messages.scrollTop = elements.messages.scrollHeight;
     });
 
     state.socket.on('friendship_changed', () => {

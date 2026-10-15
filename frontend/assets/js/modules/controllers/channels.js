@@ -28,7 +28,11 @@ export const registerChannelsController = (app) => {
     elements.copyInviteButton.disabled = !canManageServer;
     elements.inviteManage.classList.toggle('hidden', !canManageServer);
     elements.discoverabilityButton.textContent = server?.isDiscoverable ? 'Nascondi dalla ricerca' : 'Rendi scopribile';
-    elements.channelForm.classList.toggle('hidden', !canManageServer);
+    document.querySelector('#createChannelToggle').classList.toggle('hidden', !canManageServer);
+    if (!canManageServer) {
+      elements.channelForm.classList.add('hidden');
+      document.querySelector('#createChannelToggle').setAttribute('aria-expanded', 'false');
+    }
   
     if (!server) {
       elements.workspaceTitle.textContent = state.user?.fullName || 'Accesso';
@@ -41,7 +45,15 @@ export const registerChannelsController = (app) => {
     elements.workspaceTitle.textContent = server.name;
     elements.deleteServerButton.textContent = server.ownerId === state.user.id ? 'Elimina server' : 'Lascia server';
   
-    server.channels.forEach((channel) => {
+    let lastType = null;
+    [...server.channels].sort((first, second) => Number(first.type === 'VOICE') - Number(second.type === 'VOICE')).forEach((channel) => {
+      if (channel.type !== lastType) {
+        const heading = document.createElement('h3');
+        heading.className = 'channel-group-heading';
+        heading.textContent = channel.type === 'VOICE' ? 'Vocali' : 'Testuali';
+        elements.channelList.append(heading);
+        lastType = channel.type;
+      }
       const button = document.createElement('button');
       button.className = `channel-item ${channel.id === state.activeChannelId ? 'active' : ''}`;
       button.type = 'button';
@@ -60,34 +72,37 @@ export const registerChannelsController = (app) => {
   
     server.members
       .map((membership) => membership.user)
-      .filter((member) => member.id !== state.user.id && state.friends.some((friendship) => friendship.friend.id === member.id))
       .forEach((member) => {
         const row = document.createElement('div');
         row.className = 'member-row';
 
-        const button = document.createElement('button');
+        const isFriend = state.friends.some((friendship) => friendship.friend.id === member.id);
+        const button = document.createElement(isFriend ? 'button' : 'div');
         button.className = `member-item ${member.id === state.activePrivateUserId ? 'active' : ''}`;
-        button.type = 'button';
+        if (isFriend) button.type = 'button';
         const avatar = createUserAvatar(member, 'member-avatar');
         const name = document.createElement('span');
         name.textContent = member.fullName;
         button.append(avatar, name);
-        button.addEventListener('click', () => selectPrivateChat(member));
+        if (isFriend) button.addEventListener('click', () => selectPrivateChat(member));
 
-        const historyButton = document.createElement('button');
-        historyButton.className = 'member-history-button';
-        historyButton.type = 'button';
-        historyButton.title = 'Storico chiamate';
-        historyButton.textContent = '↺';
-        historyButton.addEventListener('click', () => showCallHistoryForUser(member));
-
-        row.append(button, historyButton);
+        row.append(button);
+        if (isFriend) {
+          const historyButton = document.createElement('button');
+          historyButton.className = 'member-history-button';
+          historyButton.type = 'button';
+          historyButton.title = 'Storico chiamate';
+          historyButton.setAttribute('aria-label', `Storico chiamate con ${member.fullName}`);
+          historyButton.textContent = '↺';
+          historyButton.addEventListener('click', () => showCallHistoryForUser(member));
+          row.append(historyButton);
+        }
         elements.memberList.append(row);
       });
     if (!elements.memberList.childElementCount) {
       const empty = document.createElement('p');
       empty.className = 'sidebar-empty';
-      empty.textContent = 'Nessun amico in questo server.';
+      empty.textContent = 'Nessun membro in questo server.';
       elements.memberList.append(empty);
     }
     renderOverviewBar();
@@ -138,6 +153,7 @@ export const registerChannelsController = (app) => {
       localStorage.removeItem('unichat:pendingInviteCode');
       clearInviteFromUrl();
       elements.inviteCodeInput.value = '';
+      if (document.querySelector('#inviteDialog').open) document.querySelector('#inviteDialog').close();
 
       if (result?.id) {
         addOrReplaceServer(result);

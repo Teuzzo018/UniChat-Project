@@ -150,6 +150,7 @@ export const registerAdminController = (app) => {
     for (const element of [elements.emptyState, elements.gamePanel, elements.callPanel, elements.voicePanel,
       elements.callHistory, elements.messages, elements.messageForm, elements.videoCallButton]) element.classList.add('hidden');
     elements.adminPanel.classList.remove('hidden');
+    document.querySelector('#homePanel').classList.add('hidden');
     elements.channelTitle.textContent = 'Pannello admin';
     elements.channelType.textContent = 'Amministrazione';
     app.renderChannels();

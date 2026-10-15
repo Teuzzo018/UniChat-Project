@@ -124,6 +124,7 @@ export const registerGameBoardController = (app) => {
     elements.messages.classList.add('hidden');
     elements.messageForm.classList.add('hidden');
     elements.gamePanel.classList.remove('hidden');
+    document.querySelector('#homePanel').classList.add('hidden');
     elements.gameBoard.replaceChildren();
 
     const player = getCurrentPlayer();
