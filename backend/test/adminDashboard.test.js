@@ -127,6 +127,53 @@ test('gestione server: ambito locale, moderazione globale e divieto di eliminazi
   assert.equal(deletions, 0);
 });
 
+test('canali: rinomina ed eliminazione richiedono gestione del server corretto', async () => {
+  const changed = [];
+  const events = [];
+  const prisma = {
+    channel: {
+      findUnique: async ({ where }) => ({ id: where.id, serverId: where.id === 'foreign' ? 'other' : 'server' }),
+      update: async ({ data, select }) => { changed.push(data.name); return { id: 'channel', serverId: 'server', name: data.name, type: 'TEXT' }; },
+      delete: async ({ where }) => { changed.push(`deleted:${where.id}`); }
+    },
+    serverMember: { findMany: async () => [{ userId: 'owner' }, { userId: 'friend' }] }
+  };
+  const io = { to: (rooms) => ({ emit: (event, payload) => events.push({ rooms, event, payload }) }) };
+  const controllers = withModules({
+    'lib/prisma.js': prisma,
+    'lib/authorization.js': {
+      canModerateServer: async (user, id) => user.id === 'owner' && id === 'server',
+      canModerateGlobal: () => false,
+      isSuperadmin: () => false
+    }
+  }, 'controllers/adminControllers.js');
+  const request = (userId, channelId = 'channel', name = 'Nuovo Canale') => ({
+    user: { id: userId }, params: { serverId: 'server', channelId }, body: { name },
+    app: { get: () => io }
+  });
+  assert.equal((await controllers.updateChannel(request('owner', 'channel', ' '), response())).code, 400);
+  const foreign = response();
+  await controllers.updateChannel(request('owner', 'foreign'), foreign);
+  assert.equal(foreign.code, 404);
+  const forbidden = response();
+  await controllers.updateChannel(request('stranger'), forbidden);
+  assert.equal(forbidden.code, 403);
+  assert.deepEqual(changed, []);
+  const renamed = response();
+  await controllers.updateChannel(request('owner'), renamed);
+  assert.equal(renamed.code, 200);
+  assert.equal(renamed.body.name, 'nuovo-canale');
+  assert.equal(events[0].event, 'channel_updated');
+  assert.deepEqual(events[0].rooms, ['user:owner', 'user:friend']);
+  const deniedDelete = response();
+  await controllers.deleteChannel(request('stranger'), deniedDelete);
+  assert.equal(deniedDelete.code, 403);
+  const deleted = response();
+  await controllers.deleteChannel(request('owner'), deleted);
+  assert.equal(deleted.code, 200);
+  assert.deepEqual(changed, ['nuovo-canale', 'deleted:channel']);
+});
+
 test('registro: salva autore, azione, risorsa, esito e data senza body o contenuti', async () => {
   const written = [];
   const audit = withModules({

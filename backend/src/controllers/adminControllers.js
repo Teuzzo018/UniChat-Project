@@ -173,12 +173,40 @@ const updateServer = async (req, res) => {
   return res.status(200).json(server);
 };
 
+const notifyServerMembers = async (req, serverId, event, payload) => {
+  const io = req.app.get('io');
+  if (!io) return;
+  try {
+    const members = await prisma.serverMember.findMany({ where: { serverId }, select: { userId: true } });
+    io.to(members.map(({ userId }) => `user:${userId}`)).emit(event, payload);
+  } catch (error) {
+    console.error('Aggiornamento canale non notificato:', error.code || error.name);
+  }
+};
+
+const updateChannel = async (req, res) => {
+  const { serverId, channelId } = req.params;
+  const name = req.body?.name;
+  if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) {
+    return res.status(400).json({ error: 'Il nome del canale deve contenere tra 2 e 80 caratteri' });
+  }
+  const channel = await prisma.channel.findUnique({ where: { id: channelId }, select: { id: true, serverId: true } });
+  if (!channel || channel.serverId !== serverId) return res.status(404).json({ error: 'Canale non trovato' });
+  if (!await canModerateServer(req.user, serverId)) return res.status(403).json({ error: 'Permesso server richiesto' });
+  const updated = await prisma.channel.update({ where: { id: channelId }, data: {
+    name: name.trim().toLowerCase().replace(/\s+/g, '-')
+  }, select: { id: true, serverId: true, name: true, type: true } });
+  await notifyServerMembers(req, serverId, 'channel_updated', updated);
+  return res.status(200).json(updated);
+};
+
 const deleteChannel = async (req, res) => {
   const channel = await prisma.channel.findUnique({ where: { id: req.params.channelId }, select: { id: true, serverId: true } });
   if (!channel || channel.serverId !== req.params.serverId) return res.status(404).json({ error: 'Canale non trovato' });
   if (!await canModerateServer(req.user, channel.serverId)) return res.status(403).json({ error: 'Permesso server richiesto' });
   await prisma.channel.delete({ where: { id: channel.id } });
   req.app.get('io')?.to(`channel:${channel.id}`).emit('channel_deleted', { id: channel.id, serverId: channel.serverId });
+  await notifyServerMembers(req, channel.serverId, 'channel_deleted', { id: channel.id, serverId: channel.serverId });
   return res.status(200).json({ message: 'Canale eliminato' });
 };
 
@@ -217,5 +245,6 @@ module.exports = {
   deleteUser,
   listAudit,
   listOverview,
+  updateChannel,
   updateServer
 };
