@@ -12,8 +12,6 @@ export const registerShellLayoutController = (app) => {
   const contextMenu = document.querySelector('#serverContextMenu');
   const primaryNav = document.querySelector('#sidebarPrimaryNav');
   const homeNav = document.querySelector('#sidebarHomeButton');
-  const friendsNav = document.querySelector('#sidebarFriendsButton');
-  const dmsNav = document.querySelector('#sidebarDmsButton');
   const inviteButton = document.querySelector('#addServerInviteButton');
   const directMessageList = document.querySelector('#directMessageList');
   const directMessagesBadge = document.querySelector('#directMessagesBadge');
@@ -173,13 +171,9 @@ export const registerShellLayoutController = (app) => {
       if (sidebar.inert) sidebar.setAttribute('aria-hidden', 'true');
       else sidebar.removeAttribute('aria-hidden');
     }
-    homeNav.classList.toggle('active', !state.activeServerId && state.activeOverviewPanel === 'friendSearch');
-    friendsNav.classList.toggle('active', state.activeOverviewPanel === 'friendSearch');
-    dmsNav.classList.toggle('active', state.activeOverviewPanel === 'directMessages');
-    for (const button of [homeNav, friendsNav, dmsNav]) {
-      if (button.classList.contains('active')) button.setAttribute('aria-current', 'page');
-      else button.removeAttribute('aria-current');
-    }
+    homeNav.classList.toggle('active', !state.activeServerId && !state.activePrivateUserId);
+    if (homeNav.classList.contains('active')) homeNav.setAttribute('aria-current', 'page');
+    else homeNav.removeAttribute('aria-current');
     renderDirectMessages();
     mobileToggle.textContent = state.activeChannelId || state.activePrivateUserId ? '←' : '☰';
     if (!shell.classList.contains('mobile-nav-open')) mobileToggle.setAttribute('aria-label', state.activeChannelId || state.activePrivateUserId ? 'Torna all’elenco' : 'Apri navigazione');
@@ -271,8 +265,6 @@ export const registerShellLayoutController = (app) => {
     mobileToggle.addEventListener('click', () => setMobileNav(!shell.classList.contains('mobile-nav-open')));
     backdrop.addEventListener('click', () => setMobileNav(false));
     homeNav.addEventListener('click', async () => { await app.showHome(); setMobileNav(false); });
-    friendsNav.addEventListener('click', async () => { await app.showHome(); setMobileNav(false); homePanel.querySelector('h2')?.focus(); });
-    dmsNav.addEventListener('click', async () => { await app.showHome(); setMobileNav(true); directMessageList.querySelector('button')?.focus(); });
     inviteButton.addEventListener('click', () => { inviteDialog.showModal(); elements.inviteCodeInput.focus(); });
     document.addEventListener('pointerdown', (event) => { if (!contextMenu.contains(event.target) && !event.target.closest('.server-menu-trigger')) closeMenu(); });
     document.addEventListener('keydown', (event) => {

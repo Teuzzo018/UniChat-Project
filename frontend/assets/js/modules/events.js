@@ -156,6 +156,8 @@ export const setupEventListeners = ({
     state.servers = [];
     state.availableServers = [];
     state.friends = [];
+    state.favorites = [];
+    if (document.querySelector('#favoritesDialog').open) document.querySelector('#favoritesDialog').close();
     state.friendPresence = {};
     state.friendRequests = [];
     state.friendsExpanded = false;

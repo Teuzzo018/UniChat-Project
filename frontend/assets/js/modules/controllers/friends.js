@@ -63,6 +63,7 @@ export const registerFriendsController = (app) => {
     elements.friendRequestList.replaceChildren();
     elements.friendSearchList.replaceChildren();
     elements.friendCount.textContent = String(state.friends.length);
+    elements.friendCounterButton.setAttribute('aria-label', `Amici, ${state.friends.length}`);
     elements.friendCounterButton.classList.toggle('active', state.friendsExpanded);
     elements.friendList.classList.toggle('hidden', !state.friendsExpanded);
 

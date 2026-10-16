@@ -1,5 +1,10 @@
 const errorHandler = (error, req, res, next) => {
-  console.error('Errore applicativo:', error.code || error.name || 'Error');
+  if (error.code === 'ENOENT') {
+    console.warn('File richiesto non trovato:', req.method, req.path);
+    if (!res.headersSent) return res.status(404).json({ error: 'File non trovato' });
+    return next(error);
+  }
+  console.error('Errore applicativo:', error.code || error.name || 'Error', req.method, req.path);
 
   if (res.headersSent) {
     return next(error);

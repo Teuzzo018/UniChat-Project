@@ -10,6 +10,7 @@ const universityRoutes = require('./universityRoutes');
 const uploadRoutes = require('./uploadRoutes');
 const searchRoutes = require('./searchRoutes');
 const rtcRoutes = require('./rtcRoutes');
+const favoriteRoutes = require('./favoriteRoutes');
 
 const router = express.Router();
 
@@ -28,5 +29,6 @@ router.use('/university', universityRoutes);
 router.use('/uploads', uploadRoutes);
 router.use('/search', searchRoutes);
 router.use('/rtc', rtcRoutes);
+router.use('/favorites', favoriteRoutes);
 
 module.exports = router;

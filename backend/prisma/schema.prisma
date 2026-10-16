@@ -75,6 +75,8 @@ model User {
   blockedUsers BlockedUser[] @relation("BlockedUsers")
   blockedByUsers BlockedUser[] @relation("BlockedByUsers")
   serverJoinRequests ServerJoinRequest[]
+  channelFavorites ChannelMessageFavorite[]
+  privateFavorites PrivateMessageFavorite[]
 
   createdAt    DateTime       @default(now())
 
@@ -173,6 +175,7 @@ model Message {
 
   channelId String
   channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  favorites ChannelMessageFavorite[]
 
   createdAt DateTime @default(now())
 }
@@ -192,11 +195,34 @@ model PrivateMessage {
 
   recipientId String
   recipient   User     @relation("PrivateMessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  favorites   PrivateMessageFavorite[]
 
   createdAt   DateTime @default(now())
 
   @@index([senderId, recipientId, createdAt])
   @@index([recipientId, senderId, createdAt])
+}
+
+model ChannelMessageFavorite {
+  userId String
+  messageId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, messageId])
+  @@index([userId, createdAt])
+}
+
+model PrivateMessageFavorite {
+  userId String
+  messageId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message PrivateMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, messageId])
+  @@index([userId, createdAt])
 }
 
 model PrivateCall {

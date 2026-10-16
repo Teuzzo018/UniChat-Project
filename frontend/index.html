@@ -32,8 +32,6 @@
 
         <nav class="sidebar-primary-nav hidden" id="sidebarPrimaryNav" aria-label="Navigazione principale">
           <button type="button" id="sidebarHomeButton">Home</button>
-          <button type="button" id="sidebarFriendsButton">Amici</button>
-          <button type="button" id="sidebarDmsButton">Messaggi privati</button>
         </nav>
         <div class="auth-panel" id="authPanel">
           <div class="tabs" role="tablist" aria-label="Autenticazione">
@@ -179,13 +177,10 @@
         <dialog id="globalSearchDialog" class="global-search-dialog">
           <div class="global-search-head"><h2>Ricerca globale</h2><button type="button" id="globalSearchClose">Chiudi</button></div>
           <div class="global-search-controls">
-            <input id="globalSearchInput" type="search" maxlength="80" placeholder="Cerca server, canali o persone" autocomplete="off" aria-label="Ricerca globale" />
+            <input id="globalSearchInput" type="search" maxlength="80" placeholder="Cerca nei tuoi server e canali" autocomplete="off" aria-label="Ricerca globale" />
             <select id="globalSearchScope" aria-label="Categoria">
-              <option value="explore">Server da esplorare</option>
               <option value="member">I miei server</option>
               <option value="channels">Canali accessibili</option>
-              <option value="users">Utenti</option>
-              <option value="friends">Amici</option>
             </select>
           </div>
           <p id="globalSearchStatus" role="status"></p>
@@ -268,7 +263,7 @@
               </form>
               <button class="friend-counter" id="friendCounterButton" type="button">
                 <span>Amici</span>
-                <strong id="friendCount">0</strong>
+                <strong id="friendCount" class="hidden">0</strong>
               </button>
               <div class="friend-list" id="friendList"></div>
               <div class="friend-search-list" id="friendSearchList"></div>
@@ -290,7 +285,7 @@
         </section>
 
         <section class="home-panel hidden" id="homePanel" aria-label="Home e amici">
-          <header class="home-panel-header"><div><h2 tabindex="-1">Amici</h2><p>Persone e richieste</p></div><button class="primary-button" id="addFriendButton" type="button">Aggiungi amico</button></header>
+          <header class="home-panel-header"><div><h2 tabindex="-1">Amici</h2><p>Persone e richieste</p></div><div class="home-header-actions"><button class="secondary-button" id="openFavoritesButton" type="button">Preferiti</button><button class="primary-button" id="addFriendButton" type="button">Aggiungi amico</button></div></header>
           <div class="home-panel-body">
             <section aria-labelledby="homeFriendsTitle"><h3 id="homeFriendsTitle">I tuoi amici</h3><div id="homeFriendsSlot"></div></section>
             <section aria-labelledby="homeRequestsTitle"><h3 id="homeRequestsTitle">Richieste di amicizia</h3><div id="homeRequestsSlot"></div></section>
@@ -451,6 +446,7 @@
     <dialog id="inviteDialog" class="compact-dialog" aria-labelledby="inviteDialogTitle"><div class="dialog-card"><header><h2 id="inviteDialogTitle">Entra in un server</h2><button type="button" class="icon-button" id="closeInviteDialog" aria-label="Chiudi">×</button></header><p>Incolla un codice o un link invito.</p><div id="inviteDialogSlot"></div></div></dialog>
     <dialog id="serverSettingsDialog" class="server-settings-dialog" aria-labelledby="serverSettingsTitle"><div class="dialog-card"><header><h2 id="serverSettingsTitle">Impostazioni server</h2><button type="button" class="icon-button" id="closeServerSettingsDialog" aria-label="Chiudi impostazioni server">×</button></header><form id="serverSettingsForm" class="stack"><label>Nome server<input id="serverSettingsName" name="name" type="text" minlength="2" maxlength="80" required /></label><label>Descrizione<textarea id="serverSettingsDescription" name="description" maxlength="1000" rows="2"></textarea></label><button class="primary-button" type="submit">Salva modifiche</button></form><section class="server-settings-section" id="serverInviteSettings"><h3>Inviti e visibilità</h3><input id="serverInviteLink" class="hidden" type="text" readonly aria-label="Link invito da copiare" /><div id="serverSettingsInviteSlot"></div></section><section class="server-settings-section"><h3>Gestione</h3><div id="serverSettingsDangerSlot"></div></section></div></dialog>
     <dialog id="renameChannelDialog" class="compact-dialog" aria-labelledby="renameChannelTitle"><form id="renameChannelForm" class="dialog-card"><header><h2 id="renameChannelTitle">Rinomina canale</h2><button type="button" class="icon-button" id="closeRenameChannelDialog" aria-label="Chiudi">×</button></header><label>Nome canale<input id="renameChannelName" name="name" type="text" minlength="2" maxlength="80" required /></label><button class="primary-button" type="submit">Salva nome</button></form></dialog>
+    <dialog id="favoritesDialog" class="compact-dialog favorites-dialog" aria-labelledby="favoritesDialogTitle"><div class="dialog-card"><header><h2 id="favoritesDialogTitle">Messaggi preferiti</h2><button type="button" class="icon-button" id="closeFavoritesDialog" aria-label="Chiudi preferiti">×</button></header><p id="favoritesStatus" role="status"></p><div id="favoritesList" class="favorites-list"></div></div></dialog>
 
     <dialog class="confirm-dialog" id="confirmDialog" aria-labelledby="confirmDialogTitle" aria-describedby="confirmDialogMessage">
       <div class="confirm-card">

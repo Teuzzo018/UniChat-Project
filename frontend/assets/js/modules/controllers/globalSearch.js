@@ -1,5 +1,5 @@
 export const registerGlobalSearchController = (app) => {
-  const { state, elements, api, showToast } = app;
+  const { elements, api, showToast } = app;
   let page = 1;
   let sequence = 0;
   let pending;
@@ -23,12 +23,8 @@ export const registerGlobalSearchController = (app) => {
       const scope = elements.globalSearchScope.value;
       title.textContent = item.name || item.fullName || item.username || 'Risultato';
       detail.textContent = scope === 'channels' ? `${item.server.name} · ${item.type}`
-        : ['users', 'friends'].includes(scope) ? `@${item.username || 'utente'}`
-          : item.description || (scope === 'explore' ? 'Server scopribile' : 'Server di appartenenza');
-      if (scope === 'explore') {
-        action.textContent = 'Richiedi ingresso';
-        action.addEventListener('click', () => app.joinServer(item.id));
-      } else if (scope === 'member') {
+        : item.description || 'Server di appartenenza';
+      if (scope === 'member') {
         action.textContent = 'Apri';
         action.addEventListener('click', async () => {
           elements.globalSearchDialog.close();
@@ -42,15 +38,6 @@ export const registerGlobalSearchController = (app) => {
             await app.selectServer(item.serverId);
             await app.selectChannel(item.id);
           } catch (error) { showToast(error.message); }
-        });
-      } else {
-        const friend = state.friends.find((entry) => entry.friend.id === item.id);
-        action.textContent = friend ? 'Chat' : 'Aggiungi';
-        action.addEventListener('click', async () => {
-          if (friend) {
-            elements.globalSearchDialog.close();
-            try { await app.selectPrivateChat(friend.friend); } catch (error) { showToast(error.message); }
-          } else await app.addFriend(item.username);
         });
       }
       info.append(title, detail);

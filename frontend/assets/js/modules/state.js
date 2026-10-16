@@ -11,6 +11,7 @@ export const state = {
   activeConversationType: 'channel',
   friends: [],
   friendPresence: {},
+  favorites: [],
   friendRequests: [],
   friendsExpanded: true,
   friendSearchResults: [],

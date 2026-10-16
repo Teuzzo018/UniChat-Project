@@ -221,7 +221,8 @@ export const registerChannelsController = (app) => {
       loadServers(),
       loadFriends(),
       loadServerJoinRequests(),
-      app.loadAttachmentLimits()
+      app.loadAttachmentLimits(),
+      app.loadFavorites().catch((error) => showToast(`Preferiti non disponibili: ${error.message}`))
     ]);
   };
 
