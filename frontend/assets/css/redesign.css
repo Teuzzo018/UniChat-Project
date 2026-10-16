@@ -50,16 +50,35 @@ button:disabled { cursor: not-allowed; opacity: .58; }
   background: var(--panel-strong); color: var(--accent-dark); transform: none;
 }
 .sidebar-overview .overview-tab strong { background: #dceafa; color: var(--accent-dark); line-height: 18px; }
+.sidebar-overview .overview-tab { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; column-gap: 7px; }
+.sidebar-overview .overview-tab[data-overview-panel="directMessages"] { grid-template-columns: minmax(0, 1fr) auto; }
+.sidebar-overview .overview-tab span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-overview .overview-tab strong { justify-self: end; margin: 0; padding: 0 5px; border-radius: 6px; }
 .app-shell.has-server .overview-tab:not([data-overview-panel="channels"]),
 .app-shell:not(.has-server) .overview-tab:not([data-overview-panel="directMessages"]) { display: none; }
 .sidebar-overview .overview-panel { border-top: 0; margin-top: 0; padding: 6px 0; }
 .sidebar-overview .overview-section h2 { font-size: .72rem; margin: 10px 6px 4px; }
 .direct-message-link, .channel-item { min-height: 36px; }
 .channel-list, .direct-message-list { gap: 2px; }
+.channel-row { display: grid; grid-template-columns: minmax(0, 1fr) 30px; align-items: center; min-width: 0; }
+.channel-row > .channel-item { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.channel-actions { position: relative; min-width: 0; }
+.channel-actions summary { display: grid; place-items: center; width: 30px; height: 32px; list-style: none; border-radius: 6px; color: var(--muted); cursor: pointer; }
+.channel-actions summary::-webkit-details-marker { display: none; }
+.channel-actions summary:hover, .channel-actions[open] summary { background: var(--panel-strong); color: var(--ink); }
+.channel-actions-menu { position: absolute; z-index: 10; right: 0; top: 100%; display: grid; min-width: 128px; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: #fff; box-shadow: var(--shadow); }
+.channel-actions-menu button { min-height: 34px; border: 0; border-radius: 5px; background: #fff; color: var(--ink); padding: 6px 8px; text-align: left; }
+.channel-actions-menu button:hover, .channel-actions-menu button:focus-visible { background: var(--panel-strong); }
+.channel-actions-menu button.danger { color: var(--danger); }
+.channel-list.menu-open { padding-bottom: 90px; }
 .channel-group-heading { margin: 14px 6px 4px; color: var(--muted); font-size: .7rem; font-weight: 750; text-transform: uppercase; }
 .channel-form { padding: 6px 2px; }
 .workspace-panel.tools-open { max-height: 55vh; }
 .user-dock { border-top: 1px solid var(--line); padding-top: 8px; }
+.user-controls { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
+.user-controls .dock-button:not(.hidden) { min-width: 0; min-height: 38px; height: 38px; border-color: var(--line); background: #fff; }
+.user-controls .dock-button.active { border-color: var(--accent); background: var(--panel-strong); color: var(--accent-dark); }
+.user-controls .dock-button svg { width: 18px; height: 18px; }
 .status-pill { border-radius: 6px; }
 .content-area { position: relative; background: var(--panel); }
 .channel-header { min-height: 58px; padding: 9px 20px; background: #fff; }
@@ -119,7 +138,11 @@ button:disabled { cursor: not-allowed; opacity: .58; }
   border: 1px solid var(--line); box-shadow: var(--shadow); font-size: .8rem;
 }
 .composer { padding: 10px clamp(12px, 3vw, 32px); border-top: 1px solid var(--line); background: #fff; }
+.composer { grid-template-columns: minmax(0, 1fr) auto auto 42px 78px; }
 .composer > #messageInput { min-width: 0; }
+.composer .call-composer-button { display: inline-flex; gap: 5px; align-items: center; justify-content: center; width: auto; min-width: 82px; padding: 0 8px; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+.composer .call-composer-button > span:first-child { font-size: 1.1rem; line-height: 1; }
+.composer .call-composer-button::after { content: none; }
 .file-button, .call-composer-button { border-radius: 7px; }
 .member-panel {
   position: absolute; z-index: 5; top: 58px; right: 0; bottom: 0; width: 220px;
@@ -138,6 +161,16 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .compact-dialog .dialog-card p { color: var(--muted); font-size: .85rem; margin: 0; }
 .compact-dialog .friend-search-list { max-height: 300px; overflow-y: auto; }
 .compact-dialog .friend-form { grid-template-columns: minmax(0, 1fr) 40px; }
+.server-settings-dialog { width: min(560px, calc(100vw - 24px)); max-height: min(85dvh, 760px); overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; }
+.server-settings-dialog .dialog-card { width: 100%; padding: 20px; gap: 18px; }
+.server-settings-dialog .dialog-card > header { justify-content: space-between; }
+.server-settings-dialog h2 { font-size: 1.1rem; overflow-wrap: anywhere; }
+.server-settings-dialog h3 { margin: 0 0 10px; font-size: .82rem; color: var(--muted); }
+.server-settings-section { border-top: 1px solid var(--line); padding-top: 16px; }
+.server-settings-section .invite-manage { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.server-settings-section .invite-manage button { min-width: 0; }
+.server-settings-section #copyInviteButton, .server-settings-section #deleteServerButton { width: 100%; }
+.server-settings-section #serverInviteLink { width: 100%; margin: 8px 0; }
 .global-search-dialog { box-shadow: var(--shadow); }
 .global-search-result { border-radius: 6px; box-shadow: none; }
 .settings-panel { grid-template-columns: 160px minmax(0, 1fr); align-content: start; gap: 0; width: min(850px, calc(100vw - 24px)); min-height: min(520px, calc(100dvh - 48px)); padding: 0; }
@@ -163,6 +196,13 @@ button:disabled { cursor: not-allowed; opacity: .58; }
   .home-panel-header { padding: 14px; }
   .home-panel-body { padding: 8px 14px 24px; }
   .composer { padding: 8px 12px; }
+  .composer { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px 78px; }
+  .composer > #messageInput { grid-column: 1 / -1; }
+  .composer > #audioCallButton { grid-column: 1; }
+  .composer > #videoCallButton { grid-column: 2; }
+  .composer > .file-button { grid-column: 3; }
+  .composer > button[type="submit"] { grid-column: 4; }
+  .composer .call-composer-button { min-width: 0; }
 }
 @media (max-width: 600px) {
   .header-actions { width: auto; margin-left: auto; }
@@ -178,6 +218,7 @@ button:disabled { cursor: not-allowed; opacity: .58; }
   .section-navigation { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
   .section-navigation button { white-space: nowrap; }
   .admin-panel { grid-template-columns: 1fr; }
+  .server-settings-section .invite-manage { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   .splash-screen { animation-duration: 1ms; animation-delay: 0ms; }

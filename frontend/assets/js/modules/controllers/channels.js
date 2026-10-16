@@ -15,6 +15,66 @@ export const registerChannelsController = (app) => {
   const loadServerJoinRequests = (...args) => app.loadServerJoinRequests(...args);
   const addOrReplaceServer = (...args) => app.addOrReplaceServer(...args);
   const selectChannel = (...args) => app.selectChannel(...args);
+  const renameDialog = document.querySelector('#renameChannelDialog');
+  const renameForm = document.querySelector('#renameChannelForm');
+  const renameInput = document.querySelector('#renameChannelName');
+  let channelToRename = null;
+
+  const applyChannelUpdated = (updated) => {
+    const server = state.servers.find((item) => item.id === updated.serverId);
+    const channel = server?.channels.find((item) => item.id === updated.id);
+    if (!channel) return;
+    channel.name = updated.name;
+    if (state.activeServerId === server.id) renderChannels();
+    if (state.activeChannelId === channel.id) elements.channelTitle.textContent = channel.name;
+  };
+
+  const applyChannelDeleted = async ({ id, serverId }) => {
+    const server = state.servers.find((item) => item.id === serverId);
+    if (!server?.channels.some((channel) => channel.id === id)) return;
+    server.channels = server.channels.filter((channel) => channel.id !== id);
+    if (state.voice.channelId === id) await app.leaveVoiceChannel();
+    if (state.activeServerId === serverId && state.activeChannelId === id) {
+      await app.selectServer(serverId);
+      return;
+    }
+    if (state.activeServerId === serverId) renderChannels();
+  };
+
+  const openRenameChannel = (server, channel) => {
+    channelToRename = { serverId: server.id, channelId: channel.id };
+    renameInput.value = channel.name;
+    renameDialog.showModal();
+    renameInput.focus();
+    renameInput.select();
+  };
+
+  renameForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!channelToRename) return;
+    const submit = renameForm.querySelector('[type="submit"]');
+    submit.disabled = true;
+    try {
+      const updated = await api(`/admin/servers/${channelToRename.serverId}/channels/${channelToRename.channelId}`, {
+        method: 'PATCH', body: JSON.stringify({ name: renameInput.value })
+      });
+      renameDialog.close();
+      applyChannelUpdated(updated);
+      showToast('Canale rinominato');
+    } catch (error) { showToast(error.message); }
+    finally { submit.disabled = false; }
+  });
+  document.querySelector('#closeRenameChannelDialog').addEventListener('click', () => renameDialog.close());
+  renameDialog.addEventListener('close', () => { channelToRename = null; });
+
+  const deleteChannel = async (server, channel) => {
+    if (!await showConfirm(`Eliminare il canale ${channel.name} e tutti i suoi messaggi?`, 'Elimina canale')) return;
+    try {
+      await api(`/admin/servers/${server.id}/channels/${channel.id}`, { method: 'DELETE' });
+      await applyChannelDeleted({ id: channel.id, serverId: server.id });
+      showToast('Canale eliminato');
+    } catch (error) { showToast(error.message); }
+  };
 
   const renderChannels = () => {
     const server = activeServer();
@@ -25,6 +85,7 @@ export const registerChannelsController = (app) => {
     const canManageServer = Boolean(server && (server.ownerId === state.user?.id
       || server.members.some((membership) => membership.user.id === state.user?.id && membership.isAdmin)
       || state.user?.role === 'SUPERADMIN'));
+    const canModerateChannel = canManageServer || ['ADMIN', 'PLATFORM_ADMIN'].includes(state.user?.role);
     elements.copyInviteButton.disabled = !canManageServer;
     elements.inviteManage.classList.toggle('hidden', !canManageServer);
     elements.discoverabilityButton.textContent = server?.isDiscoverable ? 'Nascondi dalla ricerca' : 'Rendi scopribile';
@@ -61,7 +122,36 @@ export const registerChannelsController = (app) => {
       button.title = channel.name;
       if (channel.id === state.activeChannelId) button.setAttribute('aria-current', 'page');
       button.addEventListener('click', () => selectChannel(channel.id));
-      elements.channelList.append(button);
+      const row = document.createElement('div');
+      row.className = 'channel-row';
+      row.append(button);
+      if (canModerateChannel) {
+        const menu = document.createElement('details');
+        menu.className = 'channel-actions';
+        const trigger = document.createElement('summary');
+        trigger.setAttribute('aria-label', `Azioni per il canale ${channel.name}`);
+        trigger.textContent = '⋯';
+        const actions = document.createElement('div');
+        actions.className = 'channel-actions-menu';
+        const rename = document.createElement('button');
+        rename.type = 'button';
+        rename.textContent = 'Rinomina';
+        rename.addEventListener('click', () => { menu.open = false; openRenameChannel(server, channel); });
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'danger';
+        remove.textContent = 'Elimina';
+        remove.addEventListener('click', () => { menu.open = false; deleteChannel(server, channel); });
+        actions.append(rename, remove);
+        menu.append(trigger, actions);
+        menu.addEventListener('toggle', () => {
+          const anyOpen = Boolean(elements.channelList.querySelector('.channel-actions[open]'));
+          elements.channelList.classList.toggle('menu-open', anyOpen);
+          if (menu.open) actions.scrollIntoView({ block: 'nearest' });
+        });
+        row.append(menu);
+      }
+      elements.channelList.append(row);
     });
     if (!server.channels.length) {
       const empty = document.createElement('p');
@@ -191,8 +281,13 @@ export const registerChannelsController = (app) => {
       await navigator.clipboard.writeText(inviteUrl);
       showToast('Link invito copiato');
     } catch {
-      elements.inviteCodeInput.value = inviteUrl;
-      showToast('Link inserito nel campo invito');
+      if (!document.querySelector('#serverSettingsDialog').open) app.openServerSettings(server);
+      const link = document.querySelector('#serverInviteLink');
+      link.value = inviteUrl;
+      link.classList.remove('hidden');
+      link.focus();
+      link.select();
+      showToast('Seleziona e copia il link invito');
     }
   };
 
@@ -268,6 +363,8 @@ export const registerChannelsController = (app) => {
   };
 
   Object.assign(app, {
+    applyChannelDeleted,
+    applyChannelUpdated,
     renderChannels,
     loadServers,
     loadWorkspaceData,

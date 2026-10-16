@@ -233,7 +233,12 @@ export const setupEventListeners = ({
   });
   elements.createServerFromSidebar.addEventListener('click', openServerDialog);
   elements.copyInviteButton.addEventListener('click', copyActiveServerInvite);
-  elements.deleteServerButton.addEventListener('click', deleteOrLeaveActiveServer);
+  elements.deleteServerButton.addEventListener('click', async () => {
+    const previousServerId = state.activeServerId;
+    await deleteOrLeaveActiveServer();
+    const dialog = document.querySelector('#serverSettingsDialog');
+    if (dialog.open && previousServerId !== state.activeServerId) dialog.close();
+  });
   document.querySelector('#closeServerDialog').addEventListener('click', () => elements.serverDialog.close());
   
   elements.inviteForm.addEventListener('submit', async (event) => {

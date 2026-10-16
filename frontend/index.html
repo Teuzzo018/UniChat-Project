@@ -215,7 +215,7 @@
               <span>Cerca amico</span>
               <strong id="friendSearchBadge">0</strong>
             </button>
-            <button class="overview-tab" type="button" data-overview-panel="directMessages" title="Messaggi privati"><span>Messaggi privati</span><strong id="directMessagesBadge">0</strong></button>
+            <button class="overview-tab" type="button" data-overview-panel="directMessages" title="Messaggi privati"><span>Messaggi privati</span><strong id="directMessagesBadge" class="hidden">0</strong></button>
             <button class="overview-tab" type="button" data-overview-panel="friendRequests" title="Richieste amicizia">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
@@ -415,11 +415,9 @@
 
         <form class="composer hidden" id="messageForm">
           <input type="text" name="content" id="messageInput" maxlength="1000" placeholder="Scrivi un messaggio..." aria-label="Scrivi un messaggio" autocomplete="off" />
-          <button class="call-composer-button hidden" id="audioCallButton" type="button" title="Chiamata audio" aria-label="Avvia chiamata audio">♫</button>
-          <button class="call-composer-button hidden" id="videoCallButton" type="button" title="Videochiamata" aria-label="Avvia videochiamata">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7A2 2 0 0 1 22 16.9Z"></path>
-            </svg>
+          <button class="call-composer-button hidden" id="audioCallButton" type="button" title="Avvia chiamata audio" aria-label="Avvia chiamata audio"><span aria-hidden="true">☎</span><span>Chiama</span></button>
+          <button class="call-composer-button hidden" id="videoCallButton" type="button" title="Avvia videochiamata" aria-label="Avvia videochiamata">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="14" height="14" rx="2"></rect><path d="m16 10 6-4v12l-6-4"></path></svg><span>Video</span>
           </button>
           <label class="file-button" title="Allega file">
             <input type="file" id="messageFileInput" aria-label="Allega file" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.zip,.txt,.wav,.ogg,.mp3,.mp4,.webm" />
@@ -451,6 +449,8 @@
 
     <dialog id="friendDialog" class="compact-dialog" aria-labelledby="friendDialogTitle"><div class="dialog-card"><header><h2 id="friendDialogTitle">Aggiungi un amico</h2><button type="button" class="icon-button" id="closeFriendDialog" aria-label="Chiudi">×</button></header><div id="friendDialogSlot"></div></div></dialog>
     <dialog id="inviteDialog" class="compact-dialog" aria-labelledby="inviteDialogTitle"><div class="dialog-card"><header><h2 id="inviteDialogTitle">Entra in un server</h2><button type="button" class="icon-button" id="closeInviteDialog" aria-label="Chiudi">×</button></header><p>Incolla un codice o un link invito.</p><div id="inviteDialogSlot"></div></div></dialog>
+    <dialog id="serverSettingsDialog" class="server-settings-dialog" aria-labelledby="serverSettingsTitle"><div class="dialog-card"><header><h2 id="serverSettingsTitle">Impostazioni server</h2><button type="button" class="icon-button" id="closeServerSettingsDialog" aria-label="Chiudi impostazioni server">×</button></header><form id="serverSettingsForm" class="stack"><label>Nome server<input id="serverSettingsName" name="name" type="text" minlength="2" maxlength="80" required /></label><label>Descrizione<textarea id="serverSettingsDescription" name="description" maxlength="1000" rows="2"></textarea></label><button class="primary-button" type="submit">Salva modifiche</button></form><section class="server-settings-section" id="serverInviteSettings"><h3>Inviti e visibilità</h3><input id="serverInviteLink" class="hidden" type="text" readonly aria-label="Link invito da copiare" /><div id="serverSettingsInviteSlot"></div></section><section class="server-settings-section"><h3>Gestione</h3><div id="serverSettingsDangerSlot"></div></section></div></dialog>
+    <dialog id="renameChannelDialog" class="compact-dialog" aria-labelledby="renameChannelTitle"><form id="renameChannelForm" class="dialog-card"><header><h2 id="renameChannelTitle">Rinomina canale</h2><button type="button" class="icon-button" id="closeRenameChannelDialog" aria-label="Chiudi">×</button></header><label>Nome canale<input id="renameChannelName" name="name" type="text" minlength="2" maxlength="80" required /></label><button class="primary-button" type="submit">Salva nome</button></form></dialog>
 
     <dialog class="confirm-dialog" id="confirmDialog" aria-labelledby="confirmDialogTitle" aria-describedby="confirmDialogMessage">
       <div class="confirm-card">

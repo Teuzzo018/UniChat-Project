@@ -22,6 +22,9 @@ export const registerShellLayoutController = (app) => {
   const memberToggle = document.querySelector('#memberToggleButton');
   const friendDialog = document.querySelector('#friendDialog');
   const inviteDialog = document.querySelector('#inviteDialog');
+  const serverSettingsDialog = document.querySelector('#serverSettingsDialog');
+  const serverSettingsForm = document.querySelector('#serverSettingsForm');
+  let serverSettingsServerId = null;
   let menuServer = null;
   let menuTrigger = null;
   let lastMobileTrigger = null;
@@ -70,9 +73,18 @@ export const registerShellLayoutController = (app) => {
     if (restoreFocus) menuTrigger?.focus();
   };
 
-  const setToolsOpen = (open) => {
-    elements.workspacePanel.classList.toggle('tools-open', Boolean(open));
-    if (open) elements.workspacePanel.scrollIntoView({ block: 'nearest' });
+  const openServerSettings = (server) => {
+    serverSettingsServerId = server.id;
+    const canManageInvites = server.ownerId === state.user?.id || server.members?.some((member) => member.user.id === state.user?.id && member.isAdmin) || state.user?.role === 'SUPERADMIN';
+    document.querySelector('#serverInviteSettings').classList.toggle('hidden', !canManageInvites);
+    document.querySelector('#serverSettingsTitle').textContent = `Impostazioni · ${server.name}`;
+    document.querySelector('#serverSettingsName').value = server.name;
+    document.querySelector('#serverSettingsDescription').value = server.description || '';
+    document.querySelector('#serverInviteLink').classList.add('hidden');
+    elements.inviteExpiresAt.value = '';
+    elements.inviteMaxUses.value = '';
+    serverSettingsDialog.showModal();
+    document.querySelector('#serverSettingsName').focus();
   };
 
   const showPanel = (panel) => {
@@ -108,7 +120,9 @@ export const registerShellLayoutController = (app) => {
     if (canManage) {
       action('Crea canale', () => { setMobileNav(true); showPanel('channels'); elements.channelForm.classList.remove('hidden'); document.querySelector('#createChannelToggle').setAttribute('aria-expanded', 'true'); elements.channelForm.querySelector('input').focus(); });
       action('Copia invito', () => app.copyActiveServerInvite());
-      action('Impostazioni server', () => { setMobileNav(true); setToolsOpen(true); elements.inviteManage.querySelector('input, button')?.focus(); });
+    }
+    if (canManage || ['ADMIN', 'PLATFORM_ADMIN'].includes(state.user.role)) {
+      action('Impostazioni server', () => { setMobileNav(false); openServerSettings(server); });
     }
     action(server.ownerId === state.user.id ? 'Elimina server' : 'Lascia server', () => app.deleteOrLeaveActiveServer(), true);
     contextMenu.classList.remove('hidden');
@@ -215,6 +229,29 @@ export const registerShellLayoutController = (app) => {
     document.querySelector('#homeServerRequestsSlot').append(elements.serverJoinRequestList);
     document.querySelector('#friendDialogSlot').append(elements.friendForm, elements.friendSearchList);
     document.querySelector('#inviteDialogSlot').append(elements.inviteForm);
+    document.querySelector('#serverSettingsInviteSlot').append(elements.copyInviteButton, elements.inviteManage);
+    document.querySelector('#serverSettingsDangerSlot').append(elements.deleteServerButton);
+    document.querySelector('#closeServerSettingsDialog').addEventListener('click', () => serverSettingsDialog.close());
+    serverSettingsDialog.addEventListener('close', () => { serverSettingsServerId = null; });
+    serverSettingsForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const server = state.servers.find((item) => item.id === serverSettingsServerId);
+      if (!server) return;
+      const submit = serverSettingsForm.querySelector('[type="submit"]');
+      submit.disabled = true;
+      try {
+        const updated = await app.api(`/admin/servers/${server.id}`, { method: 'PATCH', body: JSON.stringify({
+          name: document.querySelector('#serverSettingsName').value,
+          description: document.querySelector('#serverSettingsDescription').value
+        }) });
+        Object.assign(server, updated);
+        app.renderServers();
+        app.renderChannels();
+        serverSettingsDialog.close();
+        app.showToast('Impostazioni server salvate');
+      } catch (error) { app.showToast(error.message); }
+      finally { submit.disabled = false; }
+    });
     setupSectionNavigation(elements.adminPanel, { aria: 'Sezioni amministrazione', items: ['Sicurezza', 'Utenti', 'Server', 'Messaggi', 'Registro'] });
     setupSectionNavigation(document.querySelector('.settings-panel'), { aria: 'Sezioni impostazioni', items: ['Profilo', 'Blocca amici', 'Utenti bloccati'] });
     document.querySelector('#addFriendButton').addEventListener('click', () => { friendDialog.showModal(); elements.friendUsernameInput.focus(); });
@@ -237,7 +274,6 @@ export const registerShellLayoutController = (app) => {
     friendsNav.addEventListener('click', async () => { await app.showHome(); setMobileNav(false); homePanel.querySelector('h2')?.focus(); });
     dmsNav.addEventListener('click', async () => { await app.showHome(); setMobileNav(true); directMessageList.querySelector('button')?.focus(); });
     inviteButton.addEventListener('click', () => { inviteDialog.showModal(); elements.inviteCodeInput.focus(); });
-    elements.overviewTabs.forEach((button) => button.addEventListener('click', () => { if (button.dataset.overviewPanel === 'channels' && !state.activeServerId) return; setToolsOpen(false); }));
     document.addEventListener('pointerdown', (event) => { if (!contextMenu.contains(event.target) && !event.target.closest('.server-menu-trigger')) closeMenu(); });
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
@@ -287,5 +323,5 @@ export const registerShellLayoutController = (app) => {
     renderLayout();
   };
 
-  Object.assign(app, { setupShellLayout, renderLayout, renderDirectMessages, showServerMenu, closeMobileNav: () => setMobileNav(false), closeServerMenu: closeMenu });
+  Object.assign(app, { setupShellLayout, renderLayout, renderDirectMessages, showServerMenu, openServerSettings, closeMobileNav: () => setMobileNav(false), closeServerMenu: closeMenu });
 };

@@ -80,6 +80,13 @@ export const registerSocketController = (app) => {
       }
     });
 
+    state.socket.on('channel_updated', (channel) => {
+      if (channel?.id && channel?.serverId) app.applyChannelUpdated(channel);
+    });
+    state.socket.on('channel_deleted', (channel) => {
+      if (channel?.id && channel?.serverId) app.applyChannelDeleted(channel).catch((error) => showToast(error.message));
+    });
+
     state.socket.on('private_message_deleted', ({ id, senderId, recipientId, deletedAt }) => {
       if (state.activeConversationType !== 'private') return;
       const peerId = state.activePrivateUserId;

@@ -46,9 +46,8 @@ export const registerShellController = (app) => {
     elements.deafenButton.title = state.userDock.deafened ? 'Riattiva audio' : 'Disattiva audio';
     elements.deafenButton.setAttribute('aria-label', state.userDock.deafened ? 'Riattiva audio' : 'Disattiva audio');
 
-    const hasAudioSession = Boolean(state.voice.channelId || state.call.localStream);
-    elements.muteButton.classList.toggle('hidden', !hasAudioSession);
-    elements.deafenButton.classList.toggle('hidden', !hasAudioSession);
+    elements.muteButton.classList.remove('hidden');
+    elements.deafenButton.classList.remove('hidden');
     elements.permissionsButton.classList.toggle('hidden', !['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'].includes(state.user.role)
       && !state.servers.some((server) => server.ownerId === state.user.id || server.members?.some((member) => member.user.id === state.user.id && member.isAdmin)));
 

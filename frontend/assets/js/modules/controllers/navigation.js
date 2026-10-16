@@ -27,15 +27,20 @@ export const registerNavigationController = (app) => {
     app.releaseAttachments();
     elements.messages.replaceChildren();
     const hasConversation = state.activeConversationType === 'private' ? Boolean(privateUser) : Boolean(channel);
-    elements.emptyState.classList.toggle('hidden', hasConversation || Boolean(state.user));
-    document.querySelector('#homePanel').classList.toggle('hidden', hasConversation || !state.user);
+    const emptyServer = Boolean(state.activeServerId && state.activeConversationType === 'channel' && !channel);
+    elements.emptyState.classList.toggle('hidden', hasConversation || (Boolean(state.user) && !emptyServer));
+    document.querySelector('#homePanel').classList.toggle('hidden', hasConversation || !state.user || emptyServer);
     elements.messages.classList.toggle('hidden', !hasConversation || channel?.type === 'VOICE');
     elements.messageForm.classList.toggle('hidden', !hasConversation || channel?.type === 'VOICE');
 
     if (!hasConversation) {
       setDefaultEmptyState();
-      elements.channelTitle.textContent = state.user ? 'Home' : 'Benvenuto in UniChat';
-      elements.channelType.textContent = state.user ? 'Panoramica' : 'Canale';
+      if (emptyServer) {
+        elements.emptyState.querySelector('h2').textContent = 'Nessun canale';
+        elements.emptyState.querySelector('p').textContent = 'Un gestore del server può creare un canale dalla barra laterale.';
+      }
+      elements.channelTitle.textContent = emptyServer ? activeServer()?.name || 'Server' : state.user ? 'Home' : 'Benvenuto in UniChat';
+      elements.channelType.textContent = emptyServer ? 'Server' : state.user ? 'Panoramica' : 'Canale';
       elements.videoCallButton.classList.add('hidden');
       document.querySelector('#audioCallButton').classList.add('hidden');
       return;
