@@ -255,3 +255,16 @@ test('bootstrap: Teo ottiene automaticamente SUPERADMIN, gli altri STUDENT', asy
   assert.equal(await bootstrap.registrationRole(tx, 'TEO.SISTO.04@GMAIL.COM'), 'SUPERADMIN');
   assert.equal(locks, 1);
 });
+
+test('registrazione: email di Teo già occupata richiede un altro indirizzo', async () => {
+  const controllers = withModules({
+    'lib/prisma.js': { user: { findUnique: async ({ where }) => where.email === 'teo.sisto.04@gmail.com' ? { id: 'owner' } : null } }
+  }, 'controllers/authControllers.js');
+  const res = { status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+  await controllers.register({ body: {
+    email: 'TEO.SISTO.04@GMAIL.COM', password: 'password-lunga-123', fullName: 'Test', username: 'test'
+  } }, res);
+  assert.equal(res.code, 409);
+  assert.equal(res.body.code, 'EMAIL_ALREADY_REGISTERED');
+  assert.match(res.body.error, /altro indirizzo email/);
+});

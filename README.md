@@ -185,6 +185,8 @@ Il ruolo del proprietario non si cambia dal pannello. Una variazione di ruolo in
 
 La Home mostra il pulsante **Pannello Admin** solo agli Admin globali e **Pannello SuperAdmin** solo a Teo. Entrambi possono cercare gli account per nome, username o email, sospendere utenti ordinari ed eliminare server. Solo Teo trova nel menu `⋯` di ciascun account la nomina o la revoca degli Admin.
 
+La registrazione resta aperta agli altri indirizzi email. Se un indirizzo è già registrato, incluso quello riservato a Teo dopo la sua registrazione, il modulo mantiene i dati inseriti, segnala l'errore e permette di sostituire l'email.
+
 Endpoint di gestione: `POST/DELETE /api/admin/users/:id/suspension`, `PATCH /api/admin/users/:id/role`, `PUT/DELETE /api/admin/servers/:serverId/admins/:userId` e `DELETE /api/servers/:id/messages/:messageId`. Le operazioni di nomina/revoca degli admin locali richiedono che l'utente sia membro del server.
 
 Il menu `⋯` dei messaggi permette all'autore di eliminarli per tutti; nei canali possono eliminare messaggi anche i moderatori autorizzati. I preferiti sono salvati per account nel database e consultabili dalla Home. L'elenco non restituisce messaggi eliminati o conversazioni cui l'utente non ha più accesso. Per attivare i preferiti su un database esistente applica anche la migrazione additiva `20261016120000_message_favorites`, poi rigenera Prisma Client e riavvia il backend. La rinomina dei canali usa `PATCH /api/admin/servers/:serverId/channels/:channelId`; non richiede una migrazione aggiuntiva.

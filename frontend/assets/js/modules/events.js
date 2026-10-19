@@ -83,6 +83,12 @@ export const setupEventListeners = ({
   });
 
   
+  const registerEmailInput = elements.registerForm.querySelector('input[name="email"]');
+  const registerEmailError = elements.registerForm.querySelector('#registerEmailError');
+  registerEmailInput.addEventListener('input', () => {
+    registerEmailError.textContent = '';
+    registerEmailError.classList.add('hidden');
+  });
   elements.registerForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -106,9 +112,17 @@ export const setupEventListeners = ({
         method: 'POST',
         body: payload
       });
+      registerEmailError.textContent = '';
+      registerEmailError.classList.add('hidden');
       showToast('Account creato. Ora puoi effettuare il login.');
       document.querySelector('[data-auth-tab="login"]').click();
     } catch (error) {
+      if (error.code === 'EMAIL_ALREADY_REGISTERED') {
+        registerEmailError.textContent = error.message;
+        registerEmailError.classList.remove('hidden');
+        registerEmailInput.focus();
+        registerEmailInput.select();
+      }
       showToast(error.message);
     }
   });

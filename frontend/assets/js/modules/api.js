@@ -15,6 +15,7 @@ export const api = async (path, options = {}) => {
 
   if (!response.ok) {
     const error = new Error(payload.error || 'Richiesta non riuscita');
+    error.code = payload.code;
     throw error;
   }
 

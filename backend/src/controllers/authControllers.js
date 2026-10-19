@@ -86,7 +86,10 @@ const register = async (req, res) => {
 
     if (existingUser) {
       return res.status(409).json({
-        error: 'Email già registrata'
+        error: ownerRegistration
+          ? 'Questa email è riservata al SuperAdmin ed è già registrata. Inserisci un altro indirizzo email.'
+          : 'Email già registrata. Inserisci un altro indirizzo email.',
+        code: 'EMAIL_ALREADY_REGISTERED'
       });
     }
 
@@ -180,6 +183,13 @@ const register = async (req, res) => {
 
   } catch (error) {
     console.error('Errore register:', error);
+
+    if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
+      return res.status(409).json({
+        error: 'Email già registrata. Inserisci un altro indirizzo email.',
+        code: 'EMAIL_ALREADY_REGISTERED'
+      });
+    }
 
     return res.status(error.statusCode || 500).json({
       error: error.statusCode ? error.message : 'Errore durante la registrazione'

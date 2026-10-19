@@ -1118,6 +1118,7 @@ button:focus-visible {
 .admin-actions details { position: relative; }
 .admin-actions summary { cursor: pointer; list-style: none; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; }
 .admin-actions details[open] { display: grid; gap: 6px; }
+#registerEmailError { color: var(--danger); margin: 0; }
 .admin-item { grid-template-columns: minmax(0, 1fr); }
 .admin-item .admin-actions { display: flex; }
 .admin-item select { max-width: 180px; }
