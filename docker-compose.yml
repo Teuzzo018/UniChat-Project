@@ -16,8 +16,6 @@ services:
       CORS_ORIGIN: http://localhost:5000
       SESSION_DURATION_DAYS: 7
       SALT_ROUNDS: 12
-      SESSION_TOKEN_PEPPER: replace-with-a-long-random-secret
-      ADMIN_SETUP_CODE: replace-with-admin-code
     ports:
       - "5000:5000"
     volumes:
