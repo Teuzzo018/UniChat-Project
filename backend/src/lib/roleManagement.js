@@ -1,17 +1,11 @@
-const prisma = require('./prisma');
 const { isPrivilegedRole, isSuperadmin } = require('./authorization');
 
-const lockRoles = (tx) => tx.$queryRaw`SELECT pg_advisory_xact_lock(714293853)`;
+const lockRoles = (tx) => tx.$queryRaw`SELECT pg_advisory_xact_lock(714293853)::text AS lock`;
 
-const canAffectUser = async (actor, target, db = prisma) => {
+const canAffectUser = async (actor, target) => {
   if (!target || actor.id === target.id) return false;
   if (isSuperadmin(actor)) return true;
-  if (isPrivilegedRole(target.role)) return false;
-  const [ownedServers, managedServers] = await Promise.all([
-    db.server.count({ where: { ownerId: target.id } }),
-    db.serverMember.count({ where: { userId: target.id, isAdmin: true } })
-  ]);
-  return ownedServers === 0 && managedServers === 0;
+  return !isPrivilegedRole(target.role);
 };
 
 const isLastSuperadmin = async (target, tx) => {

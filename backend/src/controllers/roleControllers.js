@@ -3,8 +3,8 @@ const { canModerateGlobal, isSuperadmin } = require('../lib/authorization');
 const { canAffectUser, isLastActiveSuperadmin, isLastSuperadmin, lockRoles } = require('../lib/roleManagement');
 const disconnectUserSockets = require('../utils/disconnectUserSockets');
 
-const assignableRoles = new Set(['STUDENT', 'PROFESSOR', 'PLATFORM_ADMIN', 'SUPERADMIN']);
-const userRoleSelect = { id: true, role: true, suspendedAt: true };
+const assignableRoles = new Set(['STUDENT', 'PROFESSOR', 'PLATFORM_ADMIN']);
+const userRoleSelect = { id: true, email: true, role: true, suspendedAt: true };
 
 const changeRole = async (req, res) => {
   const role = req.body?.role;
@@ -14,9 +14,13 @@ const changeRole = async (req, res) => {
   const result = await prisma.$transaction(async (tx) => {
     await lockRoles(tx);
     const actor = await tx.user.findUnique({ where: { id: req.user.id }, select: userRoleSelect });
-    if (!isSuperadmin(actor)) return { status: 403, error: 'Permesso superadmin richiesto' };
+    if (!canModerateGlobal(actor)) return { status: 403, error: 'Permesso admin richiesto' };
     const target = await tx.user.findUnique({ where: { id: req.params.id }, select: userRoleSelect });
     if (!target) return { status: 404, error: 'Utente non trovato' };
+    if (target.role === 'SUPERADMIN') return { status: 403, error: 'Il ruolo del proprietario non può essere modificato' };
+    if (!isSuperadmin(actor) && (role === 'PLATFORM_ADMIN' || !['STUDENT', 'PROFESSOR'].includes(target.role))) {
+      return { status: 403, error: 'Solo il proprietario può gestire gli Admin' };
+    }
     if (target.role === role) return { status: 200, user: target };
     if (await isLastSuperadmin(target, tx)) return { status: 409, error: 'Ultimo superadmin protetto' };
     const user = await tx.user.update({ where: { id: target.id }, data: { role }, select: userRoleSelect });

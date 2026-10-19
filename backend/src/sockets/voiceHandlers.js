@@ -117,7 +117,7 @@ const registerVoiceHandlers = ({ io, socket }) => {
     try {
       const user = await authorizeSocket(socket, 'user');
       const activeVoiceChannelId = socket.data.voiceChannelId;
-      const cleanText = typeof text === 'string' ? text.trim().slice(0, 500) : '';
+      const cleanText = typeof text === 'string' ? text.trim().slice(0, 5000) : '';
 
       if (!user || !activeVoiceChannelId || channelId !== activeVoiceChannelId || !cleanText || !await findAccessibleChannel(channelId, user.id)) return;
 

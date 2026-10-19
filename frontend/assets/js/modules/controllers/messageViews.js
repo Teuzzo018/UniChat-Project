@@ -272,6 +272,7 @@ export const registerMessageViewsController = (app) => {
 
     elements.emptyState.classList.add('hidden');
     elements.adminPanel.classList.add('hidden');
+    elements.superAdminPanel.classList.add('hidden');
     elements.gamePanel.classList.add('hidden');
     elements.voicePanel.classList.add('hidden');
     elements.callPanel.classList.add('hidden');

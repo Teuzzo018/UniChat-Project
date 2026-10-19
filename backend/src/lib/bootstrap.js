@@ -1,19 +1,10 @@
-const crypto = require('crypto');
-const env = require('../config/env');
 const { lockRoles } = require('./roleManagement');
+const { SITE_OWNER_EMAIL } = require('./authorization');
 
-const matchesAdminCode = (value) => {
-  if (!env.adminSetupCode || typeof value !== 'string') return false;
-  const provided = Buffer.from(value);
-  const expected = Buffer.from(env.adminSetupCode);
-  return provided.length === expected.length && crypto.timingSafeEqual(provided, expected);
-};
-
-const registrationRole = async (tx, value) => {
-  if (!matchesAdminCode(value)) return 'STUDENT';
+const registrationRole = async (tx, email) => {
+  if (email?.trim().toLowerCase() !== SITE_OWNER_EMAIL) return 'STUDENT';
   await lockRoles(tx);
-  const count = await tx.user.count({ where: { role: { in: ['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'] } } });
-  return count === 0 ? 'SUPERADMIN' : 'STUDENT';
+  return 'SUPERADMIN';
 };
 
-module.exports = { matchesAdminCode, registrationRole };
+module.exports = { registrationRole };

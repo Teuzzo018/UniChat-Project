@@ -9,9 +9,7 @@ const env = {
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   sessionDurationDays: Number(process.env.SESSION_DURATION_DAYS) || 7,
   saltRounds: Number(process.env.SALT_ROUNDS) || 12,
-  sessionTokenPepper: process.env.SESSION_TOKEN_PEPPER || 'unichat-dev-session-pepper',
-  adminSetupCode: process.env.ADMIN_SETUP_CODE || '',
-  totpEncryptionKey: process.env.TOTP_ENCRYPTION_KEY || ''
+  sessionTokenPepper: process.env.SESSION_TOKEN_PEPPER || 'unichat-dev-session-pepper'
 };
 
 const positiveInteger = (name, fallback) => {
@@ -23,6 +21,8 @@ const positiveInteger = (name, fallback) => {
 };
 
 env.maxAttachmentBytes = positiveInteger('MAX_ATTACHMENT_BYTES', 25 * 1024 * 1024);
+env.authRateLimitMaxAttempts = positiveInteger('AUTH_RATE_LIMIT_MAX_ATTEMPTS', 100);
+if (env.authRateLimitMaxAttempts === 0) throw new Error('AUTH_RATE_LIMIT_MAX_ATTEMPTS deve essere maggiore di zero');
 env.maxAttachmentFilesPerMessage = positiveInteger('MAX_ATTACHMENT_FILES_PER_MESSAGE', 1);
 env.maxAttachmentStorageBytes = positiveInteger('MAX_ATTACHMENT_STORAGE_BYTES', 1024 * 1024 * 1024);
 env.callRingTimeoutMs = positiveInteger('CALL_RING_TIMEOUT_MS', 30000);
@@ -41,15 +41,9 @@ if (env.webRtcTurnUrls.length && env.webRtcTurnSharedSecret.length < 32) throw n
 if (env.maxAttachmentFilesPerMessage > 1) throw new Error('Il modello attuale supporta al massimo un allegato per messaggio');
 if (env.maxAttachmentBytes === 0) throw new Error('MAX_ATTACHMENT_BYTES deve essere maggiore di zero');
 
-if (env.totpEncryptionKey && !/^[a-fA-F0-9]{64}$/.test(env.totpEncryptionKey)) {
-  throw new Error('TOTP_ENCRYPTION_KEY deve essere una chiave esadecimale di 32 byte');
-}
 
 if (process.env.NODE_ENV === 'production' && (!process.env.SESSION_TOKEN_PEPPER || process.env.SESSION_TOKEN_PEPPER.length < 32 || /^(replace-with|unichat-dev)/.test(process.env.SESSION_TOKEN_PEPPER))) {
   throw new Error('SESSION_TOKEN_PEPPER deve contenere almeno 32 caratteri in produzione');
-}
-if (process.env.NODE_ENV === 'production' && /^replace-with/.test(env.adminSetupCode)) {
-  throw new Error('ADMIN_SETUP_CODE di esempio non consentito in produzione');
 }
 
 module.exports = env;

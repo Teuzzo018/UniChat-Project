@@ -216,7 +216,7 @@ const deleteUser = async (req, res) => {
   }
   const result = await prisma.$transaction(async (tx) => {
     await lockRoles(tx);
-    const actor = await tx.user.findUnique({ where: { id: req.user.id }, select: { id: true, role: true, suspendedAt: true } });
+    const actor = await tx.user.findUnique({ where: { id: req.user.id }, select: { id: true, email: true, role: true, suspendedAt: true } });
     if (!isSuperadmin(actor)) return { status: 403, error: 'Permesso superadmin richiesto' };
     const target = await tx.user.findUnique({ where: { id: req.params.id }, select: { id: true, role: true } });
     if (!target) return { status: 404, error: 'Utente non trovato' };

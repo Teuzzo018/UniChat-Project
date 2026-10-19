@@ -143,7 +143,7 @@ cp backend/.env.example backend/.env
 DATABASE_URL="postgresql://unichat_user:unichat_password@localhost:5433/unichat_db?schema=public"
 ```
 
-Imposta `SESSION_TOKEN_PEPPER` con un valore lungo e casuale. Per registrare il primo superadmin, sostituisci anche il segnaposto di `ADMIN_SETUP_CODE` con un codice casuale scelto da te. `ADMIN_SETUP_CODE` è opzionale se non devi effettuare il bootstrap. Non pubblicare questi valori.
+Imposta `SESSION_TOKEN_PEPPER` con un valore lungo e casuale. Non pubblicarlo.
 
 ### Configurazione sensibile
 
@@ -151,11 +151,13 @@ Imposta `SESSION_TOKEN_PEPPER` con un valore lungo e casuale. Per registrare il 
 
 `SESSION_TOKEN_PEPPER` è la chiave HMAC usata per salvare solo l'hash dei token di sessione. Sostituirla rende inutilizzabili le sessioni esistenti: gli utenti devono effettuare di nuovo l'accesso. In produzione è obbligatoria una chiave casuale di almeno 32 caratteri, diversa dai segnaposto di esempio. Un esempio di formato è `<chiave-casuale-di-almeno-32-caratteri>`.
 
-`ADMIN_SETUP_CODE` consente di registrare il primo `SUPERADMIN` solo se non esiste alcun account privilegiato. Su installazioni con account `ADMIN` storici e senza superadmin, un admin storico autenticato può usare `POST /api/auth/bootstrap-superadmin` con `adminCode`; l'operazione è consentita una sola volta. Il codice non promuove altri account tramite la registrazione. Dopo il bootstrap, rimuovilo dall'ambiente. Cambiarlo non modifica i ruoli già assegnati. Esempio di formato: `<codice-bootstrap-casuale>`. Docker Compose legge questo valore da `backend/.env`.
+La registrazione dell'indirizzo `teo.sisto.04@gmail.com` assegna automaticamente il ruolo `SUPERADMIN`, senza codice aggiuntivo. L'app non verifica ancora il possesso dell'indirizzo email: prima di esporre la registrazione pubblicamente, configura una verifica email o crea l'account del proprietario in un ambiente controllato.
 
-Al primo avvio, se non ci sono università, registra il primo superadmin con `ADMIN_SETUP_CODE` lasciando vuota l'università. Dopo il login, il superadmin può creare le università con `POST /api/universities` usando la sua sessione Bearer; solo allora gli altri utenti possono registrarsi scegliendo un'università. La creazione anonima di università è disabilitata. Il bootstrap usa un lock transazionale PostgreSQL per evitare due promozioni concorrenti.
+`AUTH_RATE_LIMIT_MAX_ATTEMPTS` imposta il massimo di richieste di autenticazione per indirizzo IP in 15 minuti, condiviso tra registrazione e login. Il valore predefinito è `100`; dopo una modifica a `backend/.env`, riavvia il backend.
 
-Il Compose fornito contiene credenziali dimostrative per PostgreSQL; non usarle in produzione. Il Dockerfile imposta `NODE_ENV=production`: `SESSION_TOKEN_PEPPER` deve essere un segreto casuale valido e `ADMIN_SETUP_CODE`, se presente, non può essere un segnaposto. Docker Compose legge entrambi da `backend/.env` senza sovrascriverli. Non modificare `DATABASE_URL` su un'istanza già in uso senza pianificare il collegamento al database corretto.
+Al primo avvio, se non ci sono università, registra `teo.sisto.04@gmail.com` lasciando vuota l'università. Dopo il login, il SuperAdmin può creare le università con `POST /api/universities` usando la sua sessione Bearer. La creazione anonima di università è disabilitata. La registrazione del proprietario usa un lock transazionale PostgreSQL.
+
+Il Compose fornito contiene credenziali dimostrative per PostgreSQL; non usarle in produzione. Il Dockerfile imposta `NODE_ENV=production`: `SESSION_TOKEN_PEPPER` deve essere un segreto casuale valido. Docker Compose lo legge da `backend/.env`. Non modificare `DATABASE_URL` su un'istanza già in uso senza pianificare il collegamento al database corretto.
 
 Gli allegati nuovi dei messaggi sono conservati in `backend/private_uploads/`, fuori dalla directory pubblica. Il download usa `/api/uploads/private-uploads/:filename` con token Bearer e controllo di appartenenza al server o partecipazione al DM a ogni richiesta. I vecchi allegati in `backend/uploads/` restano accessibili tramite `/api/uploads/:filename` con lo stesso controllo. Gli avatar rimangono pubblici su `/uploads/:filename`. Non esporre `backend/uploads/` o `backend/private_uploads/` come directory statiche nel reverse proxy.
 
@@ -163,7 +165,7 @@ Il client conserva il token di sessione in `localStorage`: riduci il rischio di 
 
 ### Ruoli e permessi
 
-`STUDENT` e `PROFESSOR` sono utenti ordinari. `ADMIN` è il nome storico dell'admin di piattaforma e mantiene solo i permessi di moderazione globale di `PLATFORM_ADMIN`. L'admin di server è un membro con `ServerMember.isAdmin`; il proprietario conserva gli stessi privilegi locali senza assegnazione. Le decisioni sono prese dal backend per ogni richiesta HTTP ed evento Socket.IO.
+Gli account nuovi sono `STUDENT`. La registrazione di `teo.sisto.04@gmail.com` assegna automaticamente `SUPERADMIN`, e ne può esistere uno solo. Teo può assegnare o revocare il ruolo `PLATFORM_ADMIN` (mostrato come Admin); gli Admin possono cambiare solo utenti ordinari tra `STUDENT` e `PROFESSOR`. `ADMIN` è il nome storico equivalente a `PLATFORM_ADMIN`. L'admin di server è un membro con `ServerMember.isAdmin`; il proprietario conserva gli stessi privilegi locali senza assegnazione. Il backend verifica i permessi per ogni richiesta HTTP ed evento Socket.IO.
 
 | Operazione | Utente | Admin server / proprietario | Admin piattaforma (`ADMIN` incluso) | Superadmin |
 | --- | --- | --- | --- | --- |
@@ -174,29 +176,26 @@ Il client conserva il token di sessione in `localStorage`: riduci il rischio di 
 | Eliminare un server | Solo se proprietario | Solo se proprietario | Tutti | Tutti |
 | Vedere dashboard e registro | No | Solo nei propri server | Globale | Globale |
 | Modificare server ed eliminare canali | No | Solo nei propri server | Globale | Globale |
-| Sospendere utenti ordinari | No | No | Sì, esclusi proprietari e admin locali | Sì |
+| Sospendere utenti ordinari | No | No | Sì, inclusi proprietari e admin locali dei server | Sì |
 | Eliminare utenti e gestire università | No | No | No | Sì; nessuna eliminazione diretta di superadmin |
-| Nominare/revocare admin server e ruoli globali | No | No | No | Sì, mai su sé stesso |
+| Assegnare `STUDENT` / `PROFESSOR` | No | No | Sì, solo a utenti ordinari | Sì |
+| Nominare/revocare Admin globali e admin server | No | No | No | Sì, mai su sé stesso |
 
-L'ultimo superadmin, e l'ultimo superadmin attivo in caso di sospensione, sono protetti. Una variazione del ruolo globale invalida le sessioni dell'utente interessato; sospensione e revoca dell'admin locale disconnettono anche i socket già aperti. La sospensione invalida tutte le sessioni e blocca nuovi login. Dopo una migrazione su un'installazione con `ADMIN` storici, esegui il bootstrap autenticato prima di rimuovere `ADMIN_SETUP_CODE`. Nessuna migrazione storica viene riscritta: la nuova migrazione aggiunge enum, colonne e indici preservando i dati.
+Il ruolo del proprietario non si cambia dal pannello. Una variazione di ruolo invalida le sessioni dell'utente interessato; sospensione e revoca dell'admin locale disconnettono anche i socket già aperti. La sospensione invalida tutte le sessioni e blocca nuovi login. La migrazione `20261019180000_single_site_owner_superadmin` impedisce più di un `SUPERADMIN` e riserva le nuove assegnazioni all'indirizzo di Teo.
 
-Endpoint di gestione: `POST/DELETE /api/admin/users/:id/suspension`, `PATCH /api/admin/users/:id/role`, `PUT/DELETE /api/admin/servers/:serverId/admins/:userId` e `DELETE /api/servers/:id/messages/:messageId`. `POST /api/auth/bootstrap-superadmin` richiede una sessione di admin storico e il codice di bootstrap. Le operazioni di nomina/revoca richiedono che l'utente sia membro del server.
+La Home mostra il pulsante **Pannello Admin** solo agli Admin globali e **Pannello SuperAdmin** solo a Teo. Entrambi possono cercare gli account per nome, username o email, sospendere utenti ordinari ed eliminare server. Solo Teo trova nel menu `⋯` di ciascun account la nomina o la revoca degli Admin.
+
+Endpoint di gestione: `POST/DELETE /api/admin/users/:id/suspension`, `PATCH /api/admin/users/:id/role`, `PUT/DELETE /api/admin/servers/:serverId/admins/:userId` e `DELETE /api/servers/:id/messages/:messageId`. Le operazioni di nomina/revoca degli admin locali richiedono che l'utente sia membro del server.
 
 Il menu `⋯` dei messaggi permette all'autore di eliminarli per tutti; nei canali possono eliminare messaggi anche i moderatori autorizzati. I preferiti sono salvati per account nel database e consultabili dalla Home. L'elenco non restituisce messaggi eliminati o conversazioni cui l'utente non ha più accesso. Per attivare i preferiti su un database esistente applica anche la migrazione additiva `20261016120000_message_favorites`, poi rigenera Prisma Client e riavvia il backend. La rinomina dei canali usa `PATCH /api/admin/servers/:serverId/channels/:channelId`; non richiede una migrazione aggiuntiva.
 
 La dashboard usa `GET /api/admin/overview?page=1&pageSize=20&q=nome` per account ricercabili e paginati, server e messaggi nel proprio ambito; `GET /api/admin/audit?page=1&pageSize=20` mostra il registro. Modifica server: `PATCH /api/admin/servers/:id`; rinomina canale: `PATCH /api/admin/servers/:serverId/channels/:channelId`; elimina canale: `DELETE /api/admin/servers/:serverId/channels/:channelId`. Il registro salva ID autore, azione, tipo e ID risorsa, server, esito e data; non salva payload, codice di bootstrap o testo dei messaggi. Le operazioni negate dopo l'autenticazione sono registrate; i tentativi anonimi non hanno un autore identificabile. La scrittura del registro avviene alla chiusura della risposta: se fallisce, l'operazione potrebbe essere stata eseguita senza voce di registro. Controlla i log applicativi prima di usare questo registro come traccia di conformità.
 
-### Verifica in due passaggi degli amministratori
+### Autenticazione e migrazione
 
-Il secondo fattore usa TOTP a 6 cifre con periodo di 30 secondi tramite `otplib` e 10 codici di recupero monouso. Le chiavi TOTP vengono cifrate con AES-256-GCM prima di essere salvate nel database; i codici di recupero sono casuali e nel database resta solo il loro hash SHA-256. `TOTP_ENCRYPTION_KEY` deve essere una chiave esadecimale casuale di 32 byte, conservata fuori dal database e uguale su tutte le istanze. Il valore di esempio in `.env.example` è solo un segnaposto commentato. La chiave è necessaria per configurare o verificare TOTP; perderla rende inutilizzabili i segreti TOTP già cifrati. I codici di recupero restano utilizzabili per accedere e disattivare il secondo fattore con la password. Non inserire la chiave nei log o nel repository.
+La verifica in due passaggi è stata rimossa. Il login usa email e password; le API `/api/auth/2fa/*` non sono più disponibili. La migrazione `20261019180000_single_site_owner_superadmin` cancella i segreti e i codici di recupero già salvati e sblocca le sessioni rimaste in attesa di una verifica.
 
-Gli admin già presenti possono continuare ad accedere finché non attivano TOTP: non è stato imposto un obbligo globale. Nella dashboard, inseriscono la password e scelgono **Configura**, registrano la chiave nell'app di autenticazione e confermano con un codice valido. L'attivazione scade dopo 10 minuti. I codici di recupero sono mostrati solo nella risposta di attivazione o rigenerazione; salvarli offline prima di chiudere la schermata. L'attivazione invalida le altre sessioni dell'account. Le operazioni di modifica dei ruoli globali e locali, eliminazione di account e bootstrap del superadmin richiedono TOTP attivo e una verifica effettuata negli ultimi 10 minuti. Un admin storico può quindi configurare TOTP prima del bootstrap.
-
-Dopo l'attivazione, il login con password crea una sessione incompleta che scade dopo 10 minuti. Solo `POST /api/auth/2fa/verify` e il logout possono usarla; le altre API e gli eventi Socket.IO rifiutano la sessione finché un codice TOTP o di recupero non è verificato. Dopo la verifica, la sessione assume la durata normale. `POST /api/auth/2fa/step-up` aggiorna la verifica recente per una sessione completa. `POST /api/auth/2fa/disable` e `POST /api/auth/2fa/recovery-codes` richiedono sia la password sia un codice TOTP o di recupero. I codici TOTP già usati nello stesso intervallo e i codici di recupero consumati sono rifiutati. Dopo cinque tentativi errati l'account MFA è bloccato per 15 minuti; esiste anche un limite per IP in memoria. Sincronizza l'ora del server con NTP.
-
-Se l'admin perde l'app, usa un codice di recupero monouso; dopo l'accesso può rigenerarne altri o disattivare TOTP con password e codice. Se perde anche tutti i codici, non esiste un bypass automatico: serve una procedura operativa separata con verifica dell'identità e ripristino controllato dal database o da un backup. Preparare questa procedura e almeno un secondo superadmin con codici di recupero prima di imporre un futuro obbligo MFA. La rotazione di `TOTP_ENCRYPTION_KEY` richiede ricifratura pianificata dei segreti o nuova iscrizione; cambiarla direttamente blocca la verifica TOTP degli account già iscritti.
-
-Per distribuire questa versione, verifica prima lo stato delle migrazioni sul database di destinazione e crea un backup. Applica le migrazioni additive `20261014190000_add_privileged_roles_and_suspensions`, `20261015120000_add_admin_audit_log`, `20261015140000_add_admin_totp`, `20261015160000_add_message_tombstones`, `20261015180000_friendship_lookup_constraints` e `20261015190000_server_invite_discovery` con `prisma migrate deploy`, rigenera Prisma Client con `npm run prisma:generate`, quindi riavvia il backend. La migrazione della ricerca crea l'estensione PostgreSQL `pg_trgm`; il ruolo che applica le migrazioni deve poterla creare. Non usare `migrate reset`. Dopo il riavvio, esegui il bootstrap del superadmin secondo la presenza o meno di admin storici e poi rimuovi `ADMIN_SETUP_CODE` dalla configurazione. Le sessioni degli utenti già esistenti continuano a funzionare; i privilegi vengono letti dal database a ogni richiesta.
+Prima di distribuire questa versione, verifica le migrazioni sul database di destinazione e crea un backup. Applica le migrazioni con `prisma migrate deploy`, poi riavvia il backend. Non usare `migrate reset`. Su questa installazione il SuperAdmin temporaneo è stato revocato dalla migrazione; l'account Teo riceve automaticamente il ruolo quando viene registrato.
 
 ### Backend Locale Con Database Docker
 

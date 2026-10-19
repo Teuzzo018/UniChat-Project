@@ -48,13 +48,6 @@ export const registerBootstrapDataController = (app) => {
       connectSocket();
       await loadWorkspaceData();
     } catch (error) {
-      if (error.mfaRequired) {
-        elements.loginForm.classList.add('hidden');
-        elements.registerForm.classList.add('hidden');
-        elements.mfaLoginForm.classList.remove('hidden');
-        elements.mfaLoginCode.focus();
-        return;
-      }
       localStorage.removeItem('unichat:token');
       state.token = null;
       setAuthenticatedUi(false);

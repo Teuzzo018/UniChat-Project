@@ -1,6 +1,7 @@
+const env = require('../config/env');
 const attempts = new Map();
 const windowMs = 15 * 60 * 1000;
-const maxAttempts = 20;
+const maxAttempts = env.authRateLimitMaxAttempts;
 
 module.exports = (req, res, next) => {
   const now = Date.now();

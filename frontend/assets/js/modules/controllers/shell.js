@@ -7,6 +7,8 @@ export const registerShellController = (app) => {
   const renderChannels = (...args) => app.renderChannels(...args);
   const loadMessages = (...args) => app.loadMessages(...args);
   const showAdminPanel = (...args) => app.showAdminPanel(...args);
+  const isGlobalAdmin = (user) => ['ADMIN', 'PLATFORM_ADMIN'].includes(user?.role) ||
+    (user?.role === 'SUPERADMIN' && user.email?.toLowerCase() === 'teo.sisto.04@gmail.com');
 
   const updateVoiceAudioState = () => {
     state.voice.localStream?.getAudioTracks().forEach((track) => {
@@ -48,10 +50,7 @@ export const registerShellController = (app) => {
 
     elements.muteButton.classList.remove('hidden');
     elements.deafenButton.classList.remove('hidden');
-    elements.permissionsButton.classList.toggle('hidden', !['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'].includes(state.user.role)
-      && !state.servers.some((server) => server.ownerId === state.user.id || server.members?.some((member) => member.user.id === state.user.id && member.isAdmin)));
-
-    elements.permissionsButton.classList.toggle('active', ['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'].includes(state.user.role));
+    elements.permissionsButton.classList.add('hidden');
     updateVoiceAudioState();
     if (state.call.id && !elements.callPanel.classList.contains('hidden')) app.showCallPanel(elements.callStatus.textContent);
   };
@@ -144,9 +143,9 @@ export const registerShellController = (app) => {
     elements.logoutButton.classList.toggle('hidden', !authenticated);
     elements.globalSearchButton.classList.toggle('hidden', !authenticated);
     if (!authenticated && elements.globalSearchDialog.open) elements.globalSearchDialog.close();
-    const localAdmin = state.servers.some((server) => server.ownerId === state.user?.id ||
-      server.members?.some((member) => member.user.id === state.user?.id && member.isAdmin));
-    elements.adminButton.classList.toggle('hidden', !authenticated || !(['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'].includes(state.user?.role) || localAdmin));
+    elements.adminButton.classList.toggle('hidden', !authenticated || !['ADMIN', 'PLATFORM_ADMIN'].includes(state.user?.role));
+    elements.superAdminButton.classList.toggle('hidden', !authenticated ||
+      !(state.user?.role === 'SUPERADMIN' && state.user.email?.toLowerCase() === 'teo.sisto.04@gmail.com'));
     elements.videoCallButton.classList.toggle('hidden', state.activeConversationType !== 'private' || !state.activePrivateUserId);
     document.querySelector('#audioCallButton').classList.toggle('hidden', state.activeConversationType !== 'private' || !state.activePrivateUserId);
     elements.workspaceTitle.textContent = authenticated ? state.user.fullName : 'Accesso';
@@ -183,14 +182,13 @@ export const registerShellController = (app) => {
   };
 
   const openPermissionsPanel = () => {
-    if (['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'].includes(state.user?.role) ||
-        state.servers.some((server) => server.ownerId === state.user?.id ||
-          server.members?.some((member) => member.user.id === state.user?.id && member.isAdmin))) {
+    if (['ADMIN', 'PLATFORM_ADMIN'].includes(state.user?.role)) {
       showAdminPanel();
       return;
     }
-
-    showToast('I permessi di gestione del server dipendono dall’assegnazione locale.');
+    if (state.user?.role === 'SUPERADMIN' && state.user.email?.toLowerCase() === 'teo.sisto.04@gmail.com') {
+      app.showSuperAdminPanel();
+    }
   };
 
   Object.assign(app, {

@@ -52,11 +52,6 @@ const authenticate = (allowPending = false) => async (req, res, next) => {
       return res.status(403).json({ error: 'Account sospeso' });
     }
 
-    if (!allowPending && (session.secondFactorPending ||
-        (session.user.totpEnabledAt && !session.secondFactorVerifiedAt))) {
-      return res.status(403).json({ error: 'Secondo fattore richiesto', mfaRequired: true });
-    }
-
     req.user = session.user;
     req.session = session;
 

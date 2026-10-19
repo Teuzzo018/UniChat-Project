@@ -1,11 +1,12 @@
 const prisma = require('./prisma');
 
-const globalModeratorRoles = new Set(['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN']);
+const SITE_OWNER_EMAIL = 'teo.sisto.04@gmail.com';
+const globalModeratorRoles = new Set(['ADMIN', 'PLATFORM_ADMIN']);
 const privilegedRoles = new Set(['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN']);
 
 const isActive = (user) => Boolean(user && !user.suspendedAt);
-const isSuperadmin = (user) => isActive(user) && user.role === 'SUPERADMIN';
-const canModerateGlobal = (user) => isActive(user) && globalModeratorRoles.has(user.role);
+const isSuperadmin = (user) => isActive(user) && user.role === 'SUPERADMIN' && user.email?.toLowerCase() === SITE_OWNER_EMAIL;
+const canModerateGlobal = (user) => isActive(user) && (globalModeratorRoles.has(user.role) || isSuperadmin(user));
 const isPrivilegedRole = (role) => privilegedRoles.has(role);
 
 const getServerScope = async (user, serverId, db = prisma) => {
@@ -48,6 +49,7 @@ const requireServerManager = (param = 'id') => async (req, res, next) => {
 };
 
 module.exports = {
+  SITE_OWNER_EMAIL,
   canManageServer,
   canModerateGlobal,
   canModerateServer,

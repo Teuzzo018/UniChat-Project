@@ -16,7 +16,6 @@ const { changeRole, setServerAdmin, setSuspension } = require('../controllers/ro
 const { requireAdminScope } = require('../lib/adminScope');
 const { requireGlobalModerator } = require('../lib/authorization');
 const audit = require('../middleware/adminAudit');
-const recentSecondFactor = require('../middleware/recentSecondFactor');
 
 const router = express.Router();
 const asyncHandler = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
@@ -32,9 +31,9 @@ router.delete('/servers/:serverId/channels/:channelId', audit('CHANNEL_DELETE', 
 router.delete('/servers/:id', audit('SERVER_DELETE', 'SERVER', 'id', 'id'), requireAdminScope, asyncHandler(deleteServer));
 router.post('/users/:id/suspension', audit('USER_SUSPEND', 'USER', 'id'), requireAdminScope, requireGlobalModerator, asyncHandler(setSuspension));
 router.delete('/users/:id/suspension', audit('USER_REACTIVATE', 'USER', 'id'), requireAdminScope, requireGlobalModerator, asyncHandler(setSuspension));
-router.patch('/users/:id/role', audit('USER_ROLE_CHANGE', 'USER', 'id'), requireAdminScope, requireSuperadmin, recentSecondFactor, asyncHandler(changeRole));
-router.put('/servers/:serverId/admins/:userId', audit('SERVER_ADMIN_ASSIGN', 'USER', 'userId', 'serverId'), requireAdminScope, requireSuperadmin, recentSecondFactor, asyncHandler(setServerAdmin));
-router.delete('/servers/:serverId/admins/:userId', audit('SERVER_ADMIN_REVOKE', 'USER', 'userId', 'serverId'), requireAdminScope, requireSuperadmin, recentSecondFactor, asyncHandler(setServerAdmin));
-router.delete('/users/:id', audit('USER_DELETE', 'USER', 'id'), requireAdminScope, requireSuperadmin, recentSecondFactor, asyncHandler(deleteUser));
+router.patch('/users/:id/role', audit('USER_ROLE_CHANGE', 'USER', 'id'), requireAdminScope, asyncHandler(changeRole));
+router.put('/servers/:serverId/admins/:userId', audit('SERVER_ADMIN_ASSIGN', 'USER', 'userId', 'serverId'), requireAdminScope, requireSuperadmin, asyncHandler(setServerAdmin));
+router.delete('/servers/:serverId/admins/:userId', audit('SERVER_ADMIN_REVOKE', 'USER', 'userId', 'serverId'), requireAdminScope, requireSuperadmin, asyncHandler(setServerAdmin));
+router.delete('/users/:id', audit('USER_DELETE', 'USER', 'id'), requireAdminScope, requireSuperadmin, asyncHandler(deleteUser));
 
 module.exports = router;

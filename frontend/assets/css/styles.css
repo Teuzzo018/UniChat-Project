@@ -1115,8 +1115,9 @@ button:focus-visible {
 
 .admin-toolbar, .admin-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
 .admin-toolbar input { min-width: 220px; flex: 1; }
-.admin-panel #mfaSecret { overflow-wrap: anywhere; }
-.admin-panel #mfaRecoveryCodes { width: 100%; min-height: 160px; font-family: monospace; }
+.admin-actions details { position: relative; }
+.admin-actions summary { cursor: pointer; list-style: none; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.admin-actions details[open] { display: grid; gap: 6px; }
 .admin-item { grid-template-columns: minmax(0, 1fr); }
 .admin-item .admin-actions { display: flex; }
 .admin-item select { max-width: 180px; }

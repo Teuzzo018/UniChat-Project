@@ -71,13 +71,6 @@ export const setupEventListeners = ({
       });
       state.token = result.token;
       localStorage.setItem('unichat:token', result.token);
-      if (result.mfaRequired) {
-        elements.loginForm.classList.add('hidden');
-        elements.registerForm.classList.add('hidden');
-        elements.mfaLoginForm.classList.remove('hidden');
-        elements.mfaLoginCode.focus();
-        return;
-      }
       state.user = result.user;
       state.activeOverviewPanel = 'directMessages';
       state.friendsExpanded = true;
@@ -89,28 +82,6 @@ export const setupEventListeners = ({
     }
   });
 
-  elements.mfaLoginForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    try {
-      await api('/auth/2fa/verify', { method: 'POST', body: JSON.stringify({ code: elements.mfaLoginCode.value.trim() }) });
-      elements.mfaLoginCode.value = '';
-      elements.mfaLoginForm.classList.add('hidden');
-      state.user = await api('/auth/me');
-      state.activeOverviewPanel = 'directMessages';
-      state.friendsExpanded = true;
-      setAuthenticatedUi(true);
-      connectSocket();
-      await loadWorkspaceData();
-    } catch (error) { showToast(error.message); }
-  });
-  elements.mfaLoginCancel.addEventListener('click', async () => {
-    try { await api('/auth/logout', { method: 'POST' }); } catch {}
-    state.token = null;
-    state.user = null;
-    localStorage.removeItem('unichat:token');
-    elements.mfaLoginForm.classList.add('hidden');
-    elements.loginForm.classList.remove('hidden');
-  });
   
   elements.registerForm.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -181,12 +152,14 @@ export const setupEventListeners = ({
     renderServerJoinRequests();
     elements.gamePanel.classList.add('hidden');
     elements.adminPanel.classList.add('hidden');
+    elements.superAdminPanel.classList.add('hidden');
     await loadMessages();
   });
   
   const openServerDialog = () => elements.serverDialog.showModal();
   
   elements.adminButton.addEventListener('click', showAdminPanel);
+  elements.superAdminButton.addEventListener('click', () => app.showSuperAdminPanel());
   elements.newServerButton.addEventListener('click', openServerDialog);
   elements.gameRailButton.addEventListener('click', openGameDialog);
   elements.sendGameLinkButton.addEventListener('click', sendGameLinkToChat);

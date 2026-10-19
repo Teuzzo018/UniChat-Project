@@ -76,18 +76,7 @@
               Universita
               <select name="universityId" id="universitySelect"></select>
             </label>
-            <label>
-              Codice admin
-              <input type="password" name="adminCode" autocomplete="off" placeholder="Opzionale" />
-            </label>
             <button class="primary-button" type="submit">Crea account</button>
-          </form>
-          <form class="stack hidden" id="mfaLoginForm">
-            <h2>Verifica in due passaggi</h2>
-            <p>Inserisci il codice dell’app oppure un codice di recupero.</p>
-            <label>Codice <input id="mfaLoginCode" type="text" name="code" autocomplete="one-time-code" required /></label>
-            <button class="primary-button" type="submit">Verifica</button>
-            <button class="secondary-button" id="mfaLoginCancel" type="button">Annulla</button>
           </form>
         </div>
 
@@ -170,7 +159,6 @@
           <div class="header-actions">
             <button class="global-search-trigger hidden" id="globalSearchButton" type="button" aria-label="Apri ricerca globale"><span aria-hidden="true">⌕</span><span class="search-trigger-label">Cerca</span></button>
             <button class="secondary-button hidden" id="memberToggleButton" type="button" aria-controls="memberPanel" aria-expanded="false">Membri</button>
-            <button class="secondary-button hidden" id="adminButton" type="button">Admin</button>
           </div>
         </header>
 
@@ -285,7 +273,7 @@
         </section>
 
         <section class="home-panel hidden" id="homePanel" aria-label="Home e amici">
-          <header class="home-panel-header"><div><h2 tabindex="-1">Amici</h2><p>Persone e richieste</p></div><div class="home-header-actions"><button class="secondary-button" id="openFavoritesButton" type="button">Preferiti</button><button class="primary-button" id="addFriendButton" type="button">Aggiungi amico</button></div></header>
+          <header class="home-panel-header"><div><h2 tabindex="-1">Amici</h2><p>Persone e richieste</p></div><div class="home-header-actions"><button class="secondary-button hidden" id="adminButton" type="button">Pannello Admin</button><button class="secondary-button hidden" id="superAdminButton" type="button">Pannello SuperAdmin</button><button class="secondary-button" id="openFavoritesButton" type="button">Preferiti</button><button class="primary-button" id="addFriendButton" type="button">Aggiungi amico</button></div></header>
           <div class="home-panel-body">
             <section aria-labelledby="homeFriendsTitle"><h3 id="homeFriendsTitle">I tuoi amici</h3><div id="homeFriendsSlot"></div></section>
             <section aria-labelledby="homeRequestsTitle"><h3 id="homeRequestsTitle">Richieste di amicizia</h3><div id="homeRequestsSlot"></div></section>
@@ -318,24 +306,6 @@
 
         <section class="admin-panel hidden" id="adminPanel" aria-label="Pannello admin">
           <div class="admin-section">
-            <h2>Verifica in due passaggi</h2>
-            <p id="mfaStatus" role="status"></p>
-            <div class="admin-toolbar">
-              <label>Password <input id="mfaPassword" type="password" autocomplete="current-password" /></label>
-              <label>Codice app o recupero <input id="mfaCode" type="text" autocomplete="one-time-code" /></label>
-            </div>
-            <div class="admin-toolbar">
-              <button class="secondary-button" id="mfaSetup" type="button">Configura</button>
-              <button class="secondary-button" id="mfaEnable" type="button">Conferma attivazione</button>
-              <button class="secondary-button" id="mfaStepUp" type="button">Verifica ora</button>
-              <button class="secondary-button" id="mfaRegenerate" type="button">Rigenera codici</button>
-              <button class="danger-button" id="mfaDisable" type="button">Disattiva</button>
-            </div>
-            <p id="mfaSecret" class="hidden"></p>
-            <textarea id="mfaRecoveryCodes" class="hidden" readonly aria-label="Codici di recupero appena generati"></textarea>
-            <button class="secondary-button hidden" id="mfaCodesSaved" type="button">Ho salvato i codici</button>
-          </div>
-          <div class="admin-section">
             <h2>Utenti</h2>
             <form id="adminSearchForm" class="admin-toolbar"><input id="adminSearchInput" type="search" maxlength="80" placeholder="Cerca nome, email o username" aria-label="Cerca account" /><button class="secondary-button" type="submit">Cerca</button></form>
             <p id="adminStatus" role="status"></p>
@@ -354,6 +324,19 @@
             <h2>Registro operazioni</h2>
             <div class="admin-list" id="adminAudit"></div>
           </div>
+        </section>
+
+        <section class="admin-panel hidden" id="superAdminPanel" aria-label="Pannello SuperAdmin">
+          <div class="admin-section">
+            <h2>Pannello SuperAdmin · Utenti</h2>
+            <form id="superAdminSearchForm" class="admin-toolbar"><input id="superAdminSearchInput" type="search" maxlength="80" placeholder="Cerca nome utente o email" aria-label="Cerca account" /><button class="secondary-button" type="submit">Cerca</button></form>
+            <p id="superAdminStatus" role="status"></p>
+            <div class="admin-list" id="superAdminUsers"></div>
+            <div class="admin-toolbar"><button class="secondary-button" id="superAdminPrevPage" type="button">Precedente</button><span id="superAdminPageLabel"></span><button class="secondary-button" id="superAdminNextPage" type="button">Successiva</button></div>
+          </div>
+          <div class="admin-section"><h2>Server</h2><div class="admin-list" id="superAdminServers"></div></div>
+          <div class="admin-section"><h2>Ultimi messaggi</h2><div class="admin-list" id="superAdminMessages"></div></div>
+          <div class="admin-section"><h2>Registro operazioni</h2><div class="admin-list" id="superAdminAudit"></div></div>
         </section>
 
         <section class="call-history hidden" id="callHistory" aria-label="Storico chiamate">

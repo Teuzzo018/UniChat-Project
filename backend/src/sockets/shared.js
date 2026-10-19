@@ -11,8 +11,7 @@ const getUserFromToken = async (token) => {
     include: { user: true }
   });
 
-  if (!session || session.expiresAt < new Date() || session.user.suspendedAt ||
-      session.secondFactorPending || (session.user.totpEnabledAt && !session.secondFactorVerifiedAt)) {
+  if (!session || session.expiresAt < new Date() || session.user.suspendedAt) {
     return null;
   }
 

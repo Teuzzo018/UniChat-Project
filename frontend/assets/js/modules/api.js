@@ -15,9 +15,6 @@ export const api = async (path, options = {}) => {
 
   if (!response.ok) {
     const error = new Error(payload.error || 'Richiesta non riuscita');
-    error.mfaRequired = Boolean(payload.mfaRequired);
-    error.mfaStepUpRequired = Boolean(payload.mfaStepUpRequired);
-    error.mfaSetupRequired = Boolean(payload.mfaSetupRequired);
     throw error;
   }
 

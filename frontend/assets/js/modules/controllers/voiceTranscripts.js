@@ -1,6 +1,7 @@
 export const registerVoiceTranscriptsController = (app) => {
   const { state, elements, api, formatBytes, isAllowedAttachment, isAudioAttachment, isImageAttachment, isVideoAttachment, MAX_ATTACHMENT_BYTES, appendMessageContent, createUserAvatar, getDisplayHandle, getInitials, renderAvatarContent, setBadgeCount, showConfirm, showToast } = app;
   const activeChannel = (...args) => app.activeChannel(...args);
+  let restartTimer = null;
 
   const renderVoiceParticipants = () => {
     elements.voiceParticipants.replaceChildren();
@@ -74,6 +75,10 @@ export const registerVoiceTranscriptsController = (app) => {
   const stopVoiceTranscription = () => {
     state.voice.shouldTranscribe = false;
     state.voice.transcriptInterim = '';
+    if (restartTimer !== null) {
+      window.clearTimeout(restartTimer);
+      restartTimer = null;
+    }
 
     if (state.voice.recognition) {
       state.voice.recognition.onend = null;
@@ -101,6 +106,7 @@ export const registerVoiceTranscriptsController = (app) => {
     stopVoiceTranscription();
 
     const recognition = new SpeechRecognition();
+    let stopReason = null;
     recognition.lang = 'it-IT';
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -139,21 +145,33 @@ export const registerVoiceTranscriptsController = (app) => {
       }
     };
 
-    recognition.onerror = () => {
-      elements.voiceTranscriptStatus.textContent = 'Trascrizione interrotta dal browser.';
+    recognition.onerror = (event) => {
+      if (['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported'].includes(event.error)) {
+        state.voice.shouldTranscribe = false;
+        stopReason = 'Trascrizione non disponibile: controlla il permesso del microfono e il browser.';
+        elements.voiceTranscriptStatus.textContent = stopReason;
+        return;
+      }
+      elements.voiceTranscriptStatus.textContent = 'Trascrizione interrotta: nuovo tentativo in corso.';
     };
 
     recognition.onend = () => {
       state.voice.recognition = null;
+      state.voice.transcriptInterim = '';
+      renderVoiceTranscripts();
 
       if (state.voice.shouldTranscribe && state.voice.channelId) {
-        window.setTimeout(startVoiceTranscription, 500);
+        elements.voiceTranscriptStatus.textContent = 'Trascrizione in riavvio.';
+        restartTimer = window.setTimeout(() => {
+          restartTimer = null;
+          if (state.voice.shouldTranscribe && state.voice.channelId) startVoiceTranscription();
+        }, 250);
         return;
       }
 
-      elements.voiceTranscriptStatus.textContent = state.voice.channelId
+      elements.voiceTranscriptStatus.textContent = stopReason || (state.voice.channelId
         ? 'Trascrizione ferma.'
-        : 'Disponibile dopo l\'ingresso nel canale.';
+        : 'Disponibile dopo l\'ingresso nel canale.');
     };
 
     try {

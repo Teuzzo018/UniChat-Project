@@ -50,6 +50,7 @@ export const registerCallsController = (app) => {
     const call = state.call;
     elements.emptyState.classList.add('hidden');
     elements.adminPanel.classList.add('hidden');
+    elements.superAdminPanel.classList.add('hidden');
     elements.gamePanel.classList.add('hidden');
     elements.voicePanel.classList.add('hidden');
     elements.callHistory.classList.add('hidden');
