@@ -1,6 +1,1 @@
 node_modules/
-dist/
-build/
-*.log
-backend/uploads/
-backend/private_uploads/
