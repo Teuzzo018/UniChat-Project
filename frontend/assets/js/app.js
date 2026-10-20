@@ -16,7 +16,7 @@ import { registerShellController } from './modules/controllers/shell.js';
 import { registerShellLayoutController } from './modules/controllers/shellLayout.js';
 import { registerSocketController } from './modules/controllers/socket.js';
 import { registerVoiceRtcController } from './modules/controllers/voiceRtc.js';
-import { registerVoiceTranscriptsController } from './modules/controllers/voiceTranscripts.js';
+import { registerVoicePanelController } from './modules/controllers/voicePanel.js';
 import { createAppContext } from './modules/context.js';
 import { registerStartup } from './modules/startup.js';
 
@@ -32,7 +32,7 @@ registerServerListsController(app);
 registerGlobalSearchController(app);
 registerChannelsController(app);
 registerCallsController(app);
-registerVoiceTranscriptsController(app);
+registerVoicePanelController(app);
 registerVoiceRtcController(app);
 registerMessageViewsController(app);
 registerNavigationController(app);

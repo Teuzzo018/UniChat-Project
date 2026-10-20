@@ -19,6 +19,21 @@ export const registerChannelsController = (app) => {
   const renameForm = document.querySelector('#renameChannelForm');
   const renameInput = document.querySelector('#renameChannelName');
   let channelToRename = null;
+  let activeChannelMenu = null;
+
+  const closeChannelMenu = (restoreFocus = false) => {
+    if (!activeChannelMenu) return;
+    activeChannelMenu.actions.classList.add('hidden');
+    elements.channelList.classList.remove('menu-open');
+    if (restoreFocus) activeChannelMenu.button.focus();
+    activeChannelMenu = null;
+  };
+  document.addEventListener('pointerdown', (event) => {
+    if (activeChannelMenu && !activeChannelMenu.actions.contains(event.target)) closeChannelMenu();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && activeChannelMenu) closeChannelMenu(true);
+  });
 
   const applyChannelUpdated = (updated) => {
     const server = state.servers.find((item) => item.id === updated.serverId);
@@ -77,6 +92,7 @@ export const registerChannelsController = (app) => {
   };
 
   const renderChannels = () => {
+    closeChannelMenu();
     const server = activeServer();
     elements.channelList.replaceChildren();
     elements.memberList.replaceChildren();
@@ -96,7 +112,7 @@ export const registerChannelsController = (app) => {
     }
   
     if (!server) {
-      elements.workspaceTitle.textContent = state.user?.fullName || 'Accesso';
+      elements.workspaceTitle.textContent = state.user ? 'Panoramica' : 'Accesso';
       elements.deleteServerButton.classList.add('hidden');
       elements.copyInviteButton.disabled = true;
       renderOverviewBar();
@@ -111,7 +127,7 @@ export const registerChannelsController = (app) => {
       if (channel.type !== lastType) {
         const heading = document.createElement('h3');
         heading.className = 'channel-group-heading';
-        heading.textContent = channel.type === 'VOICE' ? 'Vocali' : 'Testuali';
+        heading.textContent = channel.type === 'VOICE' ? 'Chat vocali' : 'Testuali';
         elements.channelList.append(heading);
         lastType = channel.type;
       }
@@ -119,36 +135,58 @@ export const registerChannelsController = (app) => {
       button.className = `channel-item ${channel.id === state.activeChannelId ? 'active' : ''}`;
       button.type = 'button';
       button.textContent = `${channel.type === 'TEXT' ? '#' : '◉'} ${channel.name}`;
-      button.title = channel.name;
+      button.title = canModerateChannel ? `${channel.name} · clic destro per le azioni` : channel.name;
       if (channel.id === state.activeChannelId) button.setAttribute('aria-current', 'page');
-      button.addEventListener('click', () => selectChannel(channel.id));
+      let suppressClick = false;
+      button.addEventListener('click', (event) => {
+        if (suppressClick) { suppressClick = false; event.preventDefault(); return; }
+        selectChannel(channel.id);
+      });
       const row = document.createElement('div');
       row.className = 'channel-row';
       row.append(button);
       if (canModerateChannel) {
-        const menu = document.createElement('details');
+        const menu = document.createElement('div');
         menu.className = 'channel-actions';
-        const trigger = document.createElement('summary');
-        trigger.setAttribute('aria-label', `Azioni per il canale ${channel.name}`);
-        trigger.textContent = '⋯';
         const actions = document.createElement('div');
-        actions.className = 'channel-actions-menu';
+        actions.className = 'channel-actions-menu hidden';
+        actions.setAttribute('role', 'menu');
+        actions.setAttribute('aria-label', `Azioni per il canale ${channel.name}`);
         const rename = document.createElement('button');
         rename.type = 'button';
+        rename.setAttribute('role', 'menuitem');
         rename.textContent = 'Rinomina';
-        rename.addEventListener('click', () => { menu.open = false; openRenameChannel(server, channel); });
+        rename.addEventListener('click', () => { closeChannelMenu(); openRenameChannel(server, channel); });
         const remove = document.createElement('button');
         remove.type = 'button';
+        remove.setAttribute('role', 'menuitem');
         remove.className = 'danger';
         remove.textContent = 'Elimina';
-        remove.addEventListener('click', () => { menu.open = false; deleteChannel(server, channel); });
+        remove.addEventListener('click', () => { closeChannelMenu(); deleteChannel(server, channel); });
         actions.append(rename, remove);
-        menu.append(trigger, actions);
-        menu.addEventListener('toggle', () => {
-          const anyOpen = Boolean(elements.channelList.querySelector('.channel-actions[open]'));
-          elements.channelList.classList.toggle('menu-open', anyOpen);
-          if (menu.open) actions.scrollIntoView({ block: 'nearest' });
+        menu.append(actions);
+        const openChannelMenu = () => {
+          closeChannelMenu();
+          actions.classList.remove('hidden');
+          activeChannelMenu = { actions, button };
+          elements.channelList.classList.add('menu-open');
+          actions.scrollIntoView({ block: 'nearest' });
+          rename.focus();
+        };
+        button.addEventListener('contextmenu', (event) => { event.preventDefault(); openChannelMenu(); });
+        button.addEventListener('keydown', (event) => {
+          if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+          event.preventDefault();
+          openChannelMenu();
         });
+        let longPressTimer = null;
+        button.addEventListener('pointerdown', (event) => {
+          if (event.pointerType !== 'touch') return;
+          longPressTimer = window.setTimeout(() => { suppressClick = true; openChannelMenu(); }, 500);
+        });
+        for (const type of ['pointerup', 'pointercancel', 'pointerleave']) {
+          button.addEventListener(type, () => window.clearTimeout(longPressTimer));
+        }
         row.append(menu);
       }
       elements.channelList.append(row);
@@ -220,6 +258,7 @@ export const registerChannelsController = (app) => {
     await Promise.all([
       loadServers(),
       loadFriends(),
+      app.loadPrivateConversations(),
       loadServerJoinRequests(),
       app.loadAttachmentLimits(),
       app.loadFavorites().catch((error) => showToast(`Preferiti non disponibili: ${error.message}`))

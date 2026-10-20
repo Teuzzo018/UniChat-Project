@@ -1,6 +1,7 @@
 backend/node_modules
 backend/npm-debug.log
 backend/.env
+backend/.env.local
 backend/.git
 backend/.agents
 backend/.codex

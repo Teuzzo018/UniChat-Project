@@ -1962,7 +1962,7 @@ dialog::backdrop {
    Voice Channels
    ========================================================================== */
 
-/* Canali vocali: partecipanti, azioni e trascrizione. */
+/* Canali vocali: anteprima, partecipanti e azioni. */
 .voice-panel {
   display: grid;
   align-content: start;
@@ -1981,89 +1981,41 @@ dialog::backdrop {
 
 .voice-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
-.voice-participants {
+.voice-videos {
   display: grid;
-  gap: 8px;
-  max-width: 420px;
-}
-
-.voice-participant {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  padding: 10px;
-  font-weight: 800;
-}
-
-.voice-transcript {
-  display: grid;
-  gap: 10px;
-  max-width: 720px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  padding: 14px;
-}
-
-.voice-transcript-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 12px;
 }
 
-.voice-transcript-header h3 {
-  font-size: 1rem;
+.voice-video-tile {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #171923;
+  aspect-ratio: 16 / 9;
 }
 
-.voice-transcript-header span,
-.voice-transcript-empty,
-.voice-transcript-interim {
-  color: var(--muted);
-  font-size: 0.9rem;
+.voice-video-tile video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
-.voice-transcript-list {
-  display: grid;
-  gap: 10px;
-  max-height: 280px;
-  overflow: auto;
-}
-
-.voice-transcript-item {
-  display: grid;
-  gap: 4px;
-  border-top: 1px solid var(--line);
-  padding-top: 10px;
-}
-
-.voice-transcript-item:first-child {
-  border-top: 0;
-  padding-top: 0;
-}
-
-.voice-transcript-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  color: var(--muted);
+.voice-video-tile span {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  color: #fff;
+  background: #000b;
   font-size: 0.85rem;
-}
-
-.voice-transcript-meta strong {
-  color: var(--text);
-}
-
-.voice-transcript-item p,
-.voice-transcript-interim {
-  overflow-wrap: anywhere;
 }
 
 /* Container audio remoto WebRTC, nascosto ma presente nel DOM. */

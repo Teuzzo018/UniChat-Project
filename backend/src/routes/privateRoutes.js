@@ -5,6 +5,7 @@ const {
   canContact,
   deletePrivateMessage,
   listPrivateCalls,
+  listPrivateConversations,
   listPrivateMessages
 } = require('../controllers/messageControllers');
 const authMiddleware = require('../middleware/authMiddleware');
@@ -15,6 +16,7 @@ const asyncHandler = (handler) => (req, res, next) => Promise.resolve(handler(re
 
 router.use(authMiddleware);
 
+router.get('/conversations', asyncHandler(listPrivateConversations));
 router.get('/:userId/messages', asyncHandler(listPrivateMessages));
 router.get('/:userId/calls', asyncHandler(listPrivateCalls));
 router.post('/:userId/messages', asyncHandler(async (req, res, next) => {

@@ -67,7 +67,7 @@ UniChat/
 │                   ├── shell.js
 │                   ├── socket.js
 │                   ├── voiceRtc.js
-│                   └── voiceTranscripts.js
+│                   └── voicePanel.js
 ├── backend/
 │   ├── prisma/
 │   │   ├── schema.prisma
@@ -358,18 +358,16 @@ Solo amici attivi, non bloccati e non sospesi possono aprire o usare una convers
 
 ### Voce E Video
 
+Le **chat vocali** usano LiveKit Cloud (piano Build) come SFU WebRTC. Crea un progetto nel [dashboard LiveKit Cloud](https://cloud.livekit.io/) e inserisci URL WebSocket `wss://…livekit.cloud`, API key e API secret in `backend/.env.local` come `LIVEKIT_URL`, `LIVEKIT_API_KEY` e `LIVEKIT_API_SECRET`. Il file locale è escluso da Git; Docker Compose lo carica se presente. Il backend emette un token di ingresso di 15 minuti solo dopo aver verificato sessione, appartenenza al server e tipo del canale; la API secret non viene inviata al browser. Se queste variabili mancano, l'ingresso mostra un errore di configurazione. L'app deve essere servita su HTTPS o localhost per accedere a webcam, microfono e condivisione schermo. Il piano Build ha quote gratuite e limiti propri, consultabili nel [dashboard e nella documentazione LiveKit](https://docs.livekit.io/deploy/admin/quotas-and-limits/).
+
+Selezionare una chat vocale apre prima l'anteprima della propria webcam. I pulsanti per microfono e videocamera funzionano già prima dell'ingresso; **Entra** collega alla stanza. Ogni partecipante ha un riquadro video o un segnaposto se la videocamera è spenta, con un indicatore per chi sta parlando. Dopo l'ingresso sono disponibili condivisione schermo intero o finestra ed **Esci**. Audio e video passano tramite LiveKit; non viene avviata alcuna trascrizione.
+
 Le chiamate private uno-a-uno funzionano fra amici attivi, senza blocchi reciproci o sospensione. La segnalazione Socket.IO controlla sessione, partecipanti e amicizia a ogni richiesta; offer, answer e ICE sono inoltrati soltanto ai due socket scelti. Una sola chiamata per utente può essere attiva o in attesa per processo. La prima scheda del destinatario che accetta usa la chiamata; le altre chiudono l'avviso. Sono gestiti rifiuto, occupato, annullamento, timeout (predefinito 30 s), termine e disconnessione. Il server salva lo stato nello storico `PrivateCall` esistente. I controlli audio/video della chat e del pannello chiamata usano `getUserMedia` e le tracce WebRTC reali; alla chiusura vengono fermate le tracce e il peer. Gli allegati restano su HTTP autenticato e non passano tramite WebRTC.
 
 Configurazione: `WEBRTC_STUN_URLS` contiene URL STUN separati da virgole; il predefinito è `stun:stun.l.google.com:19302`. Per TURN imposta `WEBRTC_TURN_URLS` e `WEBRTC_TURN_SHARED_SECRET` (almeno 32 caratteri), uguale al segreto `use-auth-secret`/`static-auth-secret` del server TURN. `GET /api/rtc/config` richiede la sessione e restituisce credenziali TURN temporanee di un'ora, senza cache; il segreto resta sul backend. Le chiamate terminano dopo 45 minuti per evitare l'uso di credenziali scadute; `CALL_MAX_DURATION_MS` può ridurre o aumentare il limite fino a 55 minuti. `CALL_RING_TIMEOUT_MS` accetta 10–120 secondi. Le credenziali TURN già emesse restano valide fino alla scadenza anche se una sessione UniChat viene revocata. Configura il TURN per UDP 3478 e, dove necessario, TLS/TCP 5349, con porte relay aperte e DNS/certificato validi. In produzione servi UniChat su HTTPS e inoltra WebSocket/Socket.IO dal reverse proxy (`Upgrade`/`Connection`); `getUserMedia` richiede un contesto sicuro (localhost è ammesso per sviluppo). La connettività tra reti diverse **non è stata verificata con TURN** e non va considerata affidabile finché non viene provata nell'ambiente di distribuzione.
 
-Il registro delle chiamate è condiviso in memoria dal singolo processo Socket.IO e viene liberato su fine chiamata o disconnessione. All'avvio gli stati precedenti ancora attivi vengono chiusi nello storico. Per distribuire più processi/istanze occorrono un adapter Socket.IO condiviso e una prenotazione delle chiamate distribuita; questa versione supporta un solo processo. Docker Compose carica `backend/.env` nel servizio `backend`, incluse la chiave TOTP e le eventuali variabili TURN; i valori dichiarati esplicitamente in `environment` nel Compose hanno precedenza. Non include chiamate di gruppo, trasferimento P2P di file o ripresa della chiamata dopo la riconnessione. Lo storico non distingue ancora chiamate audio e video. Il modello `PrivateCall` esistente è sufficiente: questa modifica non aggiunge una migrazione; restano da applicare le migrazioni elencate nella sezione di distribuzione prima dell'avvio su un database non aggiornato.
+Il registro delle chiamate private è condiviso in memoria dal singolo processo Socket.IO e viene liberato su fine chiamata o disconnessione. All'avvio gli stati precedenti ancora attivi vengono chiusi nello storico. Per distribuire più processi/istanze occorrono un adapter Socket.IO condiviso e una prenotazione delle chiamate private distribuita; questa versione supporta un solo processo. Docker Compose carica `backend/.env` e, se presente, `backend/.env.local` nel servizio `backend`; i valori dichiarati esplicitamente in `environment` nel Compose hanno precedenza. Le chat vocali di gruppo usano LiveKit; le chiamate private restano uno-a-uno. Non include trasferimento P2P di file o ripresa della chiamata privata dopo la riconnessione. Lo storico non distingue ancora chiamate audio e video. Il modello `PrivateCall` esistente è sufficiente: questa modifica non aggiunge una migrazione; restano da applicare le migrazioni elencate nella sezione di distribuzione prima dell'avvio su un database non aggiornato.
 
-- `voice_join_channel`: entra in un canale vocale.
-- `voice_leave_channel`: esce dal canale vocale.
-- `voice_participants`: aggiorna i partecipanti vocali.
-- `voice_peer_joined`: nuovo peer audio.
-- `voice_peer_left`: uscita peer audio.
-- `voice_signal`: scambio offer, answer e ICE candidate audio.
 - `private_video_call_request`: richiesta di chiamata privata (`mode: audio|video`).
 - `private_video_call_incoming`: chiamata in arrivo.
 - `private_video_call_answer`: accetta o rifiuta la chiamata.

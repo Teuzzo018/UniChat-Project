@@ -228,6 +228,26 @@ const canContact = async (firstId, secondId) => {
   return Boolean(friendship && !block && target && !target.suspendedAt);
 };
 
+const listPrivateConversations = async (req, res) => {
+  const userId = req.user.id;
+  const [sentMessages, receivedMessages, outgoingCalls, incomingCalls] = await Promise.all([
+    prisma.privateMessage.groupBy({ by: ['recipientId'], where: { senderId: userId }, _max: { createdAt: true } }),
+    prisma.privateMessage.groupBy({ by: ['senderId'], where: { recipientId: userId }, _max: { createdAt: true } }),
+    prisma.privateCall.groupBy({ by: ['recipientId'], where: { callerId: userId }, _max: { startedAt: true } }),
+    prisma.privateCall.groupBy({ by: ['callerId'], where: { recipientId: userId }, _max: { startedAt: true } })
+  ]);
+  const latest = new Map();
+  const record = (peerId, date) => {
+    if (date && (!latest.has(peerId) || date > latest.get(peerId))) latest.set(peerId, date);
+  };
+  sentMessages.forEach((row) => record(row.recipientId, row._max.createdAt));
+  receivedMessages.forEach((row) => record(row.senderId, row._max.createdAt));
+  outgoingCalls.forEach((row) => record(row.recipientId, row._max.startedAt));
+  incomingCalls.forEach((row) => record(row.callerId, row._max.startedAt));
+  return res.status(200).json([...latest].sort((a, b) => b[1] - a[1])
+    .map(([peerId, date]) => ({ userId: peerId, lastActivityAt: date })));
+};
+
 const listPrivateMessages = async (req, res) => {
   const recipient = await ensurePrivateRecipient(req.user.id, req.params.userId);
 
@@ -368,6 +388,7 @@ module.exports = {
   findAccessibleChannel,
   canContact,
   listPrivateCalls,
+  listPrivateConversations,
   listMessages,
   listPrivateMessages,
   messageSelect

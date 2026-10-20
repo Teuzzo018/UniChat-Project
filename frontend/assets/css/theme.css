@@ -1,0 +1,132 @@
+/* Scelta del tema nelle impostazioni account. */
+:root { color-scheme: light; }
+.appearance-settings > p { margin: 0; color: var(--muted); font-size: .9rem; }
+.theme-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.theme-options legend { padding: 0 0 10px; color: var(--muted); font-size: .82rem; font-weight: 750; }
+.theme-option {
+  display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+  color: var(--ink); cursor: pointer; transition: border-color 160ms ease, background 160ms ease;
+}
+.theme-option:hover { border-color: var(--accent); background: var(--panel-strong); }
+.theme-option:has(input:checked) { border-color: var(--accent); background: var(--panel-strong); box-shadow: inset 0 0 0 1px var(--accent); }
+.theme-option:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+.theme-option input { width: 17px; height: 17px; margin: 0; padding: 0; accent-color: var(--accent); }
+.theme-option-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--panel); color: var(--accent); font-size: 1.2rem; }
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1523;
+  --panel: #172235;
+  --panel-strong: #243650;
+  --ink: #edf3fc;
+  --text: #edf3fc;
+  --muted: #adc0d9;
+  --line: #34445d;
+  --accent: #79aaff;
+  --accent-dark: #a9c9ff;
+  --danger: #ffaaa3;
+  --focus: #91bdff;
+  --shadow: 0 12px 32px rgba(0, 0, 0, .3);
+}
+
+:root:is([data-theme="dark"], [data-theme="copper"]) body,
+:root:is([data-theme="dark"], [data-theme="copper"]) .sidebar,
+:root:is([data-theme="dark"], [data-theme="copper"]) .section-navigation,
+:root:is([data-theme="dark"], [data-theme="copper"]) .member-panel { background: var(--bg); color: var(--ink); }
+:root:is([data-theme="dark"], [data-theme="copper"]) .server-rail { background: #111d30; }
+:root:is([data-theme="dark"], [data-theme="copper"]) .splash-screen,
+:root:is([data-theme="dark"], [data-theme="copper"]) .content-area,
+:root:is([data-theme="dark"], [data-theme="copper"]) .channel-header,
+:root:is([data-theme="dark"], [data-theme="copper"]) .composer,
+:root:is([data-theme="dark"], [data-theme="copper"]) dialog,
+:root:is([data-theme="dark"], [data-theme="copper"]) .dialog-card,
+:root:is([data-theme="dark"], [data-theme="copper"]) .settings-profile-preview,
+:root:is([data-theme="dark"], [data-theme="copper"]) .settings-user-row,
+:root:is([data-theme="dark"], [data-theme="copper"]) .channel-actions-menu,
+:root:is([data-theme="dark"], [data-theme="copper"]) .channel-actions-menu button,
+:root:is([data-theme="dark"], [data-theme="copper"]) .message-actions-menu,
+:root:is([data-theme="dark"], [data-theme="copper"]) .message-actions-menu button,
+:root:is([data-theme="dark"], [data-theme="copper"]) .server-context-menu,
+:root:is([data-theme="dark"], [data-theme="copper"]) .overview-panel,
+:root:is([data-theme="dark"], [data-theme="copper"]) .game-panel,
+:root:is([data-theme="dark"], [data-theme="copper"]) .global-search-dialog,
+:root:is([data-theme="dark"], [data-theme="copper"]) .file-button,
+:root:is([data-theme="dark"], [data-theme="copper"]) .call-composer-button,
+:root:is([data-theme="dark"], [data-theme="copper"]) .call-history-item,
+:root:is([data-theme="dark"], [data-theme="copper"]) .call-history-empty,
+:root:is([data-theme="dark"], [data-theme="copper"]) .admin-item { background: var(--panel); color: var(--ink); }
+
+:root:is([data-theme="dark"], [data-theme="copper"]) input,
+:root:is([data-theme="dark"], [data-theme="copper"]) select,
+:root:is([data-theme="dark"], [data-theme="copper"]) textarea,
+:root:is([data-theme="dark"], [data-theme="copper"]) .tab.active,
+:root:is([data-theme="dark"], [data-theme="copper"]) .server-dot,
+:root:is([data-theme="dark"], [data-theme="copper"]) .icon-button,
+:root:is([data-theme="dark"], [data-theme="copper"]) .game-rail-button,
+:root:is([data-theme="dark"], [data-theme="copper"]) .server-menu-trigger,
+:root:is([data-theme="dark"], [data-theme="copper"]) .user-controls .dock-button:not(.hidden),
+:root:is([data-theme="dark"], [data-theme="copper"]) .member-history-button,
+:root:is([data-theme="dark"], [data-theme="copper"]) .mobile-nav-toggle { background: var(--panel); color: var(--ink); border-color: var(--line); }
+:root:is([data-theme="dark"], [data-theme="copper"]) input::placeholder,
+:root:is([data-theme="dark"], [data-theme="copper"]) textarea::placeholder { color: var(--muted); opacity: .82; }
+:root:is([data-theme="dark"], [data-theme="copper"]) .secondary-button,
+:root:is([data-theme="dark"], [data-theme="copper"]) .global-search-trigger,
+:root:is([data-theme="dark"], [data-theme="copper"]) .invite-panel,
+:root:is([data-theme="dark"], [data-theme="copper"]) .user-dock,
+:root:is([data-theme="dark"], [data-theme="copper"]) .game-type-tabs,
+:root:is([data-theme="dark"], [data-theme="copper"]) .game-cell,
+:root:is([data-theme="dark"], [data-theme="copper"]) .hangman-word,
+:root:is([data-theme="dark"], [data-theme="copper"]) .hangman-key,
+:root:is([data-theme="dark"], [data-theme="copper"]) .game-launcher-user,
+:root:is([data-theme="dark"], [data-theme="copper"]) .composer-attachment,
+:root:is([data-theme="dark"], [data-theme="copper"]) .document-attachment { background: var(--panel-strong); color: var(--ink); }
+:root:is([data-theme="dark"], [data-theme="copper"]) .avatar,
+:root:is([data-theme="dark"], [data-theme="copper"]) .member-avatar,
+:root:is([data-theme="dark"], [data-theme="copper"]) .call-history-icon,
+:root:is([data-theme="dark"], [data-theme="copper"]) .game-cell.win,
+:root:is([data-theme="dark"], [data-theme="copper"]) .composer-attachment button { background: var(--panel-strong); color: var(--accent-dark); }
+:root:is([data-theme="dark"], [data-theme="copper"]) .tabs,
+:root:is([data-theme="dark"], [data-theme="copper"]) .game-type-tabs button.active,
+:root:is([data-theme="dark"], [data-theme="copper"]) .friend-counter.active,
+:root:is([data-theme="dark"], [data-theme="copper"]) .channel-item.active,
+:root:is([data-theme="dark"], [data-theme="copper"]) .channel-item:hover,
+:root:is([data-theme="dark"], [data-theme="copper"]) .member-item.active,
+:root:is([data-theme="dark"], [data-theme="copper"]) .member-item:hover,
+:root:is([data-theme="dark"], [data-theme="copper"]) .direct-message-link:hover,
+:root:is([data-theme="dark"], [data-theme="copper"]) .direct-message-link[aria-current="page"],
+:root:is([data-theme="dark"], [data-theme="copper"]) .message:hover,
+:root:is([data-theme="dark"], [data-theme="copper"]) .message:focus-within { background: var(--panel-strong); }
+:root:is([data-theme="dark"], [data-theme="copper"]) .user-card:hover,
+:root:is([data-theme="dark"], [data-theme="copper"]) .call-composer-button:hover,
+:root:is([data-theme="dark"], [data-theme="copper"]) .member-history-button:hover,
+:root:is([data-theme="dark"], [data-theme="copper"]) .game-launcher-user:hover { background: var(--panel-strong); }
+:root:is([data-theme="dark"], [data-theme="copper"]) .game-launcher-list button,
+:root:is([data-theme="dark"], [data-theme="copper"]) .game-type-tabs button.active { color: var(--ink); }
+:root:is([data-theme="dark"], [data-theme="copper"]) .message + .message { border-top-color: var(--line); }
+:root:is([data-theme="dark"], [data-theme="copper"]) .message-actions summary:hover,
+:root:is([data-theme="dark"], [data-theme="copper"]) .message-actions[open] summary { background: var(--panel-strong); }
+:root:is([data-theme="dark"], [data-theme="copper"]) .sidebar-overview .overview-tab strong { background: var(--panel-strong); color: var(--accent-dark); }
+:root:is([data-theme="dark"], [data-theme="copper"]) .friend-counter,
+:root:is([data-theme="dark"], [data-theme="copper"]) .request-item,
+:root:is([data-theme="dark"], [data-theme="copper"]) .friend-item,
+:root:is([data-theme="dark"], [data-theme="copper"]) .global-search-result { color: var(--ink); }
+:root:is([data-theme="dark"], [data-theme="copper"]) .danger-button,
+:root:is([data-theme="dark"], [data-theme="copper"]) .confirm-icon { background: #392a32; color: var(--danger); }
+:root:is([data-theme="dark"], [data-theme="copper"]) .danger-button:hover { background: #4b3039; }
+:root:is([data-theme="dark"], [data-theme="copper"]) .game-rail-button:hover,
+:root:is([data-theme="dark"], [data-theme="copper"]) .game-rail-button:focus-visible { background: var(--panel-strong); border-color: var(--accent); }
+:root:is([data-theme="dark"], [data-theme="copper"]) .game-mini-controller .controller-shell { fill: var(--panel); }
+:root:is([data-theme="dark"], [data-theme="copper"]) .game-mini-controller { color: var(--accent); }
+:root:is([data-theme="dark"], [data-theme="copper"]) .primary-button { background: #326bd3; color: #fff; }
+:root:is([data-theme="dark"], [data-theme="copper"]) .primary-button:hover { background: #4380ed; }
+:root:is([data-theme="dark"], [data-theme="copper"]) .friend-form button { background: #326bd3; color: #fff; }
+:root:is([data-theme="dark"], [data-theme="copper"]) .brand-mark,
+:root:is([data-theme="dark"], [data-theme="copper"]) .server-dot.active { background: #326bd3; color: #fff; }
+:root:is([data-theme="dark"], [data-theme="copper"]) .friend-counter strong,
+:root:is([data-theme="dark"], [data-theme="copper"]) .overview-tab.active,
+:root:is([data-theme="dark"], [data-theme="copper"]) .overview-tab:hover { background: #326bd3; color: #fff; }
+
+@media (max-width: 420px) {
+  .theme-options { grid-template-columns: 1fr; }
+}

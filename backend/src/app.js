@@ -21,6 +21,10 @@ const createApp = () => {
   });
   app.use(cors({ origin: env.corsOrigin }));
   app.use(express.json({ limit: '1mb' }));
+  app.get('/assets/vendor/livekit-client.js', (req, res) => {
+    res.type('application/javascript');
+    res.sendFile(path.join(__dirname, '../node_modules/livekit-client/dist/livekit-client.umd.js'));
+  });
   app.use(express.static(path.join(__dirname, '../../frontend')));
   // Solo gli avatar sono pubblici. Gli allegati passano da /api/uploads con sessione e permessi.
   app.get('/uploads/:filename', async (req, res, next) => {

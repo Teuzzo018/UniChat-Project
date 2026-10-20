@@ -1,3 +1,5 @@
+import { setupGameButtonControllers } from './gameButtonControllers.js';
+
 export const setupEventListeners = ({
   elements,
   api,
@@ -14,8 +16,6 @@ export const setupEventListeners = ({
   renderFriends,
   renderServerJoinRequests,
   loadMessages,
-  showAdminPanel,
-  showSuperAdminPanel,
   openUserSettings,
   openGameDialog,
   sendGameLinkToChat,
@@ -142,6 +142,7 @@ export const setupEventListeners = ({
     state.servers = [];
     state.availableServers = [];
     state.friends = [];
+    state.privateConversations = [];
     state.favorites = [];
     if (document.querySelector('#favoritesDialog').open) document.querySelector('#favoritesDialog').close();
     state.friendPresence = {};
@@ -197,10 +198,9 @@ export const setupEventListeners = ({
     elements.serverDialog.showModal();
   };
   
-  elements.adminButton.addEventListener('click', showAdminPanel);
-  elements.superAdminButton.addEventListener('click', showSuperAdminPanel);
   elements.newServerButton.addEventListener('click', openServerDialog);
   elements.gameRailButton.addEventListener('click', openGameDialog);
+  setupGameButtonControllers(elements.gameRailButton);
   elements.sendGameLinkButton.addEventListener('click', sendGameLinkToChat);
   document.querySelector('#closeGameDialog').addEventListener('click', () => elements.gameDialog.close());
   elements.profileButton.addEventListener('click', showUserProfile);
@@ -394,7 +394,7 @@ export const setupEventListeners = ({
     loadMessages();
   });
   elements.joinVoiceButton.addEventListener('click', joinVoiceChannel);
-  elements.leaveVoiceButton.addEventListener('click', leaveVoiceChannel);
+  elements.leaveVoiceButton.addEventListener('click', () => leaveVoiceChannel({ reopenPreview: true }));
   
 
 };

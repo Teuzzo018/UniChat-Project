@@ -10,6 +10,7 @@ export const state = {
   activePrivateUserId: null,
   activeConversationType: 'channel',
   friends: [],
+  privateConversations: [],
   friendPresence: {},
   favorites: [],
   friendRequests: [],
@@ -27,13 +28,7 @@ export const state = {
   socket: null,
   voice: {
     channelId: null,
-    localStream: null,
-    peers: new Map(),
-    participants: [],
-    recognition: null,
-    shouldTranscribe: false,
-    transcriptInterim: '',
-    transcripts: []
+    room: null
   },
   call: {
     id: null,

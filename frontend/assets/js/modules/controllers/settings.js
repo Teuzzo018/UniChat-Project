@@ -4,6 +4,17 @@ export const registerSettingsController = (app) => {
   const renderChannels = (...args) => app.renderChannels(...args);
   const activeServer = (...args) => app.activeServer(...args);
   const renderUserDock = (...args) => app.renderUserDock(...args);
+  const themeOptions = [...document.querySelectorAll('#settingsDialog input[name="theme"]')];
+
+  themeOptions.forEach((option) => {
+    option.addEventListener('change', () => {
+      if (!option.checked) return;
+      document.documentElement.dataset.theme = option.value;
+      try {
+        localStorage.setItem('unichat-theme', option.value);
+      } catch (_) { /* La scelta resta attiva fino alla chiusura della pagina. */ }
+    });
+  });
 
   const renderSettingsLists = () => {
     elements.settingsFriendBlockList.replaceChildren();
@@ -86,6 +97,10 @@ export const registerSettingsController = (app) => {
       return;
     }
 
+    const currentTheme = ['dark', 'copper'].includes(document.documentElement.dataset.theme)
+      ? document.documentElement.dataset.theme : 'light';
+    themeOptions.forEach((option) => { option.checked = option.value === currentTheme; });
+
     elements.settingsFullName.value = state.user.fullName || '';
     elements.settingsAvatarFile.value = '';
     elements.settingsPreviewName.textContent = state.user.fullName;
@@ -128,7 +143,7 @@ export const registerSettingsController = (app) => {
     renderUserDock();
     renderSettingsDialog();
     if (!activeServer()) {
-      elements.workspaceTitle.textContent = state.user.fullName;
+      elements.workspaceTitle.textContent = 'Panoramica';
     }
     showToast('Profilo aggiornato');
   };

@@ -71,8 +71,28 @@ export const registerMessageViewsController = (app) => {
     const article = document.createElement('article');
     const authorUser = message.user || message.sender;
     const ownMessage = authorUser.id === state.user?.id;
+    const createdAt = new Date(message.createdAt);
+    const messageDay = createdAt.toDateString();
+    const previous = elements.messages.lastElementChild?.classList.contains('message')
+      ? elements.messages.lastElementChild : null;
+    const sameDay = previous?.dataset.messageDay === messageDay;
+    const grouped = sameDay && previous.dataset.authorId === authorUser.id
+      && createdAt.getTime() - Number(previous.dataset.messageTime) <= 5 * 60 * 1000
+      && createdAt.getTime() >= Number(previous.dataset.messageTime);
+    if (!sameDay) {
+      const separator = document.createElement('div');
+      separator.className = 'message-date';
+      separator.setAttribute('role', 'separator');
+      separator.setAttribute('aria-label', createdAt.toLocaleDateString('it-IT', { dateStyle: 'full' }));
+      separator.textContent = createdAt.toLocaleDateString('it-IT', { dateStyle: 'full' });
+      elements.messages.append(separator);
+    }
     article.className = `message ${ownMessage ? 'own' : 'other'}`;
+    article.classList.toggle('grouped', grouped);
     article.dataset.messageId = message.id;
+    article.dataset.authorId = authorUser.id;
+    article.dataset.messageDay = messageDay;
+    article.dataset.messageTime = String(createdAt.getTime());
     if (message.deletedAt) article.dataset.deletedAt = message.deletedAt;
 
     const avatar = createUserAvatar(authorUser);
@@ -87,10 +107,7 @@ export const registerMessageViewsController = (app) => {
   
     const time = document.createElement('span');
     time.className = 'message-time';
-    time.textContent = new Intl.DateTimeFormat('it-IT', {
-      dateStyle: 'short',
-      timeStyle: 'short'
-    }).format(new Date(message.createdAt));
+    time.textContent = new Intl.DateTimeFormat('it-IT', { timeStyle: 'short' }).format(createdAt);
   
     const content = document.createElement('p');
     content.className = 'message-content';

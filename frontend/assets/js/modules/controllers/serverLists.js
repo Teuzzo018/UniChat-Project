@@ -17,27 +17,40 @@ export const registerServerListsController = (app) => {
       const button = document.createElement('button');
       button.className = `server-dot ${server.id === state.activeServerId ? 'active' : ''}`;
       button.type = 'button';
-      button.title = server.name;
-      button.setAttribute('aria-label', `Apri server ${server.name}`);
+      button.title = `${server.name} · clic destro per le azioni`;
+      button.setAttribute('aria-label', `Apri server ${server.name}. Tasto Menu o Maiusc F10 per le azioni`);
       if (server.id === state.activeServerId) button.setAttribute('aria-current', 'page');
       button.textContent = getInitials(server.name);
-      button.addEventListener('click', () => selectServer(server.id));
+      let longPressTimer = null;
+      let suppressClick = false;
+      button.addEventListener('click', (event) => {
+        if (suppressClick) { suppressClick = false; event.preventDefault(); return; }
+        selectServer(server.id);
+      });
       button.addEventListener('contextmenu', (event) => {
         event.preventDefault();
         app.showServerMenu(server, button, event.clientX, event.clientY);
       });
+      button.addEventListener('keydown', (event) => {
+        if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+        event.preventDefault();
+        const rect = button.getBoundingClientRect();
+        app.showServerMenu(server, button, rect.right + 4, rect.top);
+      });
+      button.addEventListener('pointerdown', (event) => {
+        if (event.pointerType !== 'touch') return;
+        longPressTimer = window.setTimeout(() => {
+          const rect = button.getBoundingClientRect();
+          suppressClick = true;
+          app.showServerMenu(server, button, rect.right + 4, rect.top);
+        }, 500);
+      });
+      for (const type of ['pointerup', 'pointercancel', 'pointerleave']) {
+        button.addEventListener(type, () => window.clearTimeout(longPressTimer));
+      }
       const item = document.createElement('div');
       item.className = 'server-rail-item';
-      const more = document.createElement('button');
-      more.type = 'button';
-      more.className = 'server-menu-trigger';
-      more.textContent = '⋯';
-      more.setAttribute('aria-label', `Azioni per ${server.name}`);
-      more.addEventListener('click', () => {
-        const rect = more.getBoundingClientRect();
-        app.showServerMenu(server, more, rect.right + 4, rect.top);
-      });
-      item.append(button, more);
+      item.append(button);
       elements.serverList.append(item);
     });
   };
@@ -78,6 +91,7 @@ export const registerServerListsController = (app) => {
 
   const renderServerJoinRequests = () => {
     elements.serverJoinRequestList.replaceChildren();
+    setBadgeCount(elements.sidebarRequestsCount, state.friendRequests.length + state.serverJoinRequests.length);
     elements.serverJoinRequestList.closest('section')?.classList.toggle('hidden', !state.serverJoinRequests.length);
 
     state.serverJoinRequests.forEach((request) => {

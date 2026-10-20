@@ -27,13 +27,19 @@ export const registerFriendsController = (app) => {
     chatButton.className = 'secondary-button';
     chatButton.type = 'button';
     chatButton.textContent = 'Chat';
-    chatButton.addEventListener('click', () => selectPrivateChat(user));
+    chatButton.addEventListener('click', () => {
+      document.querySelector('#friendsDialog')?.close();
+      selectPrivateChat(user);
+    });
 
     const historyButton = document.createElement('button');
     historyButton.className = 'secondary-button';
     historyButton.type = 'button';
     historyButton.textContent = 'Storico';
-    historyButton.addEventListener('click', () => showCallHistoryForUser(user));
+    historyButton.addEventListener('click', () => {
+      document.querySelector('#friendsDialog')?.close();
+      showCallHistoryForUser(user);
+    });
 
     const button = document.createElement('button');
     button.className = isFriend ? 'ghost-button' : 'secondary-button';
@@ -63,6 +69,8 @@ export const registerFriendsController = (app) => {
     elements.friendRequestList.replaceChildren();
     elements.friendSearchList.replaceChildren();
     elements.friendCount.textContent = String(state.friends.length);
+    setBadgeCount(elements.sidebarFriendsCount, state.friends.length);
+    setBadgeCount(elements.sidebarRequestsCount, state.friendRequests.length + state.serverJoinRequests.length);
     elements.friendCounterButton.setAttribute('aria-label', `Amici, ${state.friends.length}`);
     elements.friendCounterButton.classList.toggle('active', state.friendsExpanded);
     elements.friendList.classList.toggle('hidden', !state.friendsExpanded);
@@ -76,7 +84,7 @@ export const registerFriendsController = (app) => {
     if (!state.friends.length) {
       const empty = document.createElement('p');
       empty.className = 'sidebar-empty';
-      empty.textContent = 'Non hai ancora amici. Cerca un username qui sopra.';
+      empty.textContent = 'Non hai ancora amici. Usa “Aggiungi un amico” per cercarne uno.';
       elements.friendList.append(empty);
     }
     app.renderDirectMessages?.();

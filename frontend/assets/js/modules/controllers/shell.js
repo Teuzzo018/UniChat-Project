@@ -11,9 +11,7 @@ export const registerShellController = (app) => {
     (user?.role === 'SUPERADMIN' && user.email?.toLowerCase() === 'teo.sisto.04@gmail.com');
 
   const updateVoiceAudioState = () => {
-    state.voice.localStream?.getAudioTracks().forEach((track) => {
-      track.enabled = !state.userDock.muted && !state.userDock.deafened;
-    });
+    app.syncVoiceMic?.();
     state.call.localStream?.getAudioTracks().forEach((track) => {
       track.enabled = !state.userDock.muted && !state.userDock.deafened;
     });
@@ -36,9 +34,14 @@ export const registerShellController = (app) => {
 
     renderAvatarContent(elements.profileAvatar, state.user);
     elements.profileName.textContent = state.user.fullName;
-    elements.profileHandle.textContent = state.user.role === 'SUPERADMIN' &&
-      state.user.email?.toLowerCase() === 'teo.sisto.04@gmail.com'
-      ? `${getDisplayHandle(state.user)} · Creator` : getDisplayHandle(state.user);
+    elements.profileRole.textContent = ({
+      STUDENT: 'Studente',
+      PROFESSOR: 'Professore',
+      ADMIN: 'Admin piattaforma',
+      PLATFORM_ADMIN: 'Admin piattaforma',
+      SUPERADMIN: 'SuperAdmin'
+    })[state.user.role] || 'Utente';
+    elements.profileButton.setAttribute('aria-label', `Apri profilo di ${state.user.fullName}`);
 
     elements.muteButton.classList.toggle('active', state.userDock.muted);
     elements.muteButton.setAttribute('aria-pressed', String(state.userDock.muted));
@@ -52,7 +55,10 @@ export const registerShellController = (app) => {
 
     elements.muteButton.classList.remove('hidden');
     elements.deafenButton.classList.remove('hidden');
-    elements.permissionsButton.classList.add('hidden');
+    elements.permissionsButton.classList.toggle('hidden', !isGlobalAdmin(state.user));
+    const managementLabel = state.user.role === 'SUPERADMIN' ? 'Pannello SuperAdmin' : 'Pannello Admin';
+    elements.permissionsButton.title = managementLabel;
+    elements.permissionsButton.setAttribute('aria-label', managementLabel);
     updateVoiceAudioState();
     if (state.call.id && !elements.callPanel.classList.contains('hidden')) app.showCallPanel(elements.callStatus.textContent);
   };
@@ -118,7 +124,7 @@ export const registerShellController = (app) => {
   };
 
   const setDefaultEmptyState = () => {
-    elements.emptyState.querySelector('h2').textContent = state.user ? 'Home' : 'Chat universitaria senza distrazioni';
+    elements.emptyState.querySelector('h2').textContent = state.user ? 'Benvenuto su UniChat' : 'Chat universitaria senza distrazioni';
     elements.emptyState.querySelector('p').textContent = state.user
       ? 'Crea un server, usa un link invito o aggiungi amici per iniziare.'
       : 'Server per corsi, canali testuali e vocali, messaggi in tempo reale e accesso tramite account.';
@@ -145,12 +151,9 @@ export const registerShellController = (app) => {
     elements.logoutButton.classList.toggle('hidden', !authenticated);
     elements.globalSearchButton.classList.toggle('hidden', !authenticated);
     if (!authenticated && elements.globalSearchDialog.open) elements.globalSearchDialog.close();
-    elements.adminButton.classList.toggle('hidden', !authenticated || !['ADMIN', 'PLATFORM_ADMIN'].includes(state.user?.role));
-    elements.superAdminButton.classList.toggle('hidden', !authenticated ||
-      !(state.user?.role === 'SUPERADMIN' && state.user.email?.toLowerCase() === 'teo.sisto.04@gmail.com'));
     elements.videoCallButton.classList.toggle('hidden', state.activeConversationType !== 'private' || !state.activePrivateUserId);
     document.querySelector('#audioCallButton').classList.toggle('hidden', state.activeConversationType !== 'private' || !state.activePrivateUserId);
-    elements.workspaceTitle.textContent = authenticated ? state.user.fullName : 'Accesso';
+    elements.workspaceTitle.textContent = authenticated ? 'Panoramica' : 'Accesso';
     renderUserDock();
     renderOverviewBar();
   };

@@ -4,10 +4,6 @@ export const registerSocketController = (app) => {
   const renderMessage = (...args) => app.renderMessage(...args);
   const markMessageDeleted = (...args) => app.markMessageDeleted(...args);
   const loadFriends = (...args) => app.loadFriends(...args);
-  const renderVoiceParticipants = (...args) => app.renderVoiceParticipants(...args);
-  const closeVoicePeer = (...args) => app.closeVoicePeer(...args);
-  const handleVoiceSignal = (...args) => app.handleVoiceSignal(...args);
-  const addVoiceTranscript = (...args) => app.addVoiceTranscript(...args);
   const resetCall = (...args) => app.resetCall(...args);
   const showCallPanel = (...args) => app.showCallPanel(...args);
   const loadMessages = (...args) => app.loadMessages(...args);
@@ -96,6 +92,10 @@ export const registerSocketController = (app) => {
     });
 
     state.socket.on('private_message_created', (message) => {
+      if (state.user && [message.senderId, message.recipientId].includes(state.user.id)) {
+        const peerId = message.senderId === state.user.id ? message.recipientId : message.senderId;
+        app.notePrivateConversation(peerId, message.createdAt);
+      }
       const privateUser = activePrivateUser();
       const currentUserId = state.user?.id;
 
@@ -131,35 +131,6 @@ export const registerSocketController = (app) => {
       if (!state.friends.some((item) => item.friend.id === userId)) return;
       state.friendPresence[userId] = Boolean(online);
       app.renderFriends();
-    });
-
-    state.socket.on('voice_participants', ({ channelId, participants }) => {
-      if (channelId !== state.voice.channelId) {
-        return;
-      }
-
-      state.voice.participants = participants || [];
-      renderVoiceParticipants();
-    });
-
-    state.socket.on('voice_peer_joined', () => {
-      renderVoiceParticipants();
-    });
-
-    state.socket.on('voice_peer_left', ({ socketId }) => {
-      closeVoicePeer(socketId);
-    });
-
-    state.socket.on('voice_signal', (payload) => {
-      handleVoiceSignal(payload).catch(() => showToast('Segnale vocale non valido'));
-    });
-
-    state.socket.on('voice_transcript', (entry) => {
-      if (entry.channelId !== state.voice.channelId) {
-        return;
-      }
-
-      addVoiceTranscript(entry);
     });
 
     state.socket.on('private_video_call_incoming', (payload) => app.onIncomingCall(payload));

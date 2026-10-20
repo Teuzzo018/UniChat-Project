@@ -10,14 +10,16 @@ export const registerShellLayoutController = (app) => {
   const backdrop = document.querySelector('#sidebarBackdrop');
   const mobileToggle = document.querySelector('#mobileNavToggle');
   const contextMenu = document.querySelector('#serverContextMenu');
-  const primaryNav = document.querySelector('#sidebarPrimaryNav');
-  const homeNav = document.querySelector('#sidebarHomeButton');
   const inviteButton = document.querySelector('#addServerInviteButton');
   const directMessageList = document.querySelector('#directMessageList');
   const directMessagesBadge = document.querySelector('#directMessagesBadge');
   const homePanel = document.querySelector('#homePanel');
   const memberPanel = document.querySelector('#memberPanel');
   const memberToggle = document.querySelector('#memberToggleButton');
+  const headerScreenIcon = document.querySelector('#headerScreenIcon');
+  const quickActions = document.querySelector('#sidebarQuickActions');
+  const friendsDialog = document.querySelector('#friendsDialog');
+  const requestsDialog = document.querySelector('#requestsDialog');
   const friendDialog = document.querySelector('#friendDialog');
   const inviteDialog = document.querySelector('#inviteDialog');
   const serverSettingsDialog = document.querySelector('#serverSettingsDialog');
@@ -27,14 +29,14 @@ export const registerShellLayoutController = (app) => {
   let menuTrigger = null;
   let lastMobileTrigger = null;
 
-  const width = (value) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Number(value) || 320));
+  const width = (value) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Number(value) || 264));
   const setWidth = (value, persist = false) => {
     const next = width(value);
     shell.style.setProperty('--sidebar-width', `${next}px`);
     resizer.setAttribute('aria-valuenow', String(next));
     if (persist) { try { localStorage.setItem(STORAGE_KEY, String(next)); } catch {} }
   };
-  try { setWidth(localStorage.getItem(STORAGE_KEY)); } catch { setWidth(320); }
+  try { setWidth(localStorage.getItem(STORAGE_KEY)); } catch { setWidth(264); }
 
   const setMobileNav = (open) => {
     const visible = Boolean(open && state.user && matchMedia('(max-width: 850px)').matches);
@@ -47,7 +49,7 @@ export const registerShellLayoutController = (app) => {
       sidebar.setAttribute('role', 'dialog');
       sidebar.setAttribute('aria-modal', 'true');
       lastMobileTrigger = document.activeElement;
-      homeNav.focus();
+      sidebar.querySelector('button:not(.hidden)')?.focus();
     } else if (open === false && lastMobileTrigger && sidebar.contains(document.activeElement)) {
       lastMobileTrigger.focus();
     }
@@ -130,26 +132,47 @@ export const registerShellLayoutController = (app) => {
     contextMenu.querySelector('button')?.focus();
   };
 
+  const notePrivateConversation = (userId, lastActivityAt = new Date().toISOString()) => {
+    if (!userId || userId === state.user?.id) return;
+    state.privateConversations = [
+      { userId, lastActivityAt },
+      ...state.privateConversations.filter((entry) => entry.userId !== userId)
+    ];
+    renderDirectMessages();
+  };
+
+  const loadPrivateConversations = async () => {
+    const conversations = await app.api('/private/conversations');
+    state.privateConversations = conversations;
+    renderDirectMessages();
+  };
+
   const renderDirectMessages = () => {
     const focusedUser = directMessageList.contains(document.activeElement) ? document.activeElement.dataset.userId : null;
     directMessageList.replaceChildren();
-    directMessagesBadge.textContent = String(state.friends.length);
-    if (!state.friends.length) {
+    const friendsById = new Map(state.friends.map((friendship) => [friendship.friend.id, friendship.friend]));
+    const conversations = state.privateConversations.filter((entry) => friendsById.has(entry.userId));
+    directMessagesBadge.textContent = String(conversations.length);
+    if (!conversations.length) {
       const empty = document.createElement('p');
       empty.className = 'sidebar-empty';
-      empty.textContent = 'Nessun amico. Aggiungine uno dalla sezione Amici.';
+      empty.textContent = 'Le tue conversazioni private appariranno qui.';
       directMessageList.append(empty);
       return;
     }
-    for (const friendship of state.friends) {
-      const user = friendship.friend;
+    for (const conversation of conversations) {
+      const user = friendsById.get(conversation.userId);
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'direct-message-link';
-      button.textContent = user.fullName;
-      button.title = user.fullName;
+      const nickname = user.username ? `@${user.username}` : user.fullName;
+      const label = document.createElement('span');
+      label.className = 'direct-message-nickname';
+      label.textContent = nickname;
+      button.append(app.createUserAvatar(user, 'member-avatar'), label);
+      button.title = nickname;
       button.dataset.userId = user.id;
-      button.setAttribute('aria-label', `Apri conversazione con ${user.fullName}`);
+      button.setAttribute('aria-label', `Apri conversazione con ${nickname}`);
       if (state.activeConversationType === 'private' && state.activePrivateUserId === user.id) button.setAttribute('aria-current', 'page');
       button.addEventListener('click', async () => { await app.selectPrivateChat(user); setMobileNav(false); });
       directMessageList.append(button);
@@ -159,21 +182,24 @@ export const registerShellLayoutController = (app) => {
 
   const renderLayout = () => {
     const authenticated = Boolean(state.user);
+    const selectedChannel = state.servers.flatMap((server) => server.channels || [])
+      .find((channel) => channel.id === state.activeChannelId);
+    headerScreenIcon.textContent = state.activePrivateUserId ? '✉'
+      : selectedChannel?.type === 'VOICE' ? '◉' : state.activeServerId ? '#' : '⌂';
     shell.classList.toggle('authenticated', authenticated);
     shell.classList.toggle('has-server', authenticated && Boolean(state.activeServerId));
-    primaryNav.classList.toggle('hidden', !authenticated);
     inviteButton.classList.toggle('hidden', !authenticated);
     elements.newServerButton.classList.toggle('hidden', !authenticated);
     elements.gameRailButton.classList.toggle('hidden', !authenticated);
+    quickActions.classList.toggle('hidden', !authenticated);
     if (!authenticated) setMobileNav(false);
     else if (!shell.classList.contains('mobile-nav-open')) {
       sidebar.inert = matchMedia('(max-width: 850px)').matches;
       if (sidebar.inert) sidebar.setAttribute('aria-hidden', 'true');
       else sidebar.removeAttribute('aria-hidden');
     }
-    homeNav.classList.toggle('active', !state.activeServerId && !state.activePrivateUserId);
-    if (homeNav.classList.contains('active')) homeNav.setAttribute('aria-current', 'page');
-    else homeNav.removeAttribute('aria-current');
+    if (!state.activeServerId && !state.activePrivateUserId) elements.homeButton.setAttribute('aria-current', 'page');
+    else elements.homeButton.removeAttribute('aria-current');
     renderDirectMessages();
     mobileToggle.textContent = state.activeChannelId || state.activePrivateUserId ? '←' : '☰';
     if (!shell.classList.contains('mobile-nav-open')) mobileToggle.setAttribute('aria-label', state.activeChannelId || state.activePrivateUserId ? 'Torna all’elenco' : 'Apri navigazione');
@@ -248,8 +274,38 @@ export const registerShellLayoutController = (app) => {
     });
     setupSectionNavigation(elements.adminPanel, { aria: 'Sezioni amministrazione', items: ['Utenti', 'Server', 'Registro'] });
     setupSectionNavigation(elements.superAdminPanel, { aria: 'Sezioni SuperAdmin', items: ['Utenti', 'Università', 'Server', 'Registro'] });
-    setupSectionNavigation(document.querySelector('.settings-panel'), { aria: 'Sezioni impostazioni', items: ['Profilo', 'Blocca amici', 'Utenti bloccati'] });
-    document.querySelector('#addFriendButton').addEventListener('click', () => { friendDialog.showModal(); elements.friendUsernameInput.focus(); });
+    setupSectionNavigation(document.querySelector('.settings-panel'), { aria: 'Sezioni impostazioni', items: ['Profilo', 'Aspetto', 'Blocca amici', 'Utenti bloccati'] });
+    document.addEventListener('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && state.user) {
+        event.preventDefault();
+        elements.globalSearchButton.click();
+      }
+    });
+    const openSocialDialog = (dialog) => {
+      setMobileNav(false);
+      if (!dialog.open) dialog.showModal();
+      const refresh = dialog === requestsDialog
+        ? Promise.all([app.loadFriends(), app.loadServerJoinRequests()])
+        : app.loadFriends();
+      refresh.catch((error) => app.showToast(error.message));
+    };
+    document.querySelector('#sidebarFriendsButton').addEventListener('click', () => {
+      state.friendsExpanded = true;
+      openSocialDialog(friendsDialog);
+    });
+    document.querySelector('#sidebarRequestsButton').addEventListener('click', () => openSocialDialog(requestsDialog));
+    document.querySelector('#closeFriendsDialog').addEventListener('click', () => friendsDialog.close());
+    document.querySelector('#closeRequestsDialog').addEventListener('click', () => requestsDialog.close());
+    document.querySelector('#friendsAddButton').addEventListener('click', () => {
+      friendsDialog.close();
+      document.querySelector('#addFriendButton').click();
+    });
+    document.querySelector('#requestsAddButton').addEventListener('click', () => {
+      requestsDialog.close();
+      document.querySelector('#addFriendButton').click();
+    });
+    document.querySelector('#addFriendButton').addEventListener('click', () => { setMobileNav(false); friendDialog.showModal(); elements.friendUsernameInput.focus(); });
+    document.querySelector('#openFavoritesButton').addEventListener('click', () => setMobileNav(false));
     document.querySelector('#closeFriendDialog').addEventListener('click', () => friendDialog.close());
     document.querySelector('#closeInviteDialog').addEventListener('click', () => inviteDialog.close());
     document.querySelector('#createChannelToggle').addEventListener('click', (event) => {
@@ -265,9 +321,8 @@ export const registerShellLayoutController = (app) => {
     document.querySelector('#closeMemberPanel').addEventListener('click', () => { memberPanel.classList.add('hidden'); elements.contentArea.classList.remove('members-open'); memberToggle.setAttribute('aria-expanded', 'false'); memberToggle.focus(); });
     mobileToggle.addEventListener('click', () => setMobileNav(!shell.classList.contains('mobile-nav-open')));
     backdrop.addEventListener('click', () => setMobileNav(false));
-    homeNav.addEventListener('click', async () => { await app.showHome(); setMobileNav(false); });
     inviteButton.addEventListener('click', () => { inviteDialog.showModal(); elements.inviteCodeInput.focus(); });
-    document.addEventListener('pointerdown', (event) => { if (!contextMenu.contains(event.target) && !event.target.closest('.server-menu-trigger')) closeMenu(); });
+    document.addEventListener('pointerdown', (event) => { if (!contextMenu.contains(event.target)) closeMenu(); });
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         if (!contextMenu.classList.contains('hidden')) closeMenu(true);
@@ -316,5 +371,5 @@ export const registerShellLayoutController = (app) => {
     renderLayout();
   };
 
-  Object.assign(app, { setupShellLayout, renderLayout, renderDirectMessages, showServerMenu, openServerSettings, closeMobileNav: () => setMobileNav(false), closeServerMenu: closeMenu });
+  Object.assign(app, { setupShellLayout, renderLayout, renderDirectMessages, loadPrivateConversations, notePrivateConversation, showServerMenu, openServerSettings, closeMobileNav: () => setMobileNav(false), closeServerMenu: closeMenu });
 };

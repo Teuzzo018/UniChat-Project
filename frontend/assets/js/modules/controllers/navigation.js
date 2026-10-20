@@ -40,7 +40,7 @@ export const registerNavigationController = (app) => {
         elements.emptyState.querySelector('h2').textContent = 'Nessun canale';
         elements.emptyState.querySelector('p').textContent = 'Un gestore del server può creare un canale dalla barra laterale.';
       }
-      elements.channelTitle.textContent = emptyServer ? activeServer()?.name || 'Server' : state.user ? 'Home' : 'Benvenuto in UniChat';
+      elements.channelTitle.textContent = emptyServer ? activeServer()?.name || 'Server' : state.user ? '' : 'Benvenuto in UniChat';
       elements.channelType.textContent = emptyServer ? 'Server' : state.user ? 'Panoramica' : 'Canale';
       elements.videoCallButton.classList.add('hidden');
       document.querySelector('#audioCallButton').classList.add('hidden');
@@ -70,12 +70,13 @@ export const registerNavigationController = (app) => {
     }
 
     elements.channelTitle.textContent = channel.name;
-    elements.channelType.textContent = channel.type === 'TEXT' ? 'Canale testuale' : 'Canale vocale';
+    elements.channelType.textContent = channel.type === 'TEXT' ? 'Canale testuale' : 'Chat vocale';
     elements.videoCallButton.classList.add('hidden');
     document.querySelector('#audioCallButton').classList.add('hidden');
 
     if (channel.type !== 'TEXT') {
       renderVoicePanel();
+      app.prepareVoicePreview?.();
       return;
     }
   
@@ -97,6 +98,7 @@ export const registerNavigationController = (app) => {
 
   const selectChannel = async (channelId) => {
     resetCall({ notifyPeer: true });
+    if (state.activeChannelId !== channelId) app.stopVoicePreview?.();
     if (state.voice.channelId && state.voice.channelId !== channelId) {
       await leaveVoiceChannel();
     }
@@ -122,6 +124,7 @@ export const registerNavigationController = (app) => {
     state.activeConversationType = 'private';
     state.activeOverviewPanel = 'directMessages';
     state.game = null;
+    app.notePrivateConversation(user.id);
     renderServers();
     renderChannels();
     await loadMessages();

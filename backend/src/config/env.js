@@ -3,6 +3,10 @@ const path = require('path');
 require('dotenv').config({
   path: path.join(__dirname, '../../.env')
 });
+require('dotenv').config({
+  path: path.join(__dirname, '../../.env.local'),
+  override: true
+});
 
 const env = {
   port: Number(process.env.PORT) || 5000,
@@ -37,6 +41,10 @@ const rtcUrls = (name, pattern, fallback = '') => {
 env.webRtcStunUrls = rtcUrls('WEBRTC_STUN_URLS', /^stuns?:[^\s@]+$/i, 'stun:stun.l.google.com:19302');
 env.webRtcTurnUrls = rtcUrls('WEBRTC_TURN_URLS', /^turns?:[^\s@]+$/i);
 env.webRtcTurnSharedSecret = process.env.WEBRTC_TURN_SHARED_SECRET || '';
+env.livekitUrl = process.env.LIVEKIT_URL || '';
+env.livekitApiKey = process.env.LIVEKIT_API_KEY || '';
+env.livekitApiSecret = process.env.LIVEKIT_API_SECRET || '';
+if (env.livekitUrl && !/^wss:\/\/[^\s@]+$/i.test(env.livekitUrl)) throw new Error('LIVEKIT_URL deve essere un URL wss di LiveKit Cloud');
 if (env.webRtcTurnUrls.length && env.webRtcTurnSharedSecret.length < 32) throw new Error('WEBRTC_TURN_SHARED_SECRET richiede almeno 32 caratteri quando TURN è configurato');
 if (env.maxAttachmentFilesPerMessage > 1) throw new Error('Il modello attuale supporta al massimo un allegato per messaggio');
 if (env.maxAttachmentBytes === 0) throw new Error('MAX_ATTACHMENT_BYTES deve essere maggiore di zero');

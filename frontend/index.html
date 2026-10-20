@@ -4,8 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>UniChat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script>
+      try {
+        const theme = localStorage.getItem('unichat-theme');
+        if (theme === 'dark' || theme === 'copper') document.documentElement.dataset.theme = theme;
+      } catch (_) { /* Il tema chiaro resta disponibile anche senza storage. */ }
+    </script>
     <link rel="stylesheet" href="./assets/css/styles.css" />
     <link rel="stylesheet" href="./assets/css/redesign.css" />
+    <link rel="stylesheet" href="./assets/css/theme.css" />
+    <link rel="stylesheet" href="./assets/css/app-shell.css" />
   </head>
   <body>
     <div class="splash-screen" id="splashScreen" aria-hidden="true">
@@ -16,9 +27,9 @@
       <aside class="server-rail" aria-label="Server">
         <button class="brand-mark" id="homeButton" type="button" title="Home" aria-label="Vai alla home">U</button>
         <div class="server-list" id="serverList" role="navigation" aria-label="I miei server"><span class="server-list-empty" id="serverListEmpty">Nessun server</span></div>
-        <button class="icon-button" id="newServerButton" type="button" title="Crea server" aria-label="Crea server">+</button>
-        <button class="icon-button" id="addServerInviteButton" type="button" title="Entra con invito" aria-label="Entra in un server con un invito">↗</button>
-        <button class="game-rail-button" id="gameRailButton" type="button" title="Giochi" aria-label="Apri giochi">XO</button>
+        <button class="icon-button" id="newServerButton" type="button" title="Crea server" aria-label="Crea server"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></button>
+        <button class="icon-button" id="addServerInviteButton" type="button" title="Entra con invito" aria-label="Entra in un server con un invito"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5h7v7M19 5l-9 9M19 14v5H5V5h5" /></svg></button>
+        <button class="game-rail-button" id="gameRailButton" type="button" title="Giochi" aria-label="Apri giochi"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10c2 0 3 1 3.5 3l1 4c.4 1.8-.4 3-1.8 3-.8 0-1.4-.4-2-1.2L16 15H8l-1.7 1.8c-.6.8-1.2 1.2-2 1.2-1.4 0-2.2-1.2-1.8-3l1-4C4 9 5 8 7 8Z"/><path d="M7 11v4m-2-2h4"/><circle cx="16" cy="11.5" r=".7"/><circle cx="18" cy="13.5" r=".7"/></svg></button>
       </aside>
       <div class="server-context-menu hidden" id="serverContextMenu" role="menu" aria-label="Azioni server"></div>
 
@@ -30,9 +41,13 @@
           </div>
         </header>
 
-        <nav class="sidebar-primary-nav hidden" id="sidebarPrimaryNav" aria-label="Navigazione principale">
-          <button type="button" id="sidebarHomeButton">Home</button>
+        <nav class="sidebar-quick-actions hidden" id="sidebarQuickActions" aria-label="Azioni Home">
+          <button type="button" id="sidebarFriendsButton"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 5a3 3 0 0 1 0 6m2 9v-2a6 6 0 0 0-3-5.2"/></svg><span>Amici</span><strong id="sidebarFriendsCount" class="hidden">0</strong></button>
+          <button type="button" id="sidebarRequestsButton"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v12H8l-4 3V5Z"/><path d="M8 9h8m-8 4h5"/></svg><span>Richieste</span><strong id="sidebarRequestsCount" class="hidden">0</strong></button>
+          <button class="sidebar-add-friend" id="addFriendButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2m4-10v8m-4-4h8"/></svg><span>Aggiungi amico</span></button>
+          <button id="openFavoritesButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.8 6.4.9-4.6 4.5 1.1 6.3L12 17.5l-5.7 3 1.1-6.3-4.6-4.5 6.4-.9L12 3Z"/></svg><span>Preferiti</span></button>
         </nav>
+
         <div class="auth-panel" id="authPanel">
           <div class="tabs" role="tablist" aria-label="Autenticazione">
             <button class="tab active" data-auth-tab="login" type="button">Login</button>
@@ -101,12 +116,12 @@
         </div>
 
         <section class="user-dock hidden" id="userDock" aria-label="Profilo utente">
-          <button class="user-card" id="profileButton" type="button">
+          <button class="user-card" id="profileButton" type="button" title="Apri profilo" aria-label="Apri profilo">
             <div class="member-avatar" id="profileAvatar"></div>
-            <div>
+            <span class="user-card-identity">
               <strong id="profileName">Utente</strong>
-              <span id="profileHandle">@utente</span>
-            </div>
+              <span id="profileRole">Studente</span>
+            </span>
           </button>
           <div class="status-pill" id="connectionStatus">offline</div>
           <div class="user-controls" aria-label="Controlli utente">
@@ -154,6 +169,7 @@
         <header class="channel-header">
           <button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-label="Apri navigazione" aria-controls="appSidebar" aria-expanded="false">☰</button>
           <div>
+            <span class="header-screen-icon" id="headerScreenIcon" aria-hidden="true">⌂</span>
             <p class="eyebrow" id="channelType">Canale</p>
             <h2 id="channelTitle">Benvenuto in UniChat</h2>
           </div>
@@ -238,7 +254,7 @@
                 <input type="text" name="name" placeholder="nuovo-canale" aria-label="Nome del nuovo canale" minlength="2" />
                 <select name="type" aria-label="Tipo canale">
                   <option value="TEXT">Testo</option>
-                  <option value="VOICE">Voce</option>
+                  <option value="VOICE">Chat vocale</option>
                 </select>
                 <button type="submit" aria-label="Crea canale">+</button>
               </form>
@@ -273,12 +289,9 @@
           </div>
         </section>
 
-        <section class="home-panel hidden" id="homePanel" aria-label="Home e amici">
-          <header class="home-panel-header"><div><h2 tabindex="-1">Amici</h2><p>Persone e richieste</p></div><div class="home-header-actions"><button class="secondary-button hidden" id="adminButton" type="button">Pannello Admin</button><button class="secondary-button hidden" id="superAdminButton" type="button">Pannello SuperAdmin</button><button class="secondary-button" id="openFavoritesButton" type="button">Preferiti</button><button class="primary-button" id="addFriendButton" type="button">Aggiungi amico</button></div></header>
-          <div class="home-panel-body">
-            <section aria-labelledby="homeFriendsTitle"><h3 id="homeFriendsTitle">I tuoi amici</h3><div id="homeFriendsSlot"></div></section>
-            <section aria-labelledby="homeRequestsTitle"><h3 id="homeRequestsTitle">Richieste di amicizia</h3><div id="homeRequestsSlot"></div></section>
-            <section aria-labelledby="homeServerRequestsTitle"><h3 id="homeServerRequestsTitle">Richieste server</h3><div id="homeServerRequestsSlot"></div></section>
+        <section class="home-panel hidden" id="homePanel" aria-label="Home">
+          <div class="home-welcome">
+            <h2 tabindex="-1">Benvenuto su UniChat</h2>
           </div>
         </section>
         <aside class="member-panel hidden" id="memberPanel" aria-label="Membri del server"><header><h3>Membri</h3><button type="button" id="closeMemberPanel" aria-label="Chiudi elenco membri">Chiudi</button></header><div class="member-list" id="memberList"></div></aside>
@@ -354,24 +367,21 @@
 
         <div class="messages hidden" id="messages"></div>
 
-        <section class="voice-panel hidden" id="voicePanel" aria-label="Canale vocale">
+        <section class="voice-panel hidden" id="voicePanel" aria-label="Chat vocale">
           <div class="voice-copy">
-            <h2 id="voiceTitle">Canale vocale</h2>
-            <p id="voiceStatus">Entra nel canale per parlare.</p>
+            <h2 id="voiceTitle">Chat vocale</h2>
+            <p id="voiceStatus" role="status" aria-live="polite">Controlla webcam e microfono, poi premi Entra.</p>
           </div>
+          <div class="voice-videos" id="voiceVideos"></div>
           <div class="voice-actions">
+            <button class="secondary-button" id="voiceMicButton" type="button" aria-pressed="true">Disattiva microfono</button>
+            <button class="secondary-button" id="voiceCameraButton" type="button" aria-pressed="true">Disattiva videocamera</button>
             <button class="primary-button" id="joinVoiceButton" type="button">Entra</button>
+            <button class="secondary-button hidden" id="voiceShareScreenButton" type="button">Condividi schermo totale</button>
+            <button class="secondary-button hidden" id="voiceShareWindowButton" type="button">Condividi finestra singola</button>
+            <button class="secondary-button hidden" id="voiceStopShareButton" type="button">Interrompi condivisione</button>
             <button class="danger-button hidden" id="leaveVoiceButton" type="button">Esci</button>
           </div>
-          <div class="voice-participants" id="voiceParticipants"></div>
-          <section class="voice-transcript" aria-label="Trascrizione vocale">
-            <div class="voice-transcript-header">
-              <h3>Trascrizione live</h3>
-              <span id="voiceTranscriptStatus">Disponibile dopo l'ingresso nel canale.</span>
-            </div>
-            <div class="voice-transcript-list" id="voiceTranscriptList"></div>
-            <p class="voice-transcript-interim hidden" id="voiceTranscriptInterim"></p>
-          </section>
           <div class="remote-audio" id="remoteAudio"></div>
         </section>
 
@@ -436,6 +446,8 @@
     </dialog>
 
     <dialog id="friendDialog" class="compact-dialog" aria-labelledby="friendDialogTitle"><div class="dialog-card"><header><h2 id="friendDialogTitle">Aggiungi un amico</h2><button type="button" class="icon-button" id="closeFriendDialog" aria-label="Chiudi">×</button></header><div id="friendDialogSlot"></div></div></dialog>
+    <dialog id="friendsDialog" class="compact-dialog social-dialog" aria-labelledby="friendsDialogTitle"><div class="dialog-card"><header><h2 id="friendsDialogTitle">Amici</h2><button type="button" class="icon-button" id="closeFriendsDialog" aria-label="Chiudi amici">×</button></header><section aria-label="I tuoi amici"><div id="homeFriendsSlot"></div></section><button class="primary-button" id="friendsAddButton" type="button">Aggiungi un amico</button></div></dialog>
+    <dialog id="requestsDialog" class="compact-dialog social-dialog" aria-labelledby="requestsDialogTitle"><div class="dialog-card"><header><h2 id="requestsDialogTitle">Richieste</h2><button type="button" class="icon-button" id="closeRequestsDialog" aria-label="Chiudi richieste">×</button></header><section aria-label="Richieste di amicizia"><h3>Amicizia</h3><div id="homeRequestsSlot"></div></section><section aria-label="Richieste server"><h3>Server</h3><div id="homeServerRequestsSlot"></div></section><button class="secondary-button" id="requestsAddButton" type="button">Cerca un amico</button></div></dialog>
     <dialog id="inviteDialog" class="compact-dialog" aria-labelledby="inviteDialogTitle"><div class="dialog-card"><header><h2 id="inviteDialogTitle">Entra in un server</h2><button type="button" class="icon-button" id="closeInviteDialog" aria-label="Chiudi">×</button></header><p>Incolla un codice o un link invito.</p><div id="inviteDialogSlot"></div></div></dialog>
     <dialog id="serverSettingsDialog" class="server-settings-dialog" aria-labelledby="serverSettingsTitle"><div class="dialog-card"><header><h2 id="serverSettingsTitle">Impostazioni server</h2><button type="button" class="icon-button" id="closeServerSettingsDialog" aria-label="Chiudi impostazioni server">×</button></header><form id="serverSettingsForm" class="stack"><label>Nome server<input id="serverSettingsName" name="name" type="text" minlength="2" maxlength="80" required /></label><label>Descrizione<textarea id="serverSettingsDescription" name="description" maxlength="1000" rows="2"></textarea></label><button class="primary-button" type="submit">Salva modifiche</button></form><section class="server-settings-section" id="serverInviteSettings"><h3>Inviti e visibilità</h3><input id="serverInviteLink" class="hidden" type="text" readonly aria-label="Link invito da copiare" /><div id="serverSettingsInviteSlot"></div></section><section class="server-settings-section"><h3>Gestione</h3><div id="serverSettingsDangerSlot"></div></section></div></dialog>
     <dialog id="renameChannelDialog" class="compact-dialog" aria-labelledby="renameChannelTitle"><form id="renameChannelForm" class="dialog-card"><header><h2 id="renameChannelTitle">Rinomina canale</h2><button type="button" class="icon-button" id="closeRenameChannelDialog" aria-label="Chiudi">×</button></header><label>Nome canale<input id="renameChannelName" name="name" type="text" minlength="2" maxlength="80" required /></label><button class="primary-button" type="submit">Salva nome</button></form></dialog>
@@ -508,6 +520,29 @@
           <button class="primary-button" type="submit">Salva profilo</button>
         </form>
 
+        <section class="settings-section appearance-settings">
+          <h3>Aspetto</h3>
+          <p>Scegli come visualizzare UniChat su questo browser.</p>
+          <fieldset class="theme-options">
+            <legend>Tema</legend>
+            <label class="theme-option">
+              <input type="radio" name="theme" value="light" checked />
+              <span class="theme-preview theme-preview-light" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span>Chiaro</span>
+            </label>
+            <label class="theme-option">
+              <input type="radio" name="theme" value="dark" />
+              <span class="theme-preview theme-preview-dark" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span>Scuro</span>
+            </label>
+            <label class="theme-option">
+              <input type="radio" name="theme" value="copper" />
+              <span class="theme-preview theme-preview-copper" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span>Nero e Rame</span>
+            </label>
+          </fieldset>
+        </section>
+
         <section class="settings-section">
           <h3>Blocca amici</h3>
           <div class="settings-list" id="settingsFriendBlockList"></div>
@@ -522,6 +557,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/assets/vendor/livekit-client.js"></script>
     <script src="./assets/js/app.js" type="module"></script>
   </body>
 </html>

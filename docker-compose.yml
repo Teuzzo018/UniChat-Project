@@ -10,6 +10,8 @@ services:
         condition: service_healthy
     env_file:
       - backend/.env
+      - path: backend/.env.local
+        required: false
     environment:
       DATABASE_URL: postgresql://unichat_user:unichat_password@postgres:5432/unichat_db?schema=public
       PORT: 5000
