@@ -12,6 +12,7 @@ import { registerMessageViewsController } from './modules/controllers/messageVie
 import { registerNavigationController } from './modules/controllers/navigation.js';
 import { registerServerListsController } from './modules/controllers/serverLists.js';
 import { registerSettingsController } from './modules/controllers/settings.js';
+import { registerSlashCommandsController } from './modules/controllers/slashCommands.js';
 import { registerShellController } from './modules/controllers/shell.js';
 import { registerShellLayoutController } from './modules/controllers/shellLayout.js';
 import { registerSocketController } from './modules/controllers/socket.js';
@@ -39,6 +40,7 @@ registerNavigationController(app);
 registerMessageAttachmentsController(app);
 registerGameBoardController(app);
 registerGameLauncherController(app);
+registerSlashCommandsController(app);
 registerSocketController(app);
 registerBootstrapDataController(app);
 registerStartup(app);

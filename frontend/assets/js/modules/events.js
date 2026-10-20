@@ -39,6 +39,8 @@ export const setupEventListeners = ({
   renderAvailableServers,
   selectChannel,
   buildMessageFormData,
+  getSlashCommand,
+  runSlashCommand,
   sendMessageWithUpload,
   clearComposer,
   validateAttachment,
@@ -323,6 +325,8 @@ export const setupEventListeners = ({
   elements.messageForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const { formData, content, file, valid } = buildMessageFormData();
+    const command = state.activeConversationType === 'private' && !file ? getSlashCommand(content) : null;
+    const commandPeerId = state.activePrivateUserId;
 
     if (!valid) {
       return;
@@ -334,12 +338,16 @@ export const setupEventListeners = ({
 
     if (state.activeConversationType === 'private' || file) {
       try {
-        await sendMessageWithUpload({ formData, file });
+        const sentMessage = await sendMessageWithUpload({ formData, file });
+        if (!sentMessage) return;
       } catch (error) {
         showToast(error.message);
         return;
       }
       clearComposer();
+      if (command && state.activeConversationType === 'private' && state.activePrivateUserId === commandPeerId) {
+        runSlashCommand(command);
+      }
       return;
     }
 

@@ -153,8 +153,11 @@ export const registerGameBoardController = (app) => {
   };
 
   const closeGame = () => {
-    state.activePrivateUserId = null;
+    const opponentId = getOpponent()?.id || state.activePrivateUserId;
     state.game = null;
+    state.activePrivateUserId = state.friends.some((item) => item.friend.id === opponentId) ? opponentId : null;
+    state.activeServerId = null;
+    state.activeConversationType = 'private';
     elements.gamePanel.classList.add('hidden');
     renderChannels();
     loadMessages();

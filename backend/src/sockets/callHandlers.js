@@ -2,6 +2,7 @@ const prisma = require('../lib/prisma');
 const env = require('../config/env');
 const { canContact } = require('../controllers/messageControllers');
 const { getSocketUserSummary, getAuthenticatedSocketUser, getUserRoom } = require('./shared');
+const { recordPrivateActivity } = require('../utils/privateActivity');
 
 const registries = new WeakMap();
 const registryFor = (io) => {
@@ -57,6 +58,15 @@ const registerCallHandlers = ({ io, socket }) => {
         data: { status, endedAt: new Date() }
       });
     } catch (error) { console.error('Stato chiamata non salvato:', error.code || error.name); }
+    const callType = call.mode === 'audio' ? 'audio' : 'video';
+    const outcome = {
+      DECLINED: 'rifiutata', CANCELLED: 'annullata', TIMEOUT: 'senza risposta'
+    }[status] || (previous === 'ACCEPTED' ? 'terminata' : 'non completata');
+    await recordPrivateActivity({
+      io, senderId: call.callerId, recipientId: call.recipientId,
+      activityKey: `call:${call.id}`, kind: 'CALL',
+      content: `Chiamata ${callType} avviata da ${call.callerName}: ${outcome}.`
+    });
     const payload = { callId: call.id, reason };
     io.to(call.callerSocketId).emit('private_video_call_ended', payload);
     io.to(getUserRoom(call.recipientId)).emit('private_video_call_ended', payload);
@@ -74,7 +84,7 @@ const registerCallHandlers = ({ io, socket }) => {
       if (registry.users.has(user.id) || registry.users.has(recipientId) || registry.calls.has(callId)) {
         return ack(callback, { ok: false, code: 'busy', error: 'Utente occupato' });
       }
-      const call = { id: callId, callerId: user.id, recipientId, callerSocketId: socket.id, mode,
+      const call = { id: callId, callerId: user.id, callerName: user.fullName, recipientId, callerSocketId: socket.id, mode,
         recipientSocketId: null, status: 'RINGING', offerSent: false, answerSent: false,
         iceCount: 0, finishing: false, initializing: true, aborted: false, timer: null };
       registry.calls.set(callId, call);

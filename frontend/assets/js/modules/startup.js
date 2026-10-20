@@ -5,6 +5,7 @@ export const registerStartup = (app) => {
     app.startSplashScreenTimers();
     app.setupShellLayout();
     setupEventListeners(app);
+    app.setupSlashCommands();
     app.bootstrap().catch((error) => app.showToast(error.message));
   };
 };

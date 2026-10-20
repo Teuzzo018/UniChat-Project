@@ -15,6 +15,8 @@ L'app permette di creare server universitari, usare canali testuali e vocali, in
 - Canali vocali WebRTC con segnalazione Socket.IO.
 - Videochiamate private.
 - Tris privato con inviti diretti agli amici o link condiviso in chat.
+- Nelle chat private, `/` mostra i comandi rapidi `/tris`, `/impiccato`, `/call` e `/videocall`, anche dopo il testo di un messaggio. La scelta inserisce il comando nella bozza; il messaggio va inviato per avviare l'azione.
+- La chat privata conserva voci di sistema per chiamate audio/video concluse e risultati di Tris e Impiccato.
 - Pannelli Admin e SuperAdmin per gestire utenti e server; i messaggi si eliminano dalla chat secondo i permessi del server.
 
 ## Stack
@@ -342,6 +344,7 @@ L'autore può eliminare un proprio messaggio solo in un canale a cui ha ancora a
 - `DELETE /api/private/:userId/messages/:messageId`
 
 Anche i messaggi privati accettano testo e file tramite `multipart/form-data`.
+Le chiamate concluse e i risultati dei giochi sono salvati come voci di sistema nella cronologia privata. La migrazione `20261020190000_private_chat_activities` aggiunge il tipo della voce e una chiave univoca che evita duplicati. Applica le migrazioni prima di avviare il backend aggiornato.
 Solo amici attivi, non bloccati e non sospesi possono aprire o usare una conversazione privata. Alla fine dell'amicizia la cronologia resta nel database, ma lettura, invio, eliminazione e download degli allegati DM sono bloccati; una nuova amicizia ripristina l'accesso alla cronologia. Solo il mittente può eliminare un proprio messaggio privato nella coppia indicata dalla richiesta. La cronologia di entrambi i partecipanti mostra lo stesso segnaposto.
 
 ## Eventi Socket.IO

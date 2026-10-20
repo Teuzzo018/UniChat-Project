@@ -408,7 +408,8 @@
         </section>
 
         <form class="composer hidden" id="messageForm">
-          <input type="text" name="content" id="messageInput" maxlength="1000" placeholder="Scrivi un messaggio..." aria-label="Scrivi un messaggio" autocomplete="off" />
+          <input type="text" name="content" id="messageInput" maxlength="1000" placeholder="Scrivi un messaggio... (/ per i comandi)" aria-label="Scrivi un messaggio" aria-autocomplete="list" aria-controls="slashCommandMenu" aria-expanded="false" autocomplete="off" />
+          <div class="slash-command-menu hidden" id="slashCommandMenu" role="listbox" aria-label="Comandi rapidi"></div>
           <button class="call-composer-button hidden" id="audioCallButton" type="button" title="Avvia chiamata audio" aria-label="Avvia chiamata audio"><span aria-hidden="true">☎</span><span>Chiama</span></button>
           <button class="call-composer-button hidden" id="videoCallButton" type="button" title="Avvia videochiamata" aria-label="Avvia videochiamata">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="14" height="14" rx="2"></rect><path d="m16 10 6-4v12l-6-4"></path></svg><span>Video</span>

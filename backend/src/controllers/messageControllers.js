@@ -27,6 +27,7 @@ const messageSelect = {
 const privateMessageSelect = {
   id: true,
   content: true,
+  kind: true,
   attachmentUrl: true,
   attachmentName: true,
   attachmentMimeType: true,
@@ -266,12 +267,12 @@ const listPrivateMessages = async (req, res) => {
         { senderId: recipient.id, recipientId: req.user.id }
       ]
     },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
     take: 80,
     select: privateMessageSelect
   });
 
-  return res.status(200).json(messages);
+  return res.status(200).json(messages.reverse());
 };
 
 const deletePrivateMessage = async (req, res) => {
@@ -279,13 +280,14 @@ const deletePrivateMessage = async (req, res) => {
   if (!recipient) return res.status(404).json({ error: 'Messaggio non trovato' });
   if (!await canContact(req.user.id, recipient.id)) return res.status(404).json({ error: 'Conversazione non disponibile' });
   const message = await prisma.privateMessage.findUnique({ where: { id: req.params.messageId }, select: {
-    id: true, senderId: true, recipientId: true, attachmentUrl: true, deletedAt: true
+    id: true, senderId: true, recipientId: true, attachmentUrl: true, deletedAt: true, kind: true
   } });
   if (!message || !(
     (message.senderId === req.user.id && message.recipientId === recipient.id) ||
     (message.senderId === recipient.id && message.recipientId === req.user.id)
   )) return res.status(404).json({ error: 'Messaggio non trovato' });
   if (message.senderId !== req.user.id) return res.status(403).json({ error: 'Solo l’autore può eliminare il messaggio privato' });
+  if (message.kind && message.kind !== 'USER') return res.status(403).json({ error: 'Le attività non si possono eliminare' });
   const result = await tombstonePrivateMessage(message, req.user.id);
   if (!result.alreadyDeleted) {
     const payload = { id: message.id, senderId: message.senderId, recipientId: message.recipientId,

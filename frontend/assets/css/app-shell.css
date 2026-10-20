@@ -175,6 +175,17 @@ input:focus, select:focus, textarea:focus, button:focus-visible { box-shadow: 0 
 .composer { gap: 8px; margin: 0 16px 14px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .composer > #messageInput { background: transparent; border: 0; box-shadow: none; }
 .composer:focus-within { border-color: var(--focus); box-shadow: 0 0 0 2px var(--selection); }
+.composer { position: relative; }
+.slash-command-menu { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 10; display: grid; gap: 3px; max-height: min(320px, 45vh); overflow-y: auto; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); }
+.slash-command-menu.hidden { display: none; }
+.slash-command-option { display: flex; align-items: center; gap: 12px; min-height: 42px; padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.slash-command-option strong { min-width: 92px; color: var(--accent-dark); }
+.slash-command-option span { color: var(--muted); }
+.slash-command-option:hover, .slash-command-option[aria-selected="true"] { background: var(--selection); }
+.private-activity { display: flex; align-items: center; gap: 10px; margin: 12px auto; padding: 9px 12px; width: fit-content; max-width: min(90%, 650px); border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); font-size: .82rem; }
+.private-activity-icon { flex: none; color: var(--accent-dark); font-size: 1.1rem; }
+.private-activity time { flex: none; color: var(--muted); font-size: .72rem; white-space: nowrap; }
+@media (max-width: 600px) { .private-activity { flex-wrap: wrap; } .private-activity time { margin-left: auto; } }
 .member-panel { position: absolute; z-index: 6; top: 58px; right: 0; bottom: 0; width: 270px; padding: 16px; background: var(--sidebar-bg); border-left: 1px solid var(--line); box-shadow: none; }
 .content-area.members-open { padding-right: 270px; }
 .home-panel-header { padding: 18px clamp(16px, 3vw, 36px); }

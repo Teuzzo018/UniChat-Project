@@ -68,6 +68,23 @@ export const registerMessageViewsController = (app) => {
   document.querySelector('#closeFavoritesDialog').addEventListener('click', () => favoritesDialog.close());
 
   const renderMessage = (message) => {
+    if (message.kind === 'CALL' || message.kind === 'GAME') {
+      const activity = document.createElement('article');
+      activity.className = 'private-activity';
+      activity.dataset.messageId = message.id;
+      const icon = document.createElement('span');
+      icon.className = 'private-activity-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = message.kind === 'GAME' ? '♟' : '☎';
+      const content = document.createElement('span');
+      content.textContent = message.content;
+      const time = document.createElement('time');
+      time.dateTime = message.createdAt;
+      time.textContent = new Date(message.createdAt).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      activity.append(icon, content, time);
+      elements.messages.append(activity);
+      return;
+    }
     const article = document.createElement('article');
     const authorUser = message.user || message.sender;
     const ownMessage = authorUser.id === state.user?.id;

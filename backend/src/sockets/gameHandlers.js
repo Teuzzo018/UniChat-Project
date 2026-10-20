@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const prisma = require('../lib/prisma');
 const { ensureServerMember } = require('../controllers/serverControllers');
 const { getSocketUserSummary, getAuthenticatedSocketUser, getUserRoom } = require('./shared');
+const { recordPrivateActivity } = require('../utils/privateActivity');
 
 const games = new Map();
 const gameTypes = {
@@ -105,6 +106,7 @@ const createGame = ({ serverId = null, status, type, firstUser, secondUser = nul
     board: gameType === gameTypes.TICTACTOE ? Array(9).fill(null) : [],
     turn: 'X',
     winner: null,
+    round: 1,
     winningLine: [],
     players: [
       { ...getSocketUserSummary(firstUser), symbol: 'X' },
@@ -136,6 +138,7 @@ const emitGameUpdate = (io, game) => {
 };
 
 const resetGame = (game) => {
+  game.round += 1;
   game.status = 'active';
   game.turn = 'X';
   game.winner = null;
@@ -152,6 +155,30 @@ const resetGame = (game) => {
   }
 
   game.board = Array(9).fill(null);
+};
+
+const recordGameResult = async (io, game) => {
+  const [first, second] = game.players;
+  if (!first || !second || game.status !== 'finished') return;
+  if (!await ensureAcceptedFriendship(first.id, second.id)) return;
+  const label = game.type === gameTypes.HANGMAN ? 'Impiccato' : 'Tris';
+  let result;
+  if (game.type === gameTypes.HANGMAN) {
+    result = game.winner === 'players'
+      ? `${first.fullName} e ${second.fullName} hanno vinto.`
+      : `${first.fullName} e ${second.fullName} hanno perso.`;
+  } else if (game.winner === 'draw') {
+    result = `Pareggio tra ${first.fullName} e ${second.fullName}.`;
+  } else {
+    const winner = game.players.find((player) => player.symbol === game.winner);
+    const loser = game.players.find((player) => player.symbol !== game.winner);
+    result = `${winner.fullName} ha vinto contro ${loser.fullName}.`;
+  }
+  await recordPrivateActivity({
+    io, senderId: first.id, recipientId: second.id,
+    activityKey: `game:${game.id}:round:${game.round}`, kind: 'GAME',
+    content: `${label}: ${result}`
+  });
 };
 
 const registerGameHandlers = ({ io, socket }) => {
@@ -285,6 +312,7 @@ const registerGameHandlers = ({ io, socket }) => {
           game.turn = game.turn === 'X' ? 'O' : 'X';
         }
 
+        if (game.status === 'finished') await recordGameResult(io, game);
         emitGameUpdate(io, game);
         callback?.({ ok: true, game: getGameView(game) });
         return;
@@ -303,6 +331,7 @@ const registerGameHandlers = ({ io, socket }) => {
 
       if (game.winner) {
         game.status = 'finished';
+        await recordGameResult(io, game);
       } else {
         game.turn = game.turn === 'X' ? 'O' : 'X';
       }

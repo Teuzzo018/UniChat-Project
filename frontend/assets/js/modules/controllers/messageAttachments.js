@@ -238,6 +238,7 @@ export const registerMessageAttachmentsController = (app) => {
       renderMessage(message);
       elements.messages.scrollTop = elements.messages.scrollHeight;
     }
+    return message;
   };
 
   Object.assign(app, {
