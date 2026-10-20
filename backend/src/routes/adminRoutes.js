@@ -1,7 +1,6 @@
 const express = require('express');
 
 const {
-  deleteMessage,
   deleteChannel,
   updateChannel,
   deleteServer,
@@ -24,7 +23,6 @@ router.use(authMiddleware);
 
 router.get('/overview', requireAdminScope, asyncHandler(listOverview));
 router.get('/audit', requireAdminScope, asyncHandler(listAudit));
-router.delete('/messages/:id', audit('MESSAGE_DELETE', 'MESSAGE', 'id'), requireAdminScope, asyncHandler(deleteMessage));
 router.patch('/servers/:id', audit('SERVER_UPDATE', 'SERVER', 'id', 'id'), requireAdminScope, asyncHandler(updateServer));
 router.patch('/servers/:serverId/channels/:channelId', audit('CHANNEL_UPDATE', 'CHANNEL', 'channelId', 'serverId'), requireAdminScope, asyncHandler(updateChannel));
 router.delete('/servers/:serverId/channels/:channelId', audit('CHANNEL_DELETE', 'CHANNEL', 'channelId', 'serverId'), requireAdminScope, asyncHandler(deleteChannel));

@@ -318,10 +318,6 @@
             <div class="admin-list" id="adminServers"></div>
           </div>
           <div class="admin-section">
-            <h2>Ultimi messaggi</h2>
-            <div class="admin-list" id="adminMessages"></div>
-          </div>
-          <div class="admin-section">
             <h2>Registro operazioni</h2>
             <div class="admin-list" id="adminAudit"></div>
           </div>
@@ -335,8 +331,17 @@
             <div class="admin-list" id="superAdminUsers"></div>
             <div class="admin-toolbar"><button class="secondary-button" id="superAdminPrevPage" type="button">Precedente</button><span id="superAdminPageLabel"></span><button class="secondary-button" id="superAdminNextPage" type="button">Successiva</button></div>
           </div>
+          <div class="admin-section">
+            <h2>Università disponibili</h2>
+            <p>Le università create qui compaiono nella registrazione degli utenti.</p>
+            <form id="superAdminUniversityForm" class="stack">
+              <label>Nome università <input name="name" type="text" minlength="2" maxlength="100" required placeholder="Es. Università di Roma" /></label>
+              <label>Dominio <input name="domain" type="text" minlength="4" maxlength="253" required placeholder="Es. uniroma.it" /></label>
+              <button class="primary-button" type="submit">Aggiungi università</button>
+            </form>
+            <div class="admin-list" id="superAdminUniversities"></div>
+          </div>
           <div class="admin-section"><h2>Server</h2><div class="admin-list" id="superAdminServers"></div></div>
-          <div class="admin-section"><h2>Ultimi messaggi</h2><div class="admin-list" id="superAdminMessages"></div></div>
           <div class="admin-section"><h2>Registro operazioni</h2><div class="admin-list" id="superAdminAudit"></div></div>
         </section>
 
@@ -421,6 +426,10 @@
         <label>
           Descrizione
           <textarea name="description" rows="3" placeholder="Gruppo per lezioni, materiali e studio"></textarea>
+        </label>
+        <label class="hidden" id="creatorServerUniversityField">
+          Università del server
+          <select name="universityId" id="creatorServerUniversity" disabled></select>
         </label>
         <button class="primary-button" value="default" type="submit">Crea</button>
       </form>

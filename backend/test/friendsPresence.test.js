@@ -33,7 +33,11 @@ test('amicizie: duplicati, richieste incrociate, rifiuto, annullamento e rimozio
   let next = 0;
   const find = ({ where }) => [...rows.values()].find((row) => row.id === where.id) || null;
   const db = {
-    user: { findUnique: async ({ where }) => users.get(where.id || where.username) || null },
+    user: {
+      findUnique: async ({ where }) => users.get(where.id) || null,
+      findFirst: async ({ where }) => [...users.values()].find((user) =>
+        user.username?.toLowerCase() === where.username.equals.toLowerCase()) || null
+    },
     blockedUser: { findFirst: async () => blocked ? { id: 'block' } : null },
     friendship: {
       upsert: async ({ where, create }) => {

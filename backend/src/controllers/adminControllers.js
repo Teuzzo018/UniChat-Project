@@ -3,7 +3,6 @@ const disconnectUserSockets = require('../utils/disconnectUserSockets');
 const { lockRoles } = require('../lib/roleManagement');
 const { isSuperadmin } = require('../lib/authorization');
 const { canModerateServer, canModerateGlobal } = require('../lib/authorization');
-const { tombstoneChannelMessage } = require('../utils/messageDeletion');
 
 const pageOptions = (query) => {
   const page = Math.min(10000, Math.max(1, Number.parseInt(query.page, 10) || 1));
@@ -26,8 +25,7 @@ const listOverview = async (req, res) => {
     ] } : {})
   };
   const serverWhere = scope.global ? {} : { id: { in: scope.serverIds } };
-  const messageWhere = scope.global ? {} : { channel: { serverId: { in: scope.serverIds } } };
-  const [users, userCount, servers, messages] = await Promise.all([
+  const [users, userCount, servers] = await Promise.all([
     prisma.user.findMany({
       where: userWhere,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -81,37 +79,10 @@ const listOverview = async (req, res) => {
           }
         }
       }
-    }),
-    prisma.message.findMany({
-      where: messageWhere,
-      orderBy: { createdAt: 'desc' },
-      take: 30,
-      select: {
-        id: true,
-        content: true,
-        deletedAt: true,
-        channelId: true,
-        createdAt: true,
-        user: {
-          select: {
-            fullName: true
-          }
-        },
-        channel: {
-          select: {
-            name: true,
-            server: {
-              select: {
-                id: true, name: true
-              }
-            }
-          }
-        }
-      }
     })
   ]);
 
-  return res.status(200).json({ users, servers, messages, pagination: {
+  return res.status(200).json({ users, servers, pagination: {
     page, pageSize, total: userCount, pages: Math.ceil(userCount / pageSize)
   }, capabilities: { global: scope.global, superadmin: isSuperadmin(req.user) } });
 };
@@ -124,21 +95,6 @@ const listAudit = async (req, res) => {
     prisma.adminAuditLog.count({ where })
   ]);
   return res.status(200).json({ entries, pagination: { page, pageSize, total, pages: Math.ceil(total / pageSize) } });
-};
-
-const deleteMessage = async (req, res) => {
-  const message = await prisma.message.findUnique({ where: { id: req.params.id }, select: {
-    id: true, channelId: true, attachmentUrl: true, deletedAt: true,
-    channel: { select: { serverId: true } }
-  } });
-  if (!message) return res.status(404).json({ error: 'Messaggio non trovato' });
-  req.auditServerId = message.channel.serverId;
-  if (!await canModerateServer(req.user, message.channel.serverId)) return res.status(403).json({ error: 'Permesso server richiesto' });
-  const result = await tombstoneChannelMessage(message, req.user.id);
-  if (!result.alreadyDeleted) req.app.get('io')?.to(`channel:${message.channelId}`).emit('message_deleted', {
-    id: message.id, channelId: message.channelId, deletedAt: result.deletedAt
-  });
-  return res.status(200).json({ message: 'Messaggio eliminato', ...result });
 };
 
 const deleteServer = async (req, res) => {
@@ -240,7 +196,6 @@ const deleteUser = async (req, res) => {
 
 module.exports = {
   deleteChannel,
-  deleteMessage,
   deleteServer,
   deleteUser,
   listAudit,

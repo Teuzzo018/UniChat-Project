@@ -176,8 +176,8 @@ const addFriend = async (req, res) => {
     return res.status(400).json({ error: 'Username mancante' });
   }
 
-  const targetUser = await prisma.user.findUnique({
-    where: { username },
+  const targetUser = await prisma.user.findFirst({
+    where: { username: { equals: username, mode: 'insensitive' } },
     select: { ...userSummarySelect, suspendedAt: true }
   });
 

@@ -10,11 +10,13 @@ const listUniversities = async (req, res) => {
 
 const createUniversity = async (req, res) => {
   try {
-    const { name, domain } = req.body;
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    const domain = typeof req.body?.domain === 'string' ? req.body.domain.trim().toLowerCase() : '';
 
-    if (!name || !domain) {
+    if (name.length < 2 || name.length > 100 ||
+        !/^(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)) {
       return res.status(400).json({
-        error: 'Nome e dominio sono obbligatori'
+        error: 'Inserisci un nome e un dominio universitario validi (es. uniroma.it)'
       });
     }
 

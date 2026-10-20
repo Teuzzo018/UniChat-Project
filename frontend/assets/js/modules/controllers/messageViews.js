@@ -111,8 +111,7 @@ export const registerMessageViewsController = (app) => {
       const server = state.servers.find((item) => item.channels.some((channel) => channel.id === message.channelId));
       const localAdmin = message.channelId && server && (server.ownerId === state.user?.id
         || server.members.some((membership) => membership.user.id === state.user?.id && membership.isAdmin));
-      const canDeleteChannel = message.channelId && (ownMessage || localAdmin ||
-        ['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'].includes(state.user?.role));
+      const canDeleteChannel = message.channelId && (ownMessage || localAdmin);
       const canDeletePrivate = !message.channelId && ownMessage && message.senderId === state.user?.id;
       const actions = document.createElement('details');
       actions.className = 'message-actions';

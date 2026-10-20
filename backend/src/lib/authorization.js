@@ -35,6 +35,11 @@ const canModerateServer = async (user, serverId, db = prisma) => {
   return Boolean(scope && (canModerateGlobal(user) || scope.owner || scope.serverAdmin));
 };
 
+const canModerateServerMessages = async (user, serverId, db = prisma) => {
+  const scope = await getServerScope(user, serverId, db);
+  return Boolean(scope && (scope.owner || scope.serverAdmin));
+};
+
 const requireGlobalModerator = (req, res, next) => canModerateGlobal(req.user)
   ? next() : res.status(403).json({ error: 'Permesso globale richiesto' });
 
@@ -53,6 +58,7 @@ module.exports = {
   canManageServer,
   canModerateGlobal,
   canModerateServer,
+  canModerateServerMessages,
   getServerScope,
   isActive,
   isPrivilegedRole,

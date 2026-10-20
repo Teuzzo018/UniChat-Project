@@ -3,9 +3,7 @@ const bcrypt = require('bcryptjs');
 const env = require('../config/env');
 const prisma = require('../lib/prisma');
 const { createSessionToken, hashSessionToken } = require('../utils/sessionTokens');
-const { registrationRole } = require('../lib/bootstrap');
 const { SITE_OWNER_EMAIL } = require('../lib/authorization');
-const disconnectUserSockets = require('../utils/disconnectUserSockets');
 const { parseInviteCode, isInviteActive, redeemInvite } = require('../utils/serverInvites');
 
 const userSelect = {
@@ -79,6 +77,15 @@ const register = async (req, res) => {
         error: 'URL immagine profilo non valido'
       });
     }
+    if (ownerRegistration) {
+      return res.status(409).json({
+        error: 'Questa email è riservata al Creator. Inserisci un altro indirizzo email.',
+        code: 'EMAIL_ALREADY_REGISTERED'
+      });
+    }
+    if (username === 'teosisto04') {
+      return res.status(409).json({ error: 'Username riservato al Creator. Scegline un altro.' });
+    }
 
     const existingUser = await prisma.user.findUnique({
       where: { email: email.trim().toLowerCase() }
@@ -86,9 +93,7 @@ const register = async (req, res) => {
 
     if (existingUser) {
       return res.status(409).json({
-        error: ownerRegistration
-          ? 'Questa email è riservata al SuperAdmin ed è già registrata. Inserisci un altro indirizzo email.'
-          : 'Email già registrata. Inserisci un altro indirizzo email.',
+        error: 'Email già registrata. Inserisci un altro indirizzo email.',
         code: 'EMAIL_ALREADY_REGISTERED'
       });
     }
@@ -125,7 +130,7 @@ const register = async (req, res) => {
           error: 'Università non trovata'
         });
       }
-    } else if (!ownerRegistration) {
+    } else {
       return res.status(400).json({
         error: 'Se non usi un invito, devi scegliere una università'
       });
@@ -133,21 +138,11 @@ const register = async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, env.saltRounds);
 
-    let demotedUserIds = [];
     const user = await prisma.$transaction(async (tx) => {
-      const role = await registrationRole(tx, normalizedEmail);
-      if (role !== 'SUPERADMIN' && !university && !invitedServer) {
+      if (!university && !invitedServer) {
         const error = new Error('Devi scegliere una università');
         error.statusCode = 409;
         throw error;
-      }
-      if (role === 'SUPERADMIN') {
-        const oldSuperadmins = await tx.user.findMany({ where: { role: 'SUPERADMIN' }, select: { id: true } });
-        demotedUserIds = oldSuperadmins.map(({ id }) => id);
-        if (demotedUserIds.length) {
-          await tx.user.updateMany({ where: { id: { in: demotedUserIds } }, data: { role: 'STUDENT' } });
-          await tx.session.deleteMany({ where: { userId: { in: demotedUserIds } } });
-        }
       }
       const createdUser = await tx.user.create({
         data: {
@@ -157,7 +152,7 @@ const register = async (req, res) => {
           fullName: fullName.trim(),
           avatarUrl: uploadedFile?.url || avatarUrl,
           universityId: university?.id || invitedServer?.universityId || null,
-          role
+          role: 'STUDENT'
         },
         select: userSelect
       });
@@ -168,13 +163,6 @@ const register = async (req, res) => {
 
       return createdUser;
     });
-    await Promise.all(demotedUserIds.map(async (id) => {
-      try {
-        await disconnectUserSockets(req.app, id);
-      } catch (error) {
-        console.error('Errore disconnessione superadmin precedente:', error);
-      }
-    }));
 
     return res.status(201).json({
       message: 'Utente registrato con successo',

@@ -9,7 +9,6 @@ export const registerAdminController = (app) => {
       panel: elements[`${prefix}Panel`],
       users: elements[`${prefix}Users`],
       servers: elements[`${prefix}Servers`],
-      messages: elements[`${prefix}Messages`],
       audit: elements[`${prefix}Audit`],
       status: elements[`${prefix}Status`],
       searchInput: elements[`${prefix}SearchInput`],
@@ -46,6 +45,14 @@ export const registerAdminController = (app) => {
     note.textContent = message;
     container.append(note);
   };
+  const universityForm = document.querySelector('#superAdminUniversityForm');
+  const universityList = document.querySelector('#superAdminUniversities');
+  const loadUniversityPanel = async () => {
+    const universities = await api('/universities');
+    universityList.replaceChildren();
+    for (const university of universities) universityList.append(row(university.name, university.domain).item);
+    if (!universities.length) empty(universityList, 'Nessuna università: aggiungi la prima per aprire le registrazioni ordinarie.');
+  };
   const mutate = async (view, path, method, body, confirmation) => {
     if (confirmation && !await showConfirm(confirmation, 'Conferma')) return;
     try {
@@ -61,12 +68,13 @@ export const registerAdminController = (app) => {
       showToast(error.message);
     }
   };
-  const renderAdminPanel = ({ users, servers, messages, pagination, capabilities }, audit, view) => {
+  const renderAdminPanel = ({ users, servers, pagination, capabilities }, audit, view) => {
     const { global, superadmin } = capabilities;
-    for (const element of [view.users, view.servers, view.messages, view.audit]) element.replaceChildren();
+    for (const element of [view.users, view.servers, view.audit]) element.replaceChildren();
     for (const user of users) {
-      const { item, actions } = row(`${user.fullName} (${user.role})`,
-        `${user.email} · ${user.university?.name || 'Nessuna università'}${user.suspendedAt ? ' · Sospeso' : ''}`);
+      const creator = user.role === 'SUPERADMIN' && user.email?.toLowerCase() === 'teo.sisto.04@gmail.com';
+      const { item, actions } = row(`${user.fullName} (${creator ? 'Creator' : user.role})`,
+        `${user.email} · ${creator ? 'Creator' : user.university?.name || 'Nessuna università'}${user.suspendedAt ? ' · Sospeso' : ''}`);
       const ordinary = !['ADMIN', 'PLATFORM_ADMIN', 'SUPERADMIN'].includes(user.role);
       if (global && user.id !== state.user.id && (superadmin || ordinary)) action(actions,
         user.suspendedAt ? 'Riattiva' : 'Sospendi',
@@ -135,14 +143,6 @@ export const registerAdminController = (app) => {
       view.servers.append(item);
     }
     if (!servers.length) empty(view.servers, 'Nessun server amministrabile.');
-    for (const message of messages) {
-      const { item, actions } = row(`${message.user.fullName} · ${message.channel.server.name} / ${message.channel.name}`,
-        message.deletedAt ? 'Messaggio eliminato' : message.content || 'Allegato');
-      if (!message.deletedAt) action(actions, 'Elimina messaggio', () => mutate(view, `/admin/messages/${message.id}`, 'DELETE', null,
-        'Eliminare questo messaggio?'), true);
-      view.messages.append(item);
-    }
-    if (!messages.length) empty(view.messages, 'Nessun messaggio recente.');
     for (const entry of audit.entries) view.audit.append(row(`${entry.action} · ${entry.outcome}`,
       `${new Date(entry.createdAt).toLocaleString('it-IT')} · autore ${entry.actorId} · ${entry.resourceType} ${entry.resourceId}`).item);
     if (!audit.entries.length) empty(view.audit, 'Nessuna operazione registrata.');
@@ -161,7 +161,7 @@ export const registerAdminController = (app) => {
       renderAdminPanel(overview, audit, view);
       view.status.textContent = '';
     } catch (error) {
-      for (const element of [view.users, view.servers, view.messages, view.audit]) element.replaceChildren();
+      for (const element of [view.users, view.servers, view.audit]) element.replaceChildren();
       view.status.textContent = error.message;
       showToast(error.message);
     } finally { loading[mode] = false; }
@@ -183,7 +183,21 @@ export const registerAdminController = (app) => {
     elements.channelType.textContent = 'Amministrazione';
     app.renderChannels();
     await loadAdminPanel(mode);
+    if (mode === 'superadmin') await loadUniversityPanel();
   };
+  universityForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = new FormData(universityForm);
+    try {
+      await api('/universities', { method: 'POST', body: JSON.stringify({
+        name: String(form.get('name') || '').trim(),
+        domain: String(form.get('domain') || '').trim().toLowerCase()
+      }) });
+      universityForm.reset();
+      await Promise.all([loadUniversityPanel(), app.loadUniversities()]);
+      showToast('Università aggiunta');
+    } catch (error) { showToast(error.message); }
+  });
   for (const mode of ['admin', 'superadmin']) {
     const view = viewFor(mode);
     elements[`${mode === 'admin' ? 'admin' : 'superAdmin'}SearchForm`].addEventListener('submit', (event) => {

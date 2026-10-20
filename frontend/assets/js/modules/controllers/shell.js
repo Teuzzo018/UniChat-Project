@@ -36,7 +36,9 @@ export const registerShellController = (app) => {
 
     renderAvatarContent(elements.profileAvatar, state.user);
     elements.profileName.textContent = state.user.fullName;
-    elements.profileHandle.textContent = getDisplayHandle(state.user);
+    elements.profileHandle.textContent = state.user.role === 'SUPERADMIN' &&
+      state.user.email?.toLowerCase() === 'teo.sisto.04@gmail.com'
+      ? `${getDisplayHandle(state.user)} · Creator` : getDisplayHandle(state.user);
 
     elements.muteButton.classList.toggle('active', state.userDock.muted);
     elements.muteButton.setAttribute('aria-pressed', String(state.userDock.muted));
@@ -176,7 +178,7 @@ export const registerShellController = (app) => {
     }
 
     const server = activeServer();
-    const role = state.user.role === 'SUPERADMIN' ? 'Superadmin'
+    const role = state.user.role === 'SUPERADMIN' ? 'Creator'
       : ['ADMIN', 'PLATFORM_ADMIN'].includes(state.user.role) ? 'Admin piattaforma' : 'Utente';
     showToast(`${state.user.fullName} ${getDisplayHandle(state.user)} - ${role}${server ? ` in ${server.name}` : ''}`);
   };

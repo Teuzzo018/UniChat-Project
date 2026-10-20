@@ -1,6 +1,6 @@
 const prisma = require('../lib/prisma');
 const { ensureServerMember } = require('./serverControllers');
-const { canModerateServer } = require('../lib/authorization');
+const { canModerateServerMessages } = require('../lib/authorization');
 const { tombstoneChannelMessage, tombstonePrivateMessage } = require('../utils/messageDeletion');
 
 const messageSelect = {
@@ -166,7 +166,7 @@ const deleteChannelMessage = async (req, res) => {
     id: true, channelId: true, userId: true, attachmentUrl: true, deletedAt: true
   } });
   if (!message || message.channelId !== channel.id) return res.status(404).json({ error: 'Messaggio non trovato' });
-  if (message.userId !== req.user.id && !await canModerateServer(req.user, channel.serverId)) {
+  if (message.userId !== req.user.id && !await canModerateServerMessages(req.user, channel.serverId)) {
     return res.status(403).json({ error: 'Permesso messaggio richiesto' });
   }
   const result = await tombstoneChannelMessage(message, req.user.id);
@@ -185,7 +185,7 @@ const deleteServerMessage = async (req, res) => {
   if (!message || message.channel.serverId !== req.params.id) {
     return res.status(404).json({ error: 'Messaggio non trovato' });
   }
-  if (!await canModerateServer(req.user, req.params.id)) {
+  if (!await canModerateServerMessages(req.user, req.params.id)) {
     return res.status(403).json({ error: 'Permesso server richiesto' });
   }
   const result = await tombstoneChannelMessage(message, req.user.id);

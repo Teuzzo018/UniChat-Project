@@ -93,9 +93,10 @@ const fixture = () => {
     'lib/prisma.js': db,
     'controllers/serverControllers.js': { ensureServerMember: async (serverId, userId) =>
       userId === 'author' && serverId === 'server-a' || userId === 'peer' && serverId === 'server-a'
+        || userId === 'local' && serverId === 'server-a'
         || userId === 'global' && serverId === 'server-b' ? { id: 'membership' } : null },
-    'lib/authorization.js': { canModerateServer: async (user, serverId) =>
-      user.id === 'global' || user.id === 'local' && serverId === 'server-a' },
+    'lib/authorization.js': { canModerateServerMessages: async (user, serverId) =>
+      user.id === 'local' && serverId === 'server-a' },
     'utils/messageDeletion.js': deletion
   }, 'controllers/messageControllers.js');
   const clients = { author: [], peer: [] };
@@ -178,6 +179,17 @@ test('canali: ID di altra conversazione e assenza di appartenenza non danno acce
     user: { id: 'peer' }, params: { channelId: 'a', messageId: 'm-a' }, app: f.app
   }, otherMember);
   assert.equal(otherMember.code, 403);
+  const globalChannel = response();
+  await f.controller.deleteChannelMessage({
+    user: { id: 'global', role: 'PLATFORM_ADMIN' }, params: { channelId: 'b', messageId: 'm-b' }, app: f.app
+  }, globalChannel);
+  assert.equal(globalChannel.code, 403);
+  assert.equal(f.messages.get('m-b').content, 'altro');
+  const localChannel = response();
+  await f.controller.deleteChannelMessage({
+    user: { id: 'local' }, params: { channelId: 'a', messageId: 'm-a' }, app: f.app
+  }, localChannel);
+  assert.equal(localChannel.code, 200);
   const forbidden = response();
   await f.controller.deleteServerMessage({
     user: { id: 'peer' }, params: { id: 'server-b', messageId: 'm-b' }, app: f.app
@@ -187,8 +199,8 @@ test('canali: ID di altra conversazione e assenza di appartenenza non danno acce
   await f.controller.deleteServerMessage({
     user: { id: 'global' }, params: { id: 'server-b', messageId: 'm-b' }, app: f.app
   }, global);
-  assert.equal(global.code, 200);
-  assert.equal(f.messages.get('m-b').content, '');
+  assert.equal(global.code, 403);
+  assert.equal(f.messages.get('m-b').content, 'altro');
   const local = response();
   await f.controller.deleteServerMessage({
     user: { id: 'local' }, params: { id: 'server-a', messageId: 'm-a' }, app: f.app

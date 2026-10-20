@@ -246,8 +246,8 @@ export const registerShellLayoutController = (app) => {
       } catch (error) { app.showToast(error.message); }
       finally { submit.disabled = false; }
     });
-    setupSectionNavigation(elements.adminPanel, { aria: 'Sezioni amministrazione', items: ['Utenti', 'Server', 'Messaggi', 'Registro'] });
-    setupSectionNavigation(elements.superAdminPanel, { aria: 'Sezioni SuperAdmin', items: ['Utenti', 'Server', 'Messaggi', 'Registro'] });
+    setupSectionNavigation(elements.adminPanel, { aria: 'Sezioni amministrazione', items: ['Utenti', 'Server', 'Registro'] });
+    setupSectionNavigation(elements.superAdminPanel, { aria: 'Sezioni SuperAdmin', items: ['Utenti', 'Università', 'Server', 'Registro'] });
     setupSectionNavigation(document.querySelector('.settings-panel'), { aria: 'Sezioni impostazioni', items: ['Profilo', 'Blocca amici', 'Utenti bloccati'] });
     document.querySelector('#addFriendButton').addEventListener('click', () => { friendDialog.showModal(); elements.friendUsernameInput.focus(); });
     document.querySelector('#closeFriendDialog').addEventListener('click', () => friendDialog.close());

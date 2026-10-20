@@ -7,27 +7,19 @@ export const registerBootstrapDataController = (app) => {
   const loadUniversities = async () => {
     const universities = await api('/universities');
     elements.universitySelect.replaceChildren();
-    elements.universitySelect.required = !state.pendingInviteCode && universities.length > 0;
-  
+    elements.universitySelect.required = !state.pendingInviteCode;
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = state.pendingInviteCode ? 'Uso un invito' :
+      universities.length ? 'Seleziona università' : 'Nessuna università disponibile';
+    elements.universitySelect.append(placeholder);
     universities.forEach((university) => {
       const option = document.createElement('option');
       option.value = university.id;
       option.textContent = `${university.name} (${university.domain})`;
       elements.universitySelect.append(option);
     });
-  
-    if (universities.length === 0) {
-      const option = document.createElement('option');
-      option.value = '';
-      option.textContent = state.pendingInviteCode ? 'Nessuna universita, uso un invito' : 'Solo primo admin: nessuna universita';
-      elements.universitySelect.append(option);
-      return;
-    }
-  
-    const option = document.createElement('option');
-    option.value = '';
-    option.textContent = state.pendingInviteCode ? 'Nessuna universita, uso un invito' : 'Seleziona universita';
-    elements.universitySelect.prepend(option);
   };
 
   const bootstrap = async () => {

@@ -26,7 +26,7 @@ const withModules = (stubs, entry) => {
 };
 const response = () => ({ code: 200, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } });
 
-test('dashboard: admin locale vede solo account, server, messaggi e registro del proprio ambito', async () => {
+test('dashboard: admin locale vede solo account, server e registro del proprio ambito', async () => {
   const queries = {};
   const prisma = {
     user: {
@@ -34,7 +34,6 @@ test('dashboard: admin locale vede solo account, server, messaggi e registro del
       count: async (query) => { queries.userCount = query; return 0; }
     },
     server: { findMany: async (query) => { queries.servers = query; return []; } },
-    message: { findMany: async (query) => { queries.messages = query; return []; } },
     adminAuditLog: {
       findMany: async (query) => { queries.audit = query; return []; },
       count: async () => 0
@@ -53,7 +52,7 @@ test('dashboard: admin locale vede solo account, server, messaggi e registro del
   assert.equal(queries.users.take, 5);
   assert.deepEqual(queries.users.where.servers, { some: { serverId: { in: ['a'] } } });
   assert.deepEqual(queries.servers.where, { id: { in: ['a'] } });
-  assert.deepEqual(queries.messages.where, { channel: { serverId: { in: ['a'] } } });
+  assert.equal('messages' in res.body, false);
   await controllers.listAudit(req, response());
   assert.deepEqual(queries.audit.where, { serverId: { in: ['a'] } });
 });
@@ -66,27 +65,6 @@ test('dashboard: account ordinario senza server gestito riceve 403', async () =>
   const res = response();
   await scope.requireAdminScope({ user: { id: 'ordinary' } }, res, () => { throw new Error('Accesso concesso'); });
   assert.equal(res.code, 403);
-});
-
-test('moderazione: admin locale non elimina messaggi di un altro server', async () => {
-  let deletions = 0;
-  const controllers = withModules({
-    'lib/prisma.js': {
-      message: {
-        findUnique: async () => ({ id: 'msg', channelId: 'c', channel: { serverId: 'b' } }),
-        delete: async () => { deletions += 1; }
-      }
-    },
-    'lib/authorization.js': {
-      canModerateServer: async (_user, id) => id === 'a',
-      canModerateGlobal: () => false,
-      isSuperadmin: () => false
-    }
-  }, 'controllers/adminControllers.js');
-  const res = response();
-  await controllers.deleteMessage({ user: { id: 'local' }, params: { id: 'msg' }, app: {} }, res);
-  assert.equal(res.code, 403);
-  assert.equal(deletions, 0);
 });
 
 test('gestione server: ambito locale, moderazione globale e divieto di eliminazione fuori proprietà', async () => {

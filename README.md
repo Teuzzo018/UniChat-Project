@@ -15,7 +15,7 @@ L'app permette di creare server universitari, usare canali testuali e vocali, in
 - Canali vocali WebRTC con segnalazione Socket.IO.
 - Videochiamate private.
 - Tris privato con inviti diretti agli amici o link condiviso in chat.
-- Pannello admin per eliminare utenti, server e messaggi.
+- Pannelli Admin e SuperAdmin per gestire utenti e server; i messaggi si eliminano dalla chat secondo i permessi del server.
 
 ## Stack
 
@@ -151,11 +151,11 @@ Imposta `SESSION_TOKEN_PEPPER` con un valore lungo e casuale. Non pubblicarlo.
 
 `SESSION_TOKEN_PEPPER` è la chiave HMAC usata per salvare solo l'hash dei token di sessione. Sostituirla rende inutilizzabili le sessioni esistenti: gli utenti devono effettuare di nuovo l'accesso. In produzione è obbligatoria una chiave casuale di almeno 32 caratteri, diversa dai segnaposto di esempio. Un esempio di formato è `<chiave-casuale-di-almeno-32-caratteri>`.
 
-La registrazione dell'indirizzo `teo.sisto.04@gmail.com` assegna automaticamente il ruolo `SUPERADMIN`, senza codice aggiuntivo. L'app non verifica ancora il possesso dell'indirizzo email: prima di esporre la registrazione pubblicamente, configura una verifica email o crea l'account del proprietario in un ambiente controllato.
+L'account Creator `teo.sisto.04@gmail.com` è precreato nel database con il ruolo `SUPERADMIN` e lo username `TeoSisto04`. La sua email e il suo username sono riservati: non si possono usare nella registrazione pubblica. La password è salvata nel database solo come hash bcrypt.
 
 `AUTH_RATE_LIMIT_MAX_ATTEMPTS` imposta il massimo di richieste di autenticazione per indirizzo IP in 15 minuti, condiviso tra registrazione e login. Il valore predefinito è `100`; dopo una modifica a `backend/.env`, riavvia il backend.
 
-Al primo avvio, se non ci sono università, registra `teo.sisto.04@gmail.com` lasciando vuota l'università. Dopo il login, il SuperAdmin può creare le università con `POST /api/universities` usando la sua sessione Bearer. La creazione anonima di università è disabilitata. La registrazione del proprietario usa un lock transazionale PostgreSQL.
+L'account Creator non ha un'università di affiliazione. Dopo il login, Teo crea le università dal **Pannello SuperAdmin**, sezione **Università**, oppure con `POST /api/universities`. Le università create compaiono nel menu di registrazione; gli altri utenti scelgono la propria università o usano un invito. Per creare un server, Teo sceglie l'università del server nel relativo modulo. La creazione anonima di università è disabilitata.
 
 Il Compose fornito contiene credenziali dimostrative per PostgreSQL; non usarle in produzione. Il Dockerfile imposta `NODE_ENV=production`: `SESSION_TOKEN_PEPPER` deve essere un segreto casuale valido. Docker Compose lo legge da `backend/.env`. Non modificare `DATABASE_URL` su un'istanza già in uso senza pianificare il collegamento al database corretto.
 
@@ -165,13 +165,13 @@ Il client conserva il token di sessione in `localStorage`: riduci il rischio di 
 
 ### Ruoli e permessi
 
-Gli account nuovi sono `STUDENT`. La registrazione di `teo.sisto.04@gmail.com` assegna automaticamente `SUPERADMIN`, e ne può esistere uno solo. Teo può assegnare o revocare il ruolo `PLATFORM_ADMIN` (mostrato come Admin); gli Admin possono cambiare solo utenti ordinari tra `STUDENT` e `PROFESSOR`. `ADMIN` è il nome storico equivalente a `PLATFORM_ADMIN`. L'admin di server è un membro con `ServerMember.isAdmin`; il proprietario conserva gli stessi privilegi locali senza assegnazione. Il backend verifica i permessi per ogni richiesta HTTP ed evento Socket.IO.
+Gli account nuovi sono `STUDENT`. Solo l'account Creator precreato `teo.sisto.04@gmail.com` può essere `SUPERADMIN`, e ne può esistere uno solo. Teo può assegnare o revocare il ruolo `PLATFORM_ADMIN` (mostrato come Admin); gli Admin possono cambiare solo utenti ordinari tra `STUDENT` e `PROFESSOR`. `ADMIN` è il nome storico equivalente a `PLATFORM_ADMIN`. L'admin di server è un membro con `ServerMember.isAdmin`; il proprietario conserva gli stessi privilegi locali senza assegnazione. Il backend verifica i permessi per ogni richiesta HTTP ed evento Socket.IO.
 
 | Operazione | Utente | Admin server / proprietario | Admin piattaforma (`ADMIN` incluso) | Superadmin |
 | --- | --- | --- | --- | --- |
 | Chat, allegati, DM e chiamate | Sì, con appartenenza o relazione richiesta | Come utente | Come utente | Come utente |
 | Canali e richieste di ingresso | No | Solo nei propri server | No | Tutti i server |
-| Eliminare messaggi di canale | Solo i propri nei canali accessibili | I propri e quelli nei server amministrati | I propri e quelli in tutti i server | I propri e quelli in tutti i server |
+| Eliminare messaggi di canale | Solo i propri nei canali accessibili | I propri e quelli nei server amministrati | Solo i propri, salvo privilegi locali sul server | Solo i propri, salvo privilegi locali sul server |
 | Eliminare messaggi privati | Solo i propri nella conversazione | Solo i propri | Solo i propri | Solo i propri |
 | Eliminare un server | Solo se proprietario | Solo se proprietario | Tutti | Tutti |
 | Vedere dashboard e registro | No | Solo nei propri server | Globale | Globale |
@@ -185,19 +185,19 @@ Il ruolo del proprietario non si cambia dal pannello. Una variazione di ruolo in
 
 La Home mostra il pulsante **Pannello Admin** solo agli Admin globali e **Pannello SuperAdmin** solo a Teo. Entrambi possono cercare gli account per nome, username o email, sospendere utenti ordinari ed eliminare server. Solo Teo trova nel menu `⋯` di ciascun account la nomina o la revoca degli Admin.
 
-La registrazione resta aperta agli altri indirizzi email. Se un indirizzo è già registrato, incluso quello riservato a Teo dopo la sua registrazione, il modulo mantiene i dati inseriti, segnala l'errore e permette di sostituire l'email.
+La registrazione resta aperta agli altri indirizzi email. L'email e lo username di Teo sono sempre riservati. Se un indirizzo è già registrato, il modulo mantiene i dati inseriti, segnala l'errore e permette di sostituire l'email.
 
 Endpoint di gestione: `POST/DELETE /api/admin/users/:id/suspension`, `PATCH /api/admin/users/:id/role`, `PUT/DELETE /api/admin/servers/:serverId/admins/:userId` e `DELETE /api/servers/:id/messages/:messageId`. Le operazioni di nomina/revoca degli admin locali richiedono che l'utente sia membro del server.
 
-Il menu `⋯` dei messaggi permette all'autore di eliminarli per tutti; nei canali possono eliminare messaggi anche i moderatori autorizzati. I preferiti sono salvati per account nel database e consultabili dalla Home. L'elenco non restituisce messaggi eliminati o conversazioni cui l'utente non ha più accesso. Per attivare i preferiti su un database esistente applica anche la migrazione additiva `20261016120000_message_favorites`, poi rigenera Prisma Client e riavvia il backend. La rinomina dei canali usa `PATCH /api/admin/servers/:serverId/channels/:channelId`; non richiede una migrazione aggiuntiva.
+Il menu `⋯` dei messaggi permette all'autore di eliminarli per tutti; nei canali anche il proprietario o un admin locale del server può eliminare i messaggi degli altri. Il ruolo Admin o SuperAdmin della piattaforma, da solo, non concede questo permesso. I preferiti sono salvati per account nel database e consultabili dalla Home. L'elenco non restituisce messaggi eliminati o conversazioni cui l'utente non ha più accesso. Per attivare i preferiti su un database esistente applica anche la migrazione additiva `20261016120000_message_favorites`, poi rigenera Prisma Client e riavvia il backend. La rinomina dei canali usa `PATCH /api/admin/servers/:serverId/channels/:channelId`; non richiede una migrazione aggiuntiva.
 
-La dashboard usa `GET /api/admin/overview?page=1&pageSize=20&q=nome` per account ricercabili e paginati, server e messaggi nel proprio ambito; `GET /api/admin/audit?page=1&pageSize=20` mostra il registro. Modifica server: `PATCH /api/admin/servers/:id`; rinomina canale: `PATCH /api/admin/servers/:serverId/channels/:channelId`; elimina canale: `DELETE /api/admin/servers/:serverId/channels/:channelId`. Il registro salva ID autore, azione, tipo e ID risorsa, server, esito e data; non salva payload, codice di bootstrap o testo dei messaggi. Le operazioni negate dopo l'autenticazione sono registrate; i tentativi anonimi non hanno un autore identificabile. La scrittura del registro avviene alla chiusura della risposta: se fallisce, l'operazione potrebbe essere stata eseguita senza voce di registro. Controlla i log applicativi prima di usare questo registro come traccia di conformità.
+La dashboard usa `GET /api/admin/overview?page=1&pageSize=20&q=nome` per account ricercabili e paginati e server nel proprio ambito; `GET /api/admin/audit?page=1&pageSize=20` mostra il registro. Modifica server: `PATCH /api/admin/servers/:id`; rinomina canale: `PATCH /api/admin/servers/:serverId/channels/:channelId`; elimina canale: `DELETE /api/admin/servers/:serverId/channels/:channelId`. Il registro salva ID autore, azione, tipo e ID risorsa, server, esito e data; non salva payload, codice di bootstrap o testo dei messaggi. Le operazioni negate dopo l'autenticazione sono registrate; i tentativi anonimi non hanno un autore identificabile. La scrittura del registro avviene alla chiusura della risposta: se fallisce, l'operazione potrebbe essere stata eseguita senza voce di registro. Controlla i log applicativi prima di usare questo registro come traccia di conformità.
 
 ### Autenticazione e migrazione
 
 La verifica in due passaggi è stata rimossa. Il login usa email e password; le API `/api/auth/2fa/*` non sono più disponibili. La migrazione `20261019180000_single_site_owner_superadmin` cancella i segreti e i codici di recupero già salvati e sblocca le sessioni rimaste in attesa di una verifica.
 
-Prima di distribuire questa versione, verifica le migrazioni sul database di destinazione e crea un backup. Applica le migrazioni con `prisma migrate deploy`, poi riavvia il backend. Non usare `migrate reset`. Su questa installazione il SuperAdmin temporaneo è stato revocato dalla migrazione; l'account Teo riceve automaticamente il ruolo quando viene registrato.
+Prima di distribuire questa versione, verifica le migrazioni sul database di destinazione e crea un backup. Applica le migrazioni con `prisma migrate deploy`, poi riavvia il backend. Non usare `migrate reset`. Se azzeri il volume PostgreSQL, dovrai ripristinare anche l'account Creator nel nuovo database prima di aprire le registrazioni pubbliche.
 
 ### Backend Locale Con Database Docker
 
@@ -333,7 +333,7 @@ I limiti configurabili in `backend/.env` sono `MAX_ATTACHMENT_BYTES` (predefinit
 
 I file hanno nomi interni casuali, senza componenti del percorso forniti dal client. Un upload rifiutato viene rimosso subito; gli allegati eliminati vengono rimossi se non più referenziati. All'avvio e ogni ora il backend rimuove i file privati orfani più vecchi di un'ora. Il volume deve restare privato e persistente; una pulizia fallita viene segnalata nei log e riprovata dal controllo periodico.
 
-L'autore può eliminare un proprio messaggio solo in un canale a cui ha ancora accesso; un moderatore può eliminare messaggi nel proprio ambito. L'eliminazione conserva la riga e la posizione nella cronologia, ma svuota contenuto e metadati dell'allegato. L'interfaccia mostra «Messaggio eliminato». Una richiesta ripetuta da un utente ancora autorizzato restituisce successo senza propagare un secondo evento. Il file locale è rimosso solo se nessun altro messaggio o avatar lo referenzia; un errore di pulizia lascia il file non esposto tramite il messaggio eliminato e richiede intervento operativo. Non esistono ancora risposte a messaggi o anteprime persistite da aggiornare.
+L'autore può eliminare un proprio messaggio solo in un canale a cui ha ancora accesso; il proprietario o un admin locale del server può eliminare i messaggi degli altri utenti in quel server. L'eliminazione conserva la riga e la posizione nella cronologia, ma svuota contenuto e metadati dell'allegato. L'interfaccia mostra «Messaggio eliminato». Una richiesta ripetuta da un utente ancora autorizzato restituisce successo senza propagare un secondo evento. Il file locale è rimosso solo se nessun altro messaggio o avatar lo referenzia; un errore di pulizia lascia il file non esposto tramite il messaggio eliminato e richiede intervento operativo. Non esistono ancora risposte a messaggi o anteprime persistite da aggiornare.
 
 ### Chat Private
 

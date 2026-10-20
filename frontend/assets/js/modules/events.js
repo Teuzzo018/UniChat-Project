@@ -15,6 +15,7 @@ export const setupEventListeners = ({
   renderServerJoinRequests,
   loadMessages,
   showAdminPanel,
+  showSuperAdminPanel,
   openUserSettings,
   openGameDialog,
   sendGameLinkToChat,
@@ -170,10 +171,34 @@ export const setupEventListeners = ({
     await loadMessages();
   });
   
-  const openServerDialog = () => elements.serverDialog.showModal();
+  const openServerDialog = async () => {
+    const creator = state.user?.role === 'SUPERADMIN' && state.user.email?.toLowerCase() === 'teo.sisto.04@gmail.com';
+    const field = document.querySelector('#creatorServerUniversityField');
+    const select = document.querySelector('#creatorServerUniversity');
+    field.classList.toggle('hidden', !creator);
+    select.disabled = !creator;
+    select.required = creator;
+    if (creator) {
+      try {
+        const universities = await api('/universities');
+        if (!universities.length) {
+          showToast('Crea prima un’università dal Pannello SuperAdmin');
+          return;
+        }
+        select.replaceChildren();
+        for (const university of universities) {
+          const option = document.createElement('option');
+          option.value = university.id;
+          option.textContent = university.name;
+          select.append(option);
+        }
+      } catch (error) { showToast(error.message); return; }
+    }
+    elements.serverDialog.showModal();
+  };
   
   elements.adminButton.addEventListener('click', showAdminPanel);
-  elements.superAdminButton.addEventListener('click', () => app.showSuperAdminPanel());
+  elements.superAdminButton.addEventListener('click', showSuperAdminPanel);
   elements.newServerButton.addEventListener('click', openServerDialog);
   elements.gameRailButton.addEventListener('click', openGameDialog);
   elements.sendGameLinkButton.addEventListener('click', sendGameLinkToChat);

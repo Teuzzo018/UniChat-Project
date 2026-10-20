@@ -89,7 +89,9 @@ export const registerSettingsController = (app) => {
     elements.settingsFullName.value = state.user.fullName || '';
     elements.settingsAvatarFile.value = '';
     elements.settingsPreviewName.textContent = state.user.fullName;
-    elements.settingsPreviewHandle.textContent = getDisplayHandle(state.user);
+    elements.settingsPreviewHandle.textContent = state.user.role === 'SUPERADMIN' &&
+      state.user.email?.toLowerCase() === 'teo.sisto.04@gmail.com'
+      ? `${getDisplayHandle(state.user)} · Creator` : getDisplayHandle(state.user);
     renderAvatarContent(elements.settingsAvatarPreview, state.user);
     renderSettingsLists();
   };

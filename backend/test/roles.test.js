@@ -51,6 +51,12 @@ test('matrice: utente, admin locale, admin globale e superadmin', async () => {
   assert.equal(await authz.canManageServer(global, 'a', db), false);
   assert.equal(await authz.canModerateServer(global, 'a', db), true);
   assert.equal(await authz.canModerateServer(global, 'b', db), true);
+  assert.equal(await authz.canModerateServerMessages(ordinary, 'a', db), false);
+  assert.equal(await authz.canModerateServerMessages(local, 'a', db), true);
+  assert.equal(await authz.canModerateServerMessages(local, 'b', db), false);
+  assert.equal(await authz.canModerateServerMessages(owner, 'b', db), true);
+  assert.equal(await authz.canModerateServerMessages(global, 'a', db), false);
+  assert.equal(await authz.canModerateServerMessages(root, 'a', db), false);
   assert.equal(authz.canModerateGlobal(legacy), true);
   assert.equal(authz.isSuperadmin(global), false);
   assert.equal(await authz.canManageServer(root, 'b', db), true);
@@ -245,18 +251,7 @@ test('sessione esistente: sospensione blocca HTTP e Socket.IO', async () => {
   assert.equal(await shared.getUserFromToken('a'.repeat(64)), null);
 });
 
-test('bootstrap: Teo ottiene automaticamente SUPERADMIN, gli altri STUDENT', async () => {
-  let locks = 0;
-  const bootstrap = withModules({
-    'lib/roleManagement.js': { lockRoles: async () => { locks += 1; } }
-  }, 'lib/bootstrap.js');
-  const tx = {};
-  assert.equal(await bootstrap.registrationRole(tx, 'other@example.com'), 'STUDENT');
-  assert.equal(await bootstrap.registrationRole(tx, 'TEO.SISTO.04@GMAIL.COM'), 'SUPERADMIN');
-  assert.equal(locks, 1);
-});
-
-test('registrazione: email di Teo già occupata richiede un altro indirizzo', async () => {
+test('registrazione: email di Teo riservata richiede un altro indirizzo', async () => {
   const controllers = withModules({
     'lib/prisma.js': { user: { findUnique: async ({ where }) => where.email === 'teo.sisto.04@gmail.com' ? { id: 'owner' } : null } }
   }, 'controllers/authControllers.js');
@@ -267,4 +262,33 @@ test('registrazione: email di Teo già occupata richiede un altro indirizzo', as
   assert.equal(res.code, 409);
   assert.equal(res.body.code, 'EMAIL_ALREADY_REGISTERED');
   assert.match(res.body.error, /altro indirizzo email/);
+});
+
+test('registrazione: username Creator riservato e utente ordinario Studente con università', async () => {
+  let created;
+  const prisma = {
+    user: { findUnique: async () => null },
+    university: { findUnique: async () => ({ id: 'university-1' }) },
+    $transaction: async (callback) => callback({ user: { create: async ({ data }) => {
+      created = data;
+      return { id: 'new-user', ...data };
+    } } })
+  };
+  const controllers = withModules({
+    'lib/prisma.js': prisma,
+    'config/env.js': { saltRounds: 4 }
+  }, 'controllers/authControllers.js');
+  const response = () => ({ status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } });
+  const reserved = response();
+  await controllers.register({ body: {
+    email: 'student@example.com', password: 'password-lunga-123', fullName: 'Studente', username: 'TeoSisto04', universityId: 'university-1'
+  } }, reserved);
+  assert.equal(reserved.code, 409);
+  const student = response();
+  await controllers.register({ body: {
+    email: 'student@example.com', password: 'password-lunga-123', fullName: 'Studente', username: 'student', universityId: 'university-1'
+  } }, student);
+  assert.equal(student.code, 201);
+  assert.equal(created.role, 'STUDENT');
+  assert.equal(created.universityId, 'university-1');
 });

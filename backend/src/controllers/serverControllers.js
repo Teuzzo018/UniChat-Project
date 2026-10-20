@@ -160,9 +160,14 @@ const listServerJoinRequests = async (req, res) => {
 
 const createServer = async (req, res) => {
   const { name, description } = req.body || {};
+  const creator = isSuperadmin(req.user);
+  const selectedUniversityId = creator ? req.body?.universityId : req.user.universityId;
 
-  if (!req.user.universityId) {
-    return res.status(400).json({ error: 'Per creare un server devi avere una università associata' });
+  if (!selectedUniversityId) {
+    return res.status(400).json({ error: creator ? 'Seleziona l’università del server' : 'Per creare un server devi avere una università associata' });
+  }
+  if (creator && !await prisma.university.findUnique({ where: { id: selectedUniversityId }, select: { id: true } })) {
+    return res.status(404).json({ error: 'Università non trovata' });
   }
 
   if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80 || (description != null && (typeof description !== 'string' || description.length > 1000))) {
@@ -175,7 +180,7 @@ const createServer = async (req, res) => {
       description: description?.trim() || null,
       inviteCode: await createUniqueInviteCode(),
       isDiscoverable: req.body?.isDiscoverable === true,
-      universityId: req.user.universityId,
+      universityId: selectedUniversityId,
       ownerId: req.user.id,
       members: {
         create: {
