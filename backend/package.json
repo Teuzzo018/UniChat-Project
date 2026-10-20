@@ -10,7 +10,8 @@
     "test": "node --test test/*.test.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "creator:reset-password": "node scripts/resetCreatorPassword.js"
   },
   "keywords": [],
   "author": "",

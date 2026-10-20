@@ -50,7 +50,18 @@ export const registerAdminController = (app) => {
   const loadUniversityPanel = async () => {
     const universities = await api('/universities');
     universityList.replaceChildren();
-    for (const university of universities) universityList.append(row(university.name, university.domain).item);
+    for (const university of universities) {
+      const { item, actions } = row(university.name, university.domain);
+      action(actions, 'Elimina', async () => {
+        if (!await showConfirm(`Eliminare l’università ${university.name}?`, 'Elimina università')) return;
+        try {
+          await api(`/universities/${university.id}`, { method: 'DELETE' });
+          await Promise.all([loadUniversityPanel(), app.loadUniversities()]);
+          showToast('Università eliminata');
+        } catch (error) { showToast(error.message); }
+      }, true);
+      universityList.append(item);
+    }
     if (!universities.length) empty(universityList, 'Nessuna università: aggiungi la prima per aprire le registrazioni ordinarie.');
   };
   const mutate = async (view, path, method, body, confirmation) => {

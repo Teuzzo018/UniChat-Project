@@ -157,7 +157,7 @@ L'account Creator `teo.sisto.04@gmail.com` è precreato nel database con il ruol
 
 `AUTH_RATE_LIMIT_MAX_ATTEMPTS` imposta il massimo di richieste di autenticazione per indirizzo IP in 15 minuti, condiviso tra registrazione e login. Il valore predefinito è `100`; dopo una modifica a `backend/.env`, riavvia il backend.
 
-L'account Creator non ha un'università di affiliazione. Dopo il login, Teo crea le università dal **Pannello SuperAdmin**, sezione **Università**, oppure con `POST /api/universities`. Le università create compaiono nel menu di registrazione; gli altri utenti scelgono la propria università o usano un invito. Per creare un server, Teo sceglie l'università del server nel relativo modulo. La creazione anonima di università è disabilitata.
+L'account Creator non ha un'università di affiliazione. Dopo il login, Teo crea le università dal **Pannello SuperAdmin**, sezione **Università**, oppure con `POST /api/universities`. Le università create compaiono nel menu di registrazione; gli altri utenti scelgono la propria università o usano un invito. Il SuperAdmin può eliminare dal pannello le università senza utenti o server collegati; in caso contrario l'API restituisce `409` e richiede di rimuovere prima quei collegamenti. Per creare un server, Teo sceglie l'università del server nel relativo modulo. La creazione anonima di università è disabilitata.
 
 Il Compose fornito contiene credenziali dimostrative per PostgreSQL; non usarle in produzione. Il Dockerfile imposta `NODE_ENV=production`: `SESSION_TOKEN_PEPPER` deve essere un segreto casuale valido. Docker Compose lo legge da `backend/.env`. Non modificare `DATABASE_URL` su un'istanza già in uso senza pianificare il collegamento al database corretto.
 

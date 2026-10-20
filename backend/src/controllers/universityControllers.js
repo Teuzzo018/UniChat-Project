@@ -38,6 +38,15 @@ const deleteUniversity = async (req, res) => {
   try {
     const { id } = req.params;
 
+    const university = await prisma.university.findUnique({
+      where: { id },
+      select: { _count: { select: { users: true, servers: true } } }
+    });
+    if (!university) return res.status(404).json({ error: 'Università non trovata' });
+    if (university._count.users || university._count.servers) {
+      return res.status(409).json({ error: 'Elimina prima gli utenti e i server collegati a questa università' });
+    }
+
     await prisma.university.delete({
       where: { id }
     });
@@ -46,6 +55,9 @@ const deleteUniversity = async (req, res) => {
   } catch (error) {
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Università non trovata' });
+    }
+    if (error.code === 'P2003') {
+      return res.status(409).json({ error: 'Elimina prima gli utenti e i server collegati a questa università' });
     }
 
     return res.status(500).json({ error: 'Errore durante l\'eliminazione' });
