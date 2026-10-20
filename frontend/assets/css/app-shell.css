@@ -172,6 +172,11 @@ input:focus, select:focus, textarea:focus, button:focus-visible { box-shadow: 0 
 .message-date::before, .message-date::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .message-actions { opacity: 0; }
 .message:hover .message-actions, .message:focus-within .message-actions, .message-actions[open] { opacity: 1; }
+.message-context-menu { position: fixed; z-index: 30; display: grid; min-width: 190px; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); }
+.message-context-menu.hidden { display: none; }
+.message-context-menu button { min-height: 36px; padding: 7px 10px; border: 0; border-radius: 5px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.message-context-menu button:hover, .message-context-menu button:focus-visible { background: var(--panel-strong); }
+.message-context-menu .message-delete-button { color: var(--danger); }
 .composer { gap: 8px; margin: 0 16px 14px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .composer > #messageInput { background: transparent; border: 0; box-shadow: none; }
 .composer:focus-within { border-color: var(--focus); box-shadow: 0 0 0 2px var(--selection); }
@@ -183,6 +188,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible { box-shadow: 0 
 .slash-command-option span { color: var(--muted); }
 .slash-command-option:hover, .slash-command-option[aria-selected="true"] { background: var(--selection); }
 .private-activity { display: flex; align-items: center; gap: 10px; margin: 12px auto; padding: 9px 12px; width: fit-content; max-width: min(90%, 650px); border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); font-size: .82rem; }
+.private-activity.favorite { border-color: var(--accent); }
 .private-activity-icon { flex: none; color: var(--accent-dark); font-size: 1.1rem; }
 .private-activity time { flex: none; color: var(--muted); font-size: .72rem; white-space: nowrap; }
 @media (max-width: 600px) { .private-activity { flex-wrap: wrap; } .private-activity time { margin-left: auto; } }
@@ -261,7 +267,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible { box-shadow: 0 
 :root[data-theme="copper"] .section-content,
 :root[data-theme="copper"] .channel-actions-menu,
 :root[data-theme="copper"] .message-actions-menu,
-:root[data-theme="copper"] .server-context-menu { background: #202020; }
+:root[data-theme="copper"] .server-context-menu,
+:root[data-theme="copper"] .message-context-menu { background: #202020; }
 :root[data-theme="copper"] .primary-button,
 :root[data-theme="copper"] .friend-form button,
 :root[data-theme="copper"] .brand-mark,

@@ -7,6 +7,84 @@ export const registerMessageViewsController = (app) => {
   const favoritesDialog = document.querySelector('#favoritesDialog');
   const favoritesList = document.querySelector('#favoritesList');
   const favoritesStatus = document.querySelector('#favoritesStatus');
+  const messageContextMenu = document.querySelector('#messageContextMenu');
+  const contextActions = new WeakMap();
+  let contextTrigger = null;
+
+  const closeMessageContextMenu = (restoreFocus = false) => {
+    if (messageContextMenu.classList.contains('hidden')) return;
+    messageContextMenu.classList.add('hidden');
+    messageContextMenu.replaceChildren();
+    if (restoreFocus && contextTrigger?.isConnected) contextTrigger.focus();
+    contextTrigger = null;
+  };
+
+  const copyMessage = async (message) => {
+    const value = message.content || message.attachmentName || '';
+    if (!value) return showToast('Questo messaggio non contiene testo da copiare');
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const input = document.createElement('textarea');
+        input.value = value;
+        input.style.position = 'fixed';
+        input.style.opacity = '0';
+        document.body.append(input);
+        input.select();
+        const copied = document.execCommand('copy');
+        input.remove();
+        if (!copied) throw new Error('Copia non disponibile');
+      }
+      showToast('Messaggio copiato');
+    } catch (error) { showToast(error.message || 'Impossibile copiare il messaggio'); }
+  };
+
+  const openMessageContextMenu = (article, x, y, keyboard = false) => {
+    const actions = contextActions.get(article);
+    if (!actions?.length || article.dataset.deletedAt) return;
+    closeMessageContextMenu();
+    contextTrigger = article;
+    actions.forEach(({ label, run, className }) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.setAttribute('role', 'menuitem');
+      button.textContent = typeof label === 'function' ? label() : label;
+      if (className) button.className = className;
+      button.addEventListener('click', () => {
+        closeMessageContextMenu();
+        run();
+      });
+      messageContextMenu.append(button);
+    });
+    messageContextMenu.classList.remove('hidden');
+    const rect = messageContextMenu.getBoundingClientRect();
+    messageContextMenu.style.left = `${Math.max(8, Math.min(x, window.innerWidth - rect.width - 8))}px`;
+    messageContextMenu.style.top = `${Math.max(8, Math.min(y, window.innerHeight - rect.height - 8))}px`;
+    if (keyboard) messageContextMenu.querySelector('button')?.focus();
+  };
+
+  elements.messages.addEventListener('contextmenu', (event) => {
+    const article = event.target.closest('.message, .private-activity');
+    if (!article || !contextActions.has(article)) return;
+    event.preventDefault();
+    openMessageContextMenu(article, event.clientX, event.clientY);
+  });
+  elements.messages.addEventListener('keydown', (event) => {
+    if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+    const article = event.target.closest('.message, .private-activity');
+    if (!article || !contextActions.has(article)) return;
+    event.preventDefault();
+    const rect = article.getBoundingClientRect();
+    openMessageContextMenu(article, rect.left + 24, rect.top + 24, true);
+  });
+  document.addEventListener('pointerdown', (event) => {
+    if (!messageContextMenu.contains(event.target)) closeMessageContextMenu();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeMessageContextMenu(true);
+  });
+  elements.messages.addEventListener('scroll', () => closeMessageContextMenu());
 
   const favoriteKey = (kind, id) => `${kind}:${id}`;
   const isFavorite = (kind, id) => state.favorites.some((item) => favoriteKey(item.kind, item.id) === favoriteKey(kind, id));
@@ -51,7 +129,10 @@ export const registerMessageViewsController = (app) => {
       const saved = isFavorite(menu.dataset.kind, menu.dataset.messageId);
       button.textContent = saved ? 'Rimuovi dai preferiti' : 'Metti nei preferiti';
       button.setAttribute('aria-pressed', String(saved));
-      menu.closest('.message')?.classList.toggle('favorite', saved);
+      menu.closest('.message, .private-activity')?.classList.toggle('favorite', saved);
+    });
+    elements.messages.querySelectorAll('.private-activity').forEach((activity) => {
+      activity.classList.toggle('favorite', isFavorite('private', activity.dataset.messageId));
     });
   };
 
@@ -82,6 +163,23 @@ export const registerMessageViewsController = (app) => {
       time.dateTime = message.createdAt;
       time.textContent = new Date(message.createdAt).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
       activity.append(icon, content, time);
+      activity.tabIndex = 0;
+      activity.classList.toggle('favorite', isFavorite('private', message.id));
+      contextActions.set(activity, [
+        { label: 'Copia', run: () => copyMessage(message) },
+        {
+          label: () => isFavorite('private', message.id) ? 'Rimuovi dai preferiti' : 'Metti nei preferiti',
+          run: async () => {
+            const saved = isFavorite('private', message.id);
+            try {
+              await api(`/favorites/private/${message.id}`, { method: saved ? 'DELETE' : 'PUT' });
+              await loadFavorites();
+              activity.classList.toggle('favorite', !saved);
+              showToast(saved ? 'Rimosso dai preferiti' : 'Messaggio nei preferiti');
+            } catch (error) { showToast(error.message); }
+          }
+        }
+      ]);
       elements.messages.append(activity);
       return;
     }
@@ -156,6 +254,15 @@ export const registerMessageViewsController = (app) => {
       summary.textContent = '⋯';
       const menu = document.createElement('div');
       menu.className = 'message-actions-menu';
+      const copy = document.createElement('button');
+      copy.type = 'button';
+      copy.className = 'message-copy-button';
+      copy.textContent = 'Copia';
+      copy.addEventListener('click', () => {
+        actions.open = false;
+        copyMessage(message);
+      });
+      menu.append(copy);
       const favorite = document.createElement('button');
       favorite.type = 'button';
       favorite.className = 'message-favorite-button';
@@ -173,8 +280,9 @@ export const registerMessageViewsController = (app) => {
         finally { favorite.disabled = false; }
       });
       menu.append(favorite);
+      let remove = null;
       if (canDeleteChannel || canDeletePrivate) {
-        const remove = document.createElement('button');
+        remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'message-delete-button';
         remove.textContent = 'Elimina per tutti';
@@ -199,6 +307,12 @@ export const registerMessageViewsController = (app) => {
       actions.append(summary, menu);
       body.append(actions);
       article.classList.toggle('favorite', isFavorite(kind, message.id));
+      article.tabIndex = 0;
+      contextActions.set(article, [
+        ...(remove ? [{ label: 'Elimina', className: 'message-delete-button', run: () => remove.click() }] : []),
+        { label: 'Copia', run: () => copy.click() },
+        { label: () => favorite.textContent, run: () => favorite.click() }
+      ]);
     }
     article.append(avatar, body);
     elements.messages.append(article);
@@ -208,6 +322,7 @@ export const registerMessageViewsController = (app) => {
     const article = Array.from(elements.messages.querySelectorAll('[data-message-id]'))
       .find((item) => item.dataset.messageId === id);
     if (!article || article.dataset.deletedAt) return;
+    if (contextTrigger === article) closeMessageContextMenu();
     article.dataset.deletedAt = deletedAt || new Date().toISOString();
     const body = article.querySelector('.message-meta')?.parentElement;
     if (!body) return;
