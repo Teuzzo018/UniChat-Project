@@ -63,6 +63,7 @@ export const registerNavigationController = (app) => {
         elements.messages.replaceChildren();
         messages.forEach(renderMessage);
         elements.messages.scrollTop = elements.messages.scrollHeight;
+        app.markRead('private', privateUser.id, messages.at(-1)?.createdAt || new Date().toISOString());
       } catch (error) {
         if (currentLoad === messageLoadSequence) loading.textContent = `Impossibile caricare i messaggi: ${error.message}`;
       }
@@ -91,6 +92,7 @@ export const registerNavigationController = (app) => {
       elements.messages.replaceChildren();
       messages.forEach(renderMessage);
       elements.messages.scrollTop = elements.messages.scrollHeight;
+      app.markRead('channel', channel.id, messages.at(-1)?.createdAt || new Date().toISOString());
     } catch (error) {
       if (currentLoad === messageLoadSequence) loading.textContent = `Impossibile caricare i messaggi: ${error.message}`;
     }

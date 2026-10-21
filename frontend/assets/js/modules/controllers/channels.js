@@ -135,6 +135,14 @@ export const registerChannelsController = (app) => {
       button.className = `channel-item ${channel.id === state.activeChannelId ? 'active' : ''}`;
       button.type = 'button';
       button.textContent = `${channel.type === 'TEXT' ? '#' : '◉'} ${channel.name}`;
+      const unread = channel.type === 'TEXT' ? state.unread?.channels?.[channel.id] || 0 : 0;
+      if (unread) {
+        const badge = document.createElement('strong');
+        badge.className = 'unread-badge';
+        badge.textContent = unread > 99 ? '99+' : String(unread);
+        badge.setAttribute('aria-label', `${unread} messaggi non letti`);
+        button.append(badge);
+      }
       button.title = canModerateChannel ? `${channel.name} · clic destro per le azioni` : channel.name;
       if (channel.id === state.activeChannelId) button.setAttribute('aria-current', 'page');
       let suppressClick = false;
@@ -259,6 +267,7 @@ export const registerChannelsController = (app) => {
       loadServers(),
       loadFriends(),
       app.loadPrivateConversations(),
+      app.loadUnread(),
       loadServerJoinRequests(),
       app.loadAttachmentLimits(),
       app.loadFavorites().catch((error) => showToast(`Preferiti non disponibili: ${error.message}`))

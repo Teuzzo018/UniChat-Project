@@ -77,6 +77,7 @@ model User {
   serverJoinRequests ServerJoinRequest[]
   channelFavorites ChannelMessageFavorite[]
   privateFavorites PrivateMessageFavorite[]
+  conversationReads ConversationRead[]
 
   createdAt    DateTime       @default(now())
 
@@ -178,6 +179,8 @@ model Message {
   favorites ChannelMessageFavorite[]
 
   createdAt DateTime @default(now())
+
+  @@index([channelId, createdAt])
 }
 
 model PrivateMessage {
@@ -203,6 +206,16 @@ model PrivateMessage {
 
   @@index([senderId, recipientId, createdAt])
   @@index([recipientId, senderId, createdAt])
+}
+
+model ConversationRead {
+  userId String
+  kind String
+  targetId String
+  readAt DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, kind, targetId])
 }
 
 model ChannelMessageFavorite {

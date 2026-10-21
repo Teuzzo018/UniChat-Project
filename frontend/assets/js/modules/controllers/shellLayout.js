@@ -170,6 +170,14 @@ export const registerShellLayoutController = (app) => {
       label.className = 'direct-message-nickname';
       label.textContent = nickname;
       button.append(app.createUserAvatar(user, 'member-avatar'), label);
+      const unread = state.unread?.private?.[user.id] || 0;
+      if (unread) {
+        const badge = document.createElement('strong');
+        badge.className = 'unread-badge';
+        badge.textContent = unread > 99 ? '99+' : String(unread);
+        badge.setAttribute('aria-label', `${unread} messaggi non letti`);
+        button.append(badge);
+      }
       button.title = nickname;
       button.dataset.userId = user.id;
       button.setAttribute('aria-label', `Apri conversazione con ${nickname}`);
@@ -323,6 +331,20 @@ export const registerShellLayoutController = (app) => {
     backdrop.addEventListener('click', () => setMobileNav(false));
     inviteButton.addEventListener('click', () => { inviteDialog.showModal(); elements.inviteCodeInput.focus(); });
     document.addEventListener('pointerdown', (event) => { if (!contextMenu.contains(event.target)) closeMenu(); });
+    document.addEventListener('pointerdown', (event) => {
+      document.querySelectorAll('details[open]').forEach((menu) => {
+        if (!menu.contains(event.target)) menu.open = false;
+      });
+    });
+    document.addEventListener('toggle', (event) => {
+      if (!(event.target instanceof HTMLDetailsElement) || !event.target.open) return;
+      document.querySelectorAll('details[open]').forEach((menu) => {
+        if (menu !== event.target) menu.open = false;
+      });
+    }, true);
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') document.querySelectorAll('details[open]').forEach((menu) => { menu.open = false; });
+    });
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         if (!contextMenu.classList.contains('hidden')) closeMenu(true);

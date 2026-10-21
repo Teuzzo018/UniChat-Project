@@ -80,7 +80,7 @@ export const registerShellController = (app) => {
 
     setBadgeCount(elements.channelsBadge, server?.channels.length || 0);
     setBadgeCount(elements.friendSearchBadge, state.friends.length);
-    setBadgeCount(elements.friendRequestsBadge, state.friendRequests.length);
+    setBadgeCount(elements.friendRequestsBadge, state.friendRequests.filter((request) => request.incoming).length);
     setBadgeCount(elements.serverRequestsBadge, state.serverJoinRequests.length);
     setBadgeCount(elements.availableServersBadge, state.availableServers.length);
 

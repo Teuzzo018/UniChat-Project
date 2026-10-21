@@ -62,7 +62,7 @@
             </label>
             <label>
               Password
-              <input type="password" name="password" autocomplete="current-password" required />
+              <span class="password-field"><input type="password" name="password" autocomplete="current-password" required /><button type="button" class="password-toggle" aria-label="Mostra password" aria-pressed="false" title="Mostra password">👁</button></span>
             </label>
             <button class="primary-button" type="submit">Entra</button>
           </form>
@@ -86,8 +86,13 @@
             </label>
             <p class="hidden" id="registerEmailError" role="alert"></p>
             <label>
-              Password
-              <input type="password" name="password" autocomplete="new-password" required minlength="12" />
+              Inserisci password
+              <span class="password-field"><input type="password" name="password" autocomplete="new-password" required minlength="12" maxlength="128" /><button type="button" class="password-toggle" aria-label="Mostra password" aria-pressed="false" title="Mostra password">👁</button></span>
+            </label>
+            <div class="password-strength" id="passwordStrength" role="meter" aria-label="Robustezza password" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0"><span class="password-strength-track"><span class="password-strength-fill"></span></span><span class="password-strength-label" aria-live="polite">Inserisci una password di almeno 12 caratteri</span></div>
+            <label>
+              Conferma password
+              <span class="password-field"><input type="password" name="confirmPassword" autocomplete="new-password" required /><button type="button" class="password-toggle" aria-label="Mostra conferma password" aria-pressed="false" title="Mostra conferma password">👁</button></span>
             </label>
             <label>
               Universita
@@ -409,7 +414,8 @@
         </section>
 
         <form class="composer hidden" id="messageForm">
-          <input type="text" name="content" id="messageInput" maxlength="1000" placeholder="Scrivi un messaggio... (/ per i comandi)" aria-label="Scrivi un messaggio" aria-autocomplete="list" aria-controls="slashCommandMenu" aria-expanded="false" autocomplete="off" />
+          <div class="composer-input"><input type="text" name="content" id="messageInput" maxlength="1000" placeholder="Scrivi un messaggio..." aria-label="Scrivi un messaggio" aria-autocomplete="list" aria-controls="slashCommandMenu" aria-expanded="false" autocomplete="off" /><button type="button" id="emojiButton" class="emoji-button" aria-label="Scegli emoji" aria-controls="emojiPicker" aria-expanded="false">😊</button></div>
+          <div id="emojiPicker" class="emoji-picker hidden" role="group" aria-label="Scegli emoji"></div>
           <div class="slash-command-menu hidden" id="slashCommandMenu" role="listbox" aria-label="Comandi rapidi"></div>
           <button class="call-composer-button hidden" id="audioCallButton" type="button" title="Avvia chiamata audio" aria-label="Avvia chiamata audio"><span aria-hidden="true">☎</span><span>Chiama</span></button>
           <button class="call-composer-button hidden" id="videoCallButton" type="button" title="Avvia videochiamata" aria-label="Avvia videochiamata">

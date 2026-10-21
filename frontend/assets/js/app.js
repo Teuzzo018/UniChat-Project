@@ -3,6 +3,7 @@ import { registerBootstrapDataController } from './modules/controllers/bootstrap
 import { registerCallsController } from './modules/controllers/calls.js';
 import { registerChannelsController } from './modules/controllers/channels.js';
 import { registerCoreController } from './modules/controllers/core.js';
+import { registerEmojiPickerController } from './modules/controllers/emojiPicker.js';
 import { registerFriendsController } from './modules/controllers/friends.js';
 import { registerGameBoardController } from './modules/controllers/gameBoard.js';
 import { registerGameLauncherController } from './modules/controllers/gameLauncher.js';
@@ -10,6 +11,8 @@ import { registerGlobalSearchController } from './modules/controllers/globalSear
 import { registerMessageAttachmentsController } from './modules/controllers/messageAttachments.js';
 import { registerMessageViewsController } from './modules/controllers/messageViews.js';
 import { registerNavigationController } from './modules/controllers/navigation.js';
+import { registerNotificationsController } from './modules/controllers/notifications.js';
+import { registerPasswordFieldsController } from './modules/controllers/passwordFields.js';
 import { registerServerListsController } from './modules/controllers/serverLists.js';
 import { registerSettingsController } from './modules/controllers/settings.js';
 import { registerSlashCommandsController } from './modules/controllers/slashCommands.js';
@@ -26,6 +29,9 @@ const app = createAppContext();
 registerCoreController(app);
 registerShellController(app);
 registerShellLayoutController(app);
+registerNotificationsController(app);
+registerEmojiPickerController(app);
+registerPasswordFieldsController(app);
 registerAdminController(app);
 registerSettingsController(app);
 registerFriendsController(app);

@@ -70,7 +70,7 @@ export const registerFriendsController = (app) => {
     elements.friendSearchList.replaceChildren();
     elements.friendCount.textContent = String(state.friends.length);
     setBadgeCount(elements.sidebarFriendsCount, state.friends.length);
-    setBadgeCount(elements.sidebarRequestsCount, state.friendRequests.length + state.serverJoinRequests.length);
+    setBadgeCount(elements.sidebarRequestsCount, state.friendRequests.filter((request) => request.incoming).length + state.serverJoinRequests.length);
     elements.friendCounterButton.setAttribute('aria-label', `Amici, ${state.friends.length}`);
     elements.friendCounterButton.classList.toggle('active', state.friendsExpanded);
     elements.friendList.classList.toggle('hidden', !state.friendsExpanded);

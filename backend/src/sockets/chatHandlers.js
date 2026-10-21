@@ -50,6 +50,10 @@ const registerChatHandlers = ({ io, socket }) => {
       });
 
       io.to(getChannelRoom(channelId)).emit('message_created', message);
+      try {
+        const members = await prisma.serverMember.findMany({ where: { serverId: channel.serverId }, select: { userId: true } });
+        for (const { userId } of members) io.to(`user:${userId}`).emit('channel_message_notification', message);
+      } catch (error) { console.error('Notifica messaggio canale non inviata:', error); }
       callback?.({ ok: true, message });
     } catch (error) {
       console.error('Errore Socket.IO send_message:', error);

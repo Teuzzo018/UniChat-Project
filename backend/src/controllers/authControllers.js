@@ -62,6 +62,9 @@ const register = async (req, res) => {
     if (!isValidEmail(email) || typeof password !== 'string' || password.length < 12 || password.length > 128 || typeof fullName !== 'string' || fullName.trim().length > 100) {
       return res.status(400).json({ error: 'Email, password o nome non validi (password: 12-128 caratteri)' });
     }
+    if (fields.confirmPassword !== undefined && fields.confirmPassword !== password) {
+      return res.status(400).json({ error: 'Le password non coincidono' });
+    }
     if (uploadedFile && (!uploadedFile.mimeType?.startsWith('image/') || !/\.(avif|gif|heic|heif|jpe?g|png|webp)$/i.test(uploadedFile.originalName))) {
       return res.status(400).json({ error: 'Il file profilo deve essere un\'immagine' });
     }

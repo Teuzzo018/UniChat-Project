@@ -91,7 +91,7 @@ export const registerServerListsController = (app) => {
 
   const renderServerJoinRequests = () => {
     elements.serverJoinRequestList.replaceChildren();
-    setBadgeCount(elements.sidebarRequestsCount, state.friendRequests.length + state.serverJoinRequests.length);
+    setBadgeCount(elements.sidebarRequestsCount, state.friendRequests.filter((request) => request.incoming).length + state.serverJoinRequests.length);
     elements.serverJoinRequestList.closest('section')?.classList.toggle('hidden', !state.serverJoinRequests.length);
 
     state.serverJoinRequests.forEach((request) => {

@@ -28,6 +28,8 @@ export const registerSocketController = (app) => {
       state.socket.emit('authenticate', { token: state.token }, (response) => {
         if (response?.ok) {
           if (state.activeChannelId) state.socket.emit('join_channel', state.activeChannelId);
+          app.loadUnread().catch((error) => showToast(error.message));
+          app.loadServerJoinRequests().catch((error) => showToast(error.message));
           joinPendingGameFromUrl();
           if (refreshAfterServerDisconnect) {
             refreshAfterServerDisconnect = false;
@@ -70,10 +72,15 @@ export const registerSocketController = (app) => {
       if (atBottom || message.userId === state.user?.id || message.user?.id === state.user?.id) elements.messages.scrollTop = elements.messages.scrollHeight;
     });
 
+    state.socket.on('channel_message_notification', (message) => {
+      app.receiveUnread('channel', message.channelId, message);
+    });
+
     state.socket.on('message_deleted', ({ id, channelId, deletedAt }) => {
       if (channelId === state.activeChannelId) {
         markMessageDeleted({ id, deletedAt });
       }
+      app.loadUnread().catch(() => {});
     });
 
     state.socket.on('channel_updated', (channel) => {
@@ -84,6 +91,7 @@ export const registerSocketController = (app) => {
     });
 
     state.socket.on('private_message_deleted', ({ id, senderId, recipientId, deletedAt }) => {
+      app.loadUnread().catch(() => {});
       if (state.activeConversationType !== 'private') return;
       const peerId = state.activePrivateUserId;
       const ownId = state.user?.id;
@@ -95,6 +103,7 @@ export const registerSocketController = (app) => {
       if (state.user && [message.senderId, message.recipientId].includes(state.user.id)) {
         const peerId = message.senderId === state.user.id ? message.recipientId : message.senderId;
         app.notePrivateConversation(peerId, message.createdAt);
+        app.receiveUnread('private', peerId, message);
       }
       const privateUser = activePrivateUser();
       const currentUserId = state.user?.id;
@@ -120,6 +129,9 @@ export const registerSocketController = (app) => {
 
     state.socket.on('friendship_changed', () => {
       loadFriends().catch((error) => showToast(error.message));
+    });
+    state.socket.on('server_join_requests_changed', () => {
+      app.loadServerJoinRequests().catch((error) => showToast(error.message));
     });
 
     state.socket.on('presence_snapshot', (entries) => {

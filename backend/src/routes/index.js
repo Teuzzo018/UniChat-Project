@@ -11,6 +11,7 @@ const uploadRoutes = require('./uploadRoutes');
 const searchRoutes = require('./searchRoutes');
 const rtcRoutes = require('./rtcRoutes');
 const favoriteRoutes = require('./favoriteRoutes');
+const notificationRoutes = require('./notificationRoutes');
 
 const router = express.Router();
 
@@ -30,5 +31,6 @@ router.use('/uploads', uploadRoutes);
 router.use('/search', searchRoutes);
 router.use('/rtc', rtcRoutes);
 router.use('/favorites', favoriteRoutes);
+router.use('/notifications', notificationRoutes);
 
 module.exports = router;

@@ -73,8 +73,12 @@ const getAttachmentData = (file) => {
 
 const getChannelRoom = (channelId) => `channel:${channelId}`;
 
-const emitChannelMessage = (req, message) => {
+const emitChannelMessage = async (req, message) => {
   req.app.get('io')?.to(getChannelRoom(message.channelId)).emit('message_created', message);
+  try {
+    const members = await prisma.serverMember.findMany({ where: { server: { channels: { some: { id: message.channelId } } } }, select: { userId: true } });
+    for (const { userId } of members) req.app.get('io')?.to(`user:${userId}`).emit('channel_message_notification', message);
+  } catch (error) { console.error('Notifica messaggio canale non inviata:', error); }
 };
 
 const emitPrivateMessage = (req, message) => {
@@ -120,12 +124,12 @@ const listMessages = async (req, res) => {
 
   const messages = await prisma.message.findMany({
     where: { channelId: channel.id },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
     take: 80,
     select: messageSelect
   });
 
-  return res.status(200).json(messages);
+  return res.status(200).json(messages.reverse());
 };
 
 const createMessage = async (req, res) => {
@@ -156,7 +160,7 @@ const createMessage = async (req, res) => {
 
   req.uploadCommitted = true;
 
-  emitChannelMessage(req, message);
+  await emitChannelMessage(req, message);
   return res.status(201).json(message);
 };
 

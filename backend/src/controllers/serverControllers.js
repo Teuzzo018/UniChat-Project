@@ -4,6 +4,19 @@ const prisma = require('../lib/prisma');
 const { canManageServer, isSuperadmin } = require('../lib/authorization');
 const { parseInviteCode, isInviteActive, redeemInvite } = require('../utils/serverInvites');
 
+const notifyServerRequestsChanged = async (req, serverId) => {
+  const io = req.app.get('io');
+  if (!io) return;
+  try {
+    const [server, superadmins] = await Promise.all([
+      prisma.server.findUnique({ where: { id: serverId }, select: { ownerId: true, members: { where: { isAdmin: true }, select: { userId: true } } } }),
+      prisma.user.findMany({ where: { role: 'SUPERADMIN' }, select: { id: true } })
+    ]);
+    const recipients = new Set([server?.ownerId, ...(server?.members || []).map((member) => member.userId), ...superadmins.map((user) => user.id)]);
+    for (const userId of recipients) if (userId) io.to(`user:${userId}`).emit('server_join_requests_changed');
+  } catch (error) { console.error('Notifica richieste server non inviata:', error); }
+};
+
 const serverSelect = {
   id: true,
   name: true,
@@ -321,6 +334,8 @@ const joinServer = async (req, res) => {
     }
   });
 
+  await notifyServerRequestsChanged(req, server.id);
+
   return res.status(202).json({ message: 'Richiesta inviata. Il creatore del server deve accettarti.', serverId: server.id });
 };
 
@@ -366,6 +381,8 @@ const acceptServerJoinRequest = async (req, res) => {
     });
   });
 
+  await notifyServerRequestsChanged(req, request.serverId);
+
   return res.status(200).json(server);
 };
 
@@ -388,6 +405,8 @@ const declineServerJoinRequest = async (req, res) => {
     where: { id: request.id },
     data: { status: 'DECLINED' }
   });
+
+  await notifyServerRequestsChanged(req, request.serverId);
 
   return res.status(200).json({ message: 'Richiesta rifiutata' });
 };
