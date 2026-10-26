@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * MIDDLEWARE RATE LIMITING AUTENTICAZIONE (authRateLimit.js)
+ * 1. Tracciamento tentativi: conteggio richieste login/registrazione per indirizzo IP
+ * 2. Blocco brute-force: risposta HTTP 429 con Retry-After al superamento del limite
+ * ============================================================================
+ */
 const env = require('../config/env');
 const attempts = new Map();
 const windowMs = 15 * 60 * 1000;

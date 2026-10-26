@@ -1,3 +1,12 @@
+/**
+ * ============================================================================
+ * PUNTO D'INGRESSO PRINCIPALE DEL BACKEND (main.js)
+ * 1. Inizializzazione server: creazione istanza HTTP con Express e Socket.IO
+ * 2. Sanitizzazione chiamate: chiusura automatica chiamate rimaste appese al riavvio
+ * 3. Pulizia allegati orfani: avvio job periodico di bonifica file non referenziati
+ * 4. Avvio listener HTTP: apertura della porta configurata e gestione shutdown
+ * ============================================================================
+ */
 const http = require('http');
 const { Server } = require('socket.io');
 

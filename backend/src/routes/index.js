@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * ROUTER PRINCIPALE DELLE API (routes/index.js)
+ * 1. Aggregatore di tutti i sotto-router (/auth, /servers, /channels, /friends, ecc.)
+ * ============================================================================
+ */
 const express = require('express');
 
 const adminRoutes = require('./adminRoutes');

@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * TIPI ALLEGATI SUPPORTATI (attachmentTypes.js)
+ * 1. Whitelist estensioni e mime-type ammessi per l'upload di file
+ * ============================================================================
+ */
 const fs = require('node:fs/promises');
 const path = require('node:path');
 

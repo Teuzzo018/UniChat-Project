@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * GESTIONE DEI RUOLI (roleManagement.js)
+ * 1. Regole di assegnazione: validazione delle transizioni di ruolo ammissibili nel sistema
+ * ============================================================================
+ */
 const { isPrivilegedRole, isSuperadmin } = require('./authorization');
 
 const lockRoles = (tx) => tx.$queryRaw`SELECT pg_advisory_xact_lock(714293853)::text AS lock`;

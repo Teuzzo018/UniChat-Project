@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * ALLEGATI PRIVATI (privateAttachments.js)
+ * 1. Accesso allegati riservati: verifica autorizzazione mittente/destinatario
+ * ============================================================================
+ */
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const prisma = require('../lib/prisma');

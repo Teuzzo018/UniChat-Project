@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * CONTROLLER UNIVERSITÀ (universityControllers.js)
+ * 1. Elenco atenei (listUniversities): lista università per registrazione e selezione server
+ * ============================================================================
+ */
 const prisma = require('../lib/prisma');
 
 const listUniversities = async (req, res) => {

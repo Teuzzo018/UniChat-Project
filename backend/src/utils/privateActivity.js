@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * ATTIVITÀ CHAT PRIVATE (privateActivity.js)
+ * 1. Timestamp ultima interazione: aggiornamento data ultimo scambio tra due amici
+ * ============================================================================
+ */
 const prisma = require('../lib/prisma');
 
 const recordPrivateActivity = async ({ io, senderId, recipientId, activityKey, kind, content }) => {

@@ -1,3 +1,4 @@
+// 1. Configurazione animazione particelle a controller per il pulsante minigiochi
 export const setupGameButtonControllers = (button) => {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const layer = document.createElement('div');
@@ -7,6 +8,7 @@ export const setupGameButtonControllers = (button) => {
 
   let timer = null;
 
+  // 1.1 Generazione di un mini-controller fluttuante con animazione CSS
   const spawnController = () => {
     if (reducedMotion.matches || layer.childElementCount >= 3) return;
 
@@ -23,17 +25,20 @@ export const setupGameButtonControllers = (button) => {
     layer.append(controller);
   };
 
+  // 1.2 Avvio dell'effetto al passaggio del mouse o focus
   const start = () => {
     if (timer !== null || reducedMotion.matches) return;
     spawnController();
     timer = window.setInterval(spawnController, 420);
   };
 
+  // 1.3 Arresto dell'effetto
   const stop = () => {
     window.clearInterval(timer);
     timer = null;
   };
 
+  // 1.4 Registrazione degli eventi pointer ed accessibilità
   button.addEventListener('pointerenter', (event) => {
     if (event.pointerType === 'mouse') start();
   });
@@ -49,3 +54,4 @@ export const setupGameButtonControllers = (button) => {
     }
   });
 };
+

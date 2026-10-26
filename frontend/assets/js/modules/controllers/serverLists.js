@@ -1,3 +1,12 @@
+/**
+ * ============================================================================
+ * CONTROLLER LISTE SERVER (serverLists.js)
+ * 1. Rendering server dell'utente: icone laterali e selezione server attivo
+ * 2. Scoperta server universitari: elenco server pubblici disponibili per ateneo
+ * 3. Gestione inviti e richieste: ingresso via codice invito o richiesta formale
+ * 4. Uscita / Eliminazione: abbandono server o eliminazione per il proprietario
+ * ============================================================================
+ */
 export const registerServerListsController = (app) => {
   const { state, elements, api, formatBytes, isAllowedAttachment, isAudioAttachment, isImageAttachment, isVideoAttachment, MAX_ATTACHMENT_BYTES, appendMessageContent, createUserAvatar, getDisplayHandle, getInitials, renderAvatarContent, setBadgeCount, showConfirm, showToast } = app;
   const selectServer = (...args) => app.selectServer(...args);

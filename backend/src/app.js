@@ -1,3 +1,12 @@
+/**
+ * ============================================================================
+ * CONFIGURAZIONE APPLICAZIONE EXPRESS (app.js)
+ * 1. Middleware globali: intestazioni di sicurezza (Helmet), CORS e parser JSON/URL
+ * 2. File statici: distribuzione del frontend web e bundle client LiveKit
+ * 3. Rotte API: montaggio del router principale sotto il prefisso /api
+ * 4. Gestione errori: middleware per rotte non trovate (404) ed errori interni (500)
+ * ============================================================================
+ */
 const cors = require('cors');
 const express = require('express');
 const path = require('path');

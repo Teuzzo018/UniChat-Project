@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * CONTROLLER AVVIO MINIGIOCHI (gameLauncher.js)
+ * 1. Modale minigiochi: selezione tipologia gioco (Tris o Impiccato)
+ * 2. Invito amico: invio richiesta di partita via chat privata o link generato
+ * 3. Risposta invito: accettazione o rifiuto sfida in tempo reale
+ * ============================================================================
+ */
 export const registerGameLauncherController = (app) => {
   const { state, elements, api, formatBytes, isAllowedAttachment, isAudioAttachment, isImageAttachment, isVideoAttachment, MAX_ATTACHMENT_BYTES, appendMessageContent, createUserAvatar, getDisplayHandle, getInitials, renderAvatarContent, setBadgeCount, showConfirm, showToast } = app;
   const activeServer = (...args) => app.activeServer(...args);

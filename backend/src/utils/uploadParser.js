@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * PARSER MULTIPART UPLOAD (uploadParser.js)
+ * 1. Parsing streaming: estrazione campi testo e file binario da richieste multipart
+ * ============================================================================
+ */
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');

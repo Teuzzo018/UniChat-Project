@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * CONTROLLER AMMINISTRAZIONE E MODERAZIONE (adminControllers.js)
+ * 1. Panoramica (getAdminOverview): aggregazione dati per i cruscotti di gestione
+ * 2. Moderazione (suspendUser / deleteUser): sospensione account o eliminazione definitiva
+ * 3. Audit log (getAuditLogs): lettura e filtraggio del registro delle azioni eseguite
+ * ============================================================================
+ */
 const prisma = require('../lib/prisma');
 const disconnectUserSockets = require('../utils/disconnectUserSockets');
 const { lockRoles } = require('../lib/roleManagement');

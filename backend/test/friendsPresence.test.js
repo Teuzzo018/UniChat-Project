@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * TEST SUITE: AMICIZIE E PRESENZA ONLINE (friendsPresence.test.js)
+ * 1. Test richieste amicizia: invio, accettazione, rifiuto e rimozione
+ * 2. Test blocco utenti: verifica interruzione visibilità e divieto di contatto
+ * 3. Test presenza realtime: verifica snapshot iniziale e broadcast online/offline
+ * ============================================================================
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');

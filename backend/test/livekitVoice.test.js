@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * TEST SUITE: STANZE VOCALI LIVEKIT (livekitVoice.test.js)
+ * 1. Test rilascio token: verifica rilascio token JWT LiveKit solo a membri del server
+ * 2. Test permessi audio/video: verifica metadati e abilitazione webcam/microfono
+ * ============================================================================
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');

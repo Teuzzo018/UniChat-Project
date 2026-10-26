@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * ROTTE MESSAGGI DI CANALE (/api/channels)
+ * 1. Lettura, creazione ed eliminazione messaggi nei canali del server
+ * ============================================================================
+ */
 const express = require('express');
 
 const { createMessage, deleteChannelMessage, findAccessibleChannel, listMessages } = require('../controllers/messageControllers');

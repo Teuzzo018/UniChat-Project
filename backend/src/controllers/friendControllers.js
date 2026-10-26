@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * CONTROLLER AMICIZIE E SOCIAL (friendControllers.js)
+ * 1. Elenco amici (listFriends): recupero amici confermati e richieste ricevute/inviate
+ * 2. Richieste amicizia (sendFriendRequest / respondFriendRequest): invio e accettazione
+ * 3. Blocco utenti (blockUser / unblockUser): inserimento e rimozione contatti bloccati
+ * ============================================================================
+ */
 const prisma = require('../lib/prisma');
 const { isOnline } = require('../sockets/presence');
 

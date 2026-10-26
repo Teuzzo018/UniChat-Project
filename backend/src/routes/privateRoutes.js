@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * ROTTE CHAT PRIVATE (/api/private)
+ * 1. Messaggi diretti tra amici, allegati privati e cronologia chiamate
+ * ============================================================================
+ */
 const express = require('express');
 
 const {

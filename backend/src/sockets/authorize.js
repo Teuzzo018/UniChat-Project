@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * AUTORIZZAZIONI AZIONI SOCKET (sockets/authorize.js)
+ * 1. Verifica permessi realtime: controllo ruoli e appartenenze per eventi socket
+ * ============================================================================
+ */
 const { getAuthenticatedSocketUser } = require('./shared');
 const { canManageServer, canModerateGlobal, canModerateServer, isSuperadmin } = require('../lib/authorization');
 

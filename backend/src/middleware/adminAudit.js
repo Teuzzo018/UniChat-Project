@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * MIDDLEWARE AUDIT LOG AMMINISTRATIVO (adminAudit.js)
+ * 1. Intercettazione risposta: ascolto evento 'finish' per non bloccare la richiesta HTTP
+ * 2. Registrazione audit: scrittura asincrona su tabella AdminAuditLog dell'operazione
+ * ============================================================================
+ */
 const prisma = require('../lib/prisma');
 
 const audit = (action, resourceType, resourceParam, serverParam) => (req, res, next) => {

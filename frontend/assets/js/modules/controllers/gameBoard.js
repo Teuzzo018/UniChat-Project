@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * CONTROLLER SCACCHIERA MINIGIOCHI (gameBoard.js)
+ * 1. Rendering scacchiera: visualizzazione grafica griglia Tris o parola Impiccato
+ * 2. Invio mossa: validazione client ed emissione mossa verso il server via Socket.IO
+ * 3. Schermata finale: visualizzazione esito (vittoria, pareggio, sconfitta) e rivincita
+ * ============================================================================
+ */
 export const registerGameBoardController = (app) => {
   const { state, elements, api, formatBytes, isAllowedAttachment, isAudioAttachment, isImageAttachment, isVideoAttachment, MAX_ATTACHMENT_BYTES, appendMessageContent, createUserAvatar, getDisplayHandle, getInitials, renderAvatarContent, setBadgeCount, showConfirm, showToast } = app;
   const renderChannels = (...args) => app.renderChannels(...args);

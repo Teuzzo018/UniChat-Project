@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * TEST SUITE: SCOPERTA SERVER (serverDiscovery.test.js)
+ * 1. Test visibilità server: verifica isolamento per università e flag di scoperta
+ * 2. Test inviti: verifica scadenza temporale e limite massimo di utilizzi
+ * ============================================================================
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');

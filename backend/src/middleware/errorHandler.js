@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * MIDDLEWARE GESTIONE ERRORI GLOBALE (errorHandler.js)
+ * 1. Cattura eccezioni: intercettazione errori non gestiti nella catena dei controller
+ * 2. Risposta standard: invio messaggio di errore e codice di stato HTTP appropriato
+ * ============================================================================
+ */
 const errorHandler = (error, req, res, next) => {
   if (error.code === 'ENOENT') {
     console.warn('File richiesto non trovato:', req.method, req.path);

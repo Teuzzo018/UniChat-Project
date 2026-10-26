@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * TEST SUITE: CONVERSAZIONI PRIVATE (privateConversations.test.js)
+ * 1. Test scambio messaggi: verifica recapito messaggi solo tra amici non bloccati
+ * ============================================================================
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');

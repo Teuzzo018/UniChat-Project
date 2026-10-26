@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * TEST SUITE: NOTIFICHE E NON LETTI (notifications.test.js)
+ * 1. Test contatori unread: verifica incremento conteggio messaggi non letti
+ * 2. Test reset badge: verifica azzeramento contatori all'apertura della chat
+ * ============================================================================
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');

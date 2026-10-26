@@ -1,4 +1,6 @@
+// 1. Mappa centrale dei riferimenti agli elementi DOM dell'interfaccia utente
 export const elements = {
+
   acceptGameButton: document.querySelector('#acceptGameButton'),
   acceptCallButton: document.querySelector('#acceptCallButton'),
   adminAudit: document.querySelector('#adminAudit'),
@@ -147,12 +149,16 @@ export const elements = {
   workspaceTitle: document.querySelector('#workspaceTitle')
 };
 
+// 2. Gestione timer per dissolvenza e rimozione della schermata di Splash
 export const startSplashScreenTimers = () => {
+  // 2.1 Nasconde la splash screen dopo 900ms
   window.setTimeout(() => {
     elements.splashScreen?.classList.add('hidden');
   }, 900);
 
+  // 2.2 Rimuove definitivamente l'elemento dal DOM dopo 1700ms
   window.setTimeout(() => {
     elements.splashScreen?.remove();
   }, 1700);
 };
+

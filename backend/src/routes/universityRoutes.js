@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * ROTTE UNIVERSITÀ (/api/universities)
+ * 1. Consultazione elenco università supportate
+ * ============================================================================
+ */
 const express = require('express');
 const router = express.Router();
 

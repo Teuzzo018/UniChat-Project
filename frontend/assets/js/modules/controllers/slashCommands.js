@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * CONTROLLER COMANDI SLASH (slashCommands.js)
+ * 1. Parsing comandi: riconoscimento comandi speciali nella barra messaggi (es. /help, /roll)
+ * 2. Esecuzione comandi: invio azione corrispondente o rendering messaggio di aiuto
+ * ============================================================================
+ */
 const commands = [
   { name: 'tris', label: 'Gioca a Tris', action: (app) => app.startPrivateGame(app.state.activePrivateUserId, 'TICTACTOE') },
   { name: 'impiccato', label: 'Gioca a Impiccato', action: (app) => app.startPrivateGame(app.state.activePrivateUserId, 'HANGMAN') },

@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * TEST SUITE: SICUREZZA E AUTENTICAZIONE (security.test.js)
+ * 1. Test protezione password: verifica hashing bcrypt e criteri di complessità
+ * 2. Test sessioni: verifica hashing HMAC token, scadenza e blocco account sospesi
+ * 3. Test rate limiting: verifica prevenzione attacchi brute-force su /api/auth
+ * ============================================================================
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');

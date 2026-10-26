@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * CONTROLLER CAMPI PASSWORD (passwordFields.js)
+ * 1. Toggle visibilità: pulsante mostra/nascondi testo della password nei form
+ * 2. Feedback accessibilità: aggiornamento attributi aria-label e icone occhio
+ * ============================================================================
+ */
 export const registerPasswordFieldsController = (app) => {
   const form = app.elements.registerForm;
   const password = form.querySelector('[name="password"]');

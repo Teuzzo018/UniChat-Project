@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * CONFIGURAZIONE E VARIABILI D'AMBIENTE (env.js)
+ * 1. Caricamento file ambiente: lettura combinata di .env e .env.local
+ * 2. Validazione parametri: verifica segreti di sessione, limiti storage e porte
+ * 3. Esportazione configurazione: oggetto centralizzato con impostazioni validate
+ * ============================================================================
+ */
 const path = require('path');
 
 require('dotenv').config({

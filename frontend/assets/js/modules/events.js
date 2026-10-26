@@ -1,5 +1,6 @@
 import { setupGameButtonControllers } from './gameButtonControllers.js';
 
+// 1. Registrazione centralizzata di tutti gli Event Listener dell'interfaccia utente
 export const setupEventListeners = ({
   elements,
   api,
@@ -54,6 +55,7 @@ export const setupEventListeners = ({
   joinVoiceChannel,
   showHome
 }) => {
+  // 1. Cambio tab interfaccia di autenticazione (Login / Registrazione)
   document.querySelectorAll('[data-auth-tab]').forEach((button) => {
     button.addEventListener('click', () => {
       document.querySelectorAll('[data-auth-tab]').forEach((tab) => tab.classList.remove('active'));
@@ -63,6 +65,7 @@ export const setupEventListeners = ({
     });
   });
   
+  // 2. Acquisizione token e autenticazione: invio credenziali login (/api/auth/login)
   elements.loginForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -72,6 +75,7 @@ export const setupEventListeners = ({
         method: 'POST',
         body: JSON.stringify(Object.fromEntries(form))
       });
+      // 2.1 Memorizzazione del token nello stato in memoria e nel localStorage
       state.token = result.token;
       localStorage.setItem('unichat:token', result.token);
       state.user = result.user;
@@ -92,6 +96,7 @@ export const setupEventListeners = ({
     registerEmailError.textContent = '';
     registerEmailError.classList.add('hidden');
   });
+  // 3. Registrazione nuovo account universitario (/api/auth/register)
   elements.registerForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -130,6 +135,7 @@ export const setupEventListeners = ({
     }
   });
   
+  // 4. Logout e pulizia sessione: revoca backend, rimozione token locale e disconnessione socket
   elements.logoutButton.addEventListener('click', async () => {
     await leaveVoiceChannel();
     resetCall({ notifyPeer: true });
@@ -257,11 +263,13 @@ export const setupEventListeners = ({
   });
   document.querySelector('#closeServerDialog').addEventListener('click', () => elements.serverDialog.close());
   
+  // 5. Ingresso in un server tramite codice invito
   elements.inviteForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     await joinServerByInvite(elements.inviteCodeInput.value);
   });
 
+  // 6. Invio richiesta di amicizia tramite username
   elements.friendForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     state.friendsExpanded = true;
@@ -274,6 +282,7 @@ export const setupEventListeners = ({
     searchFriends(elements.friendUsernameInput.value).catch((error) => showToast(error.message));
   });
   
+  // 7. Creazione di un nuovo server universitario (/api/servers)
   elements.serverForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -296,6 +305,7 @@ export const setupEventListeners = ({
     }
   });
   
+  // 8. Creazione di un nuovo canale (testuale o vocale) nel server attivo
   elements.channelForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const server = activeServer();
@@ -322,6 +332,7 @@ export const setupEventListeners = ({
     }
   });
   
+  // 9. Invio messaggi di testo e file allegati (in canale via Socket o in chat privata via HTTP multipart)
   elements.messageForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const { formData, content, file, valid } = buildMessageFormData();
@@ -368,6 +379,7 @@ export const setupEventListeners = ({
     });
   });
 
+  // 10. Selezione e validazione allegato da input file (formato e dimensione)
   elements.messageFileInput.addEventListener('change', () => {
     const file = elements.messageFileInput.files[0];
 

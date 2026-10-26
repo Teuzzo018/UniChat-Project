@@ -1,3 +1,12 @@
+/**
+ * ============================================================================
+ * CONTROLLER SERVER E CANALI (serverControllers.js)
+ * 1. Elenco server (listUserServers): recupero server di cui l'utente è membro
+ * 2. Creazione server (createServer): inizializzazione server, canali base e codice invito
+ * 3. Ingresso e richieste (joinServer / requestJoin): gestione adesioni e richieste pendenti
+ * 4. Canali (createChannel / updateChannel / deleteChannel): gestione canali testuali e vocali
+ * ============================================================================
+ */
 const crypto = require('crypto');
 
 const prisma = require('../lib/prisma');

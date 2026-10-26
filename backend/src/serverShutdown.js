@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * GESTIONE SPEGNIMENTO CONTROLLATO (serverShutdown.js)
+ * 1. Intercettazione segnali: ascolto segnali di terminazione sistema (SIGINT, SIGTERM)
+ * 2. Chiusura connessioni: arresto ordinato del server HTTP e delle socket attive
+ * 3. Disconnessione database: chiusura sicura del pool di connessioni Prisma ORM
+ * ============================================================================
+ */
 const createShutdown = ({ server, io, prisma, timeoutMs = 10000, exit = process.exit }) => {
   let stopping;
 

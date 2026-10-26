@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * TEST SUITE: CHIAMATE PRIVATE 1-TO-1 (privateCalls.test.js)
+ * 1. Test ciclo vita chiamata: verifica stati RINGING, ACCEPTED, REJECTED, ENDED
+ * 2. Test persistenza cronologia: verifica salvataggio orari e durata su database
+ * ============================================================================
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');

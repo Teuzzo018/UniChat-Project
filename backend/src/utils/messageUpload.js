@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * SALVATAGGIO ALLEGATI (messageUpload.js)
+ * 1. Storage sicuro: memorizzazione file su directory protetta e generazione metadati
+ * ============================================================================
+ */
 const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
 const path = require('node:path');

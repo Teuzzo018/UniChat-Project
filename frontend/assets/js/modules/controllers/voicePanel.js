@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * CONTROLLER PANNELLO VOCALE (voicePanel.js)
+ * 1. Rendering griglia vocale: visualizzazione riquadri video e avatar partecipanti
+ * 2. Anteprima periferiche: anteprima locale webcam e microfono prima di entrare
+ * 3. Indicatori parlante: evidenziazione visiva dell'utente che sta parlando
+ * ============================================================================
+ */
 export const registerVoicePanelController = (app) => {
   const { state, elements } = app;
 

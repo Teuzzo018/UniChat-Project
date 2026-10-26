@@ -1,3 +1,12 @@
+/**
+ * ============================================================================
+ * CONTROLLER VISTA MESSAGGI (messageViews.js)
+ * 1. Rendering messaggi: visualizzazione messaggi di canale e chat private
+ * 2. Eliminazione messaggi: cancellazione logica con tracciamento autore/moderatore
+ * 3. Preferiti: salvataggio o rimozione messaggi dalla lista preferiti
+ * 4. Menu contestuale: copia testo, preferiti, eliminazione e gestione focus
+ * ============================================================================
+ */
 export const registerMessageViewsController = (app) => {
   const { state, elements, api, formatBytes, isAllowedAttachment, isAudioAttachment, isImageAttachment, isVideoAttachment, MAX_ATTACHMENT_BYTES, appendMessageContent, createUserAvatar, getDisplayHandle, getInitials, renderAvatarContent, setBadgeCount, showConfirm, showToast } = app;
   const resetCall = (...args) => app.resetCall(...args);

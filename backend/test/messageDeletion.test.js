@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * TEST SUITE: CANCELLAZIONE MESSAGGI (messageDeletion.test.js)
+ * 1. Test cancellazione autore: verifica cancellazione logica del proprio messaggio
+ * 2. Test moderazione: verifica eliminazione messaggi altrui solo per moderatori
+ * 3. Test integrità: verifica azzeramento contenuto testuale e conservazione traccia
+ * ============================================================================
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');

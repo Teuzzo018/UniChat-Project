@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * ROTTE PREFERITI (/api/favorites)
+ * 1. Lettura e salvataggio messaggi preferiti dell'utente
+ * ============================================================================
+ */
 const express = require('express');
 const authMiddleware = require('../middleware/authMiddleware');
 const { listFavorites, changeFavorite } = require('../controllers/favoriteControllers');

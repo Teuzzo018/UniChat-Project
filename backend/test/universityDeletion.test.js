@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * TEST SUITE: GESTIONE UNIVERSITÀ (universityDeletion.test.js)
+ * 1. Test atenei: verifica creazione, consultazione ed eliminazione atenei universitari
+ * ============================================================================
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');

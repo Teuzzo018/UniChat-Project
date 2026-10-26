@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * AMBITI AMMINISTRATIVI (adminScope.js)
+ * 1. Calcolo scope: determinazione dei privilegi di moderazione su scala globale o locale
+ * ============================================================================
+ */
 const prisma = require('./prisma');
 const { canModerateGlobal, isActive } = require('./authorization');
 

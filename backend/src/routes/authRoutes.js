@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * ROTTE AUTENTICAZIONE (/api/auth)
+ * 1. Registrazione, login, logout e gestione profilo utente autenticato
+ * ============================================================================
+ */
 const express = require('express');
 const router = express.Router();
 

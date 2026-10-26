@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * REGOLE DI AUTORIZZAZIONE RBAC (authorization.js)
+ * 1. Controllo ruoli globali: verifica permessi SUPERADMIN, ADMIN, PROFESSOR, STUDENT
+ * 2. Amministrazione server: verifica diritti del proprietario e moderatori locali
+ * 3. Riservatezza Creator: protezione esclusiva per l'identità del creatore della piattaforma
+ * ============================================================================
+ */
 const prisma = require('./prisma');
 
 const SITE_OWNER_EMAIL = 'teo.sisto.04@gmail.com';

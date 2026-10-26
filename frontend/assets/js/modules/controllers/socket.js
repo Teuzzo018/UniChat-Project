@@ -14,6 +14,7 @@ export const registerSocketController = (app) => {
   const activePrivateUser = (...args) => app.activePrivateUser(...args);
   let refreshAfterServerDisconnect = false;
 
+  // 1. Inizializzazione e connessione WebSocket Socket.IO
   const connectSocket = () => {
     if (state.socket) {
       state.socket.disconnect();
@@ -21,10 +22,12 @@ export const registerSocketController = (app) => {
   
     state.socket = io();
   
+    // 1.1 Connessione stabilita: autenticazione immediata tramite il token di sessione
     state.socket.on('connect', () => {
       elements.connectionStatus.textContent = 'online';
       elements.connectionStatus.classList.add('online');
   
+      // Invio del token al server per associare la socket all'utente
       state.socket.emit('authenticate', { token: state.token }, (response) => {
         if (response?.ok) {
           if (state.activeChannelId) state.socket.emit('join_channel', state.activeChannelId);
@@ -42,6 +45,7 @@ export const registerSocketController = (app) => {
       });
     });
   
+    // 1.2 Gestione disconnessione e fallback stato offline
     state.socket.on('disconnect', (reason) => {
       if (state.call.id) {
         resetCall();
@@ -58,6 +62,7 @@ export const registerSocketController = (app) => {
       }
     });
   
+    // 1.3 Ricezione messaggi di canale in tempo reale ('message_created')
     state.socket.on('message_created', (message) => {
       if (message.channelId !== state.activeChannelId) {
         return;
@@ -99,6 +104,7 @@ export const registerSocketController = (app) => {
           [senderId, recipientId].includes(ownId)) markMessageDeleted({ id, deletedAt });
     });
 
+    // 1.4 Ricezione messaggi privati in tempo reale ('private_message_created')
     state.socket.on('private_message_created', (message) => {
       if (state.user && [message.senderId, message.recipientId].includes(state.user.id)) {
         const peerId = message.senderId === state.user.id ? message.recipientId : message.senderId;
@@ -134,6 +140,7 @@ export const registerSocketController = (app) => {
       app.loadServerJoinRequests().catch((error) => showToast(error.message));
     });
 
+    // 1.5 Snapshot e sincronizzazione presenza amici online / offline
     state.socket.on('presence_snapshot', (entries) => {
       state.friendPresence = Object.fromEntries((Array.isArray(entries) ? entries : [])
         .filter((item) => typeof item.userId === 'string').map((item) => [item.userId, Boolean(item.online)]));
@@ -145,6 +152,7 @@ export const registerSocketController = (app) => {
       app.renderFriends();
     });
 
+    // 1.6 Gestione eventi di videochiamata privata WebRTC 1-to-1
     state.socket.on('private_video_call_incoming', (payload) => app.onIncomingCall(payload));
 
     state.socket.on('private_video_call_answered', (payload) => app.onCallAnswered(payload));
@@ -156,6 +164,7 @@ export const registerSocketController = (app) => {
 
     state.socket.on('private_video_call_ended', (payload) => app.onCallEnded(payload));
 
+    // 1.7 Gestione inviti e sincronizzazione mosse minigiochi
     state.socket.on('private_game_invite', (game) => {
       showGame(game);
       showToast(`Invito a ${getGameLabel(game.type)} da ${game.players[0].fullName}`);

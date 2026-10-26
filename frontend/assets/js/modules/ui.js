@@ -1,11 +1,13 @@
 import { elements } from './dom.js';
 
+// 1. Mostra un messaggio toast temporaneo di notifica
 export const showToast = (message) => {
   elements.toast.textContent = message;
   elements.toast.classList.add('visible');
   window.setTimeout(() => elements.toast.classList.remove('visible'), 2600);
 };
 
+// 2. Mostra una finestra modale di conferma asincrona
 export const showConfirm = (message, confirmLabel = 'Conferma') => new Promise((resolve) => {
   elements.confirmDialogMessage.textContent = message;
   elements.confirmAcceptButton.textContent = confirmLabel;
@@ -31,6 +33,7 @@ export const showConfirm = (message, confirmLabel = 'Conferma') => new Promise((
   elements.confirmDialog.showModal();
 });
 
+// 3. Estrae le iniziali maiuscole dal nome completo dell'utente (fallback avatar)
 export const getInitials = (name = '?') => {
   return name
     .split(' ')
@@ -41,6 +44,7 @@ export const getInitials = (name = '?') => {
     .toUpperCase();
 };
 
+// 4. Crea un elemento DOM avatar per l'utente (immagine o iniziali con fallback)
 export const createUserAvatar = (user, className = 'avatar') => {
   const avatar = document.createElement('div');
   avatar.className = className;
@@ -62,6 +66,7 @@ export const createUserAvatar = (user, className = 'avatar') => {
   return avatar;
 };
 
+// 5. Esegue il rendering dell'avatar all'interno di un contenitore esistente
 export const renderAvatarContent = (container, user) => {
   container.replaceChildren();
 
@@ -81,8 +86,10 @@ export const renderAvatarContent = (container, user) => {
   container.textContent = getInitials(user?.fullName);
 };
 
+// 6. Restituisce l'handle o identificativo visibile (@username o email)
 export const getDisplayHandle = (user) => user?.username ? `@${user.username}` : user?.email || '';
 
+// 7. Rende cliccabili i link URL all'interno del testo di un messaggio
 export const appendMessageContent = (container, text = '') => {
   const urlPattern = /(https?:\/\/[^\s]+)/g;
   let lastIndex = 0;
@@ -104,7 +111,9 @@ export const appendMessageContent = (container, text = '') => {
   container.append(document.createTextNode(text.slice(lastIndex)));
 };
 
+// 8. Aggiorna il contatore numerico di un badge di notifica
 export const setBadgeCount = (badge, count) => {
   badge.textContent = String(count);
   badge.classList.toggle('hidden', count <= 0);
 };
+

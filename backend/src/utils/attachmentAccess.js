@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * CONTROLLO ACCESSO ALLEGATI (attachmentAccess.js)
+ * 1. Verifica diritti: controllo appartenenza al canale o alla chat privata per download
+ * ============================================================================
+ */
 const prisma = require('../lib/prisma');
 const { canContact } = require('../controllers/messageControllers');
 

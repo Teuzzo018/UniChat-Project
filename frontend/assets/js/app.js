@@ -1,3 +1,4 @@
+// 1. Importazione dei controller modulari del client UniChat
 import { registerAdminController } from './modules/controllers/admin.js';
 import { registerBootstrapDataController } from './modules/controllers/bootstrapData.js';
 import { registerCallsController } from './modules/controllers/calls.js';
@@ -24,8 +25,10 @@ import { registerVoicePanelController } from './modules/controllers/voicePanel.j
 import { createAppContext } from './modules/context.js';
 import { registerStartup } from './modules/startup.js';
 
+// 2. Creazione dell'istanza del contesto dell'applicazione
 const app = createAppContext();
 
+// 3. Registrazione sequenziale di tutti i controller funzionali sull'oggetto app
 registerCoreController(app);
 registerShellController(app);
 registerShellLayoutController(app);
@@ -51,4 +54,6 @@ registerSocketController(app);
 registerBootstrapDataController(app);
 registerStartup(app);
 
+// 4. Avvio del ciclo di vita dell'applicazione
 app.start();
+

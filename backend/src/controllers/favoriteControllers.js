@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * CONTROLLER MESSAGGI PREFERITI (favoriteControllers.js)
+ * 1. Gestione preferiti (listFavorites / toggleFavorite): salvataggio messaggi importanti
+ * ============================================================================
+ */
 const prisma = require('../lib/prisma');
 const { findAccessibleChannel, canContact } = require('./messageControllers');
 

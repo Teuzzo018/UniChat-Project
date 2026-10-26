@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * HANDLER SOCKET VIDEOCHIAMATE 1-TO-1 (sockets/callHandlers.js)
+ * 1. Signaling WebRTC: gestione offer, answer, candidati ICE e chiusura chiamata
+ * 2. Persistenza chiamate: registrazione orari e stato su tabella PrivateCall
+ * ============================================================================
+ */
 const prisma = require('../lib/prisma');
 const env = require('../config/env');
 const { canContact } = require('../controllers/messageControllers');

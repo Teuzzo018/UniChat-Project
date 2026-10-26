@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * CONTROLLER RICERCA GLOBALE (globalSearch.js)
+ * 1. Esecuzione ricerca: interrogazione API backend (/api/search) per termine chiave
+ * 2. Filtri di ambito: ricerca in tutti i server, server attivo, canale o contatti
+ * 3. Paginazione e navigazione: rendering risultati con salto diretto al messaggio/contatto
+ * ============================================================================
+ */
 export const registerGlobalSearchController = (app) => {
   const { elements, api, showToast } = app;
   let page = 1;

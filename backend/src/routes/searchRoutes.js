@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * ROTTE RICERCA (/api/search)
+ * 1. Endpoint ricerca globale su messaggi, canali e utenti
+ * ============================================================================
+ */
 const express = require('express');
 const authMiddleware = require('../middleware/authMiddleware');
 const { searchGlobal } = require('../controllers/searchControllers');

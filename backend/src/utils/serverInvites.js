@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * UTILITY INVITI SERVER (serverInvites.js)
+ * 1. Generazione e validazione: parsing codice invito, controllo scadenza e usi massimi
+ * ============================================================================
+ */
 const parseInviteCode = (input) => {
   if (typeof input !== 'string' || input.length > 2048) return null;
   let value = input.trim();

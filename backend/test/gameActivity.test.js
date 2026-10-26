@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * TEST SUITE: MINIGIOCHI REALTIME (gameActivity.test.js)
+ * 1. Test avvio partita: creazione stanza di gioco per Tris o Impiccato
+ * 2. Test validazione mosse: controllo alternanza turni e rilevamento vittoria/patta
+ * ============================================================================
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');

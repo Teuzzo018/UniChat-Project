@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * CONTROLLER CANALI (channels.js)
+ * 1. Rendering canali: visualizzazione canali testuali e vocali del server attivo
+ * 2. Gestione permessi: verifica diritti di amministrazione/moderazione canale
+ * 3. Modifica canali: rinomina ed eliminazione con conferma ed eventi realtime
+ * ============================================================================
+ */
 export const registerChannelsController = (app) => {
   const { state, elements, api, formatBytes, isAllowedAttachment, isAudioAttachment, isImageAttachment, isVideoAttachment, MAX_ATTACHMENT_BYTES, appendMessageContent, createUserAvatar, getDisplayHandle, getInitials, renderAvatarContent, setBadgeCount, showConfirm, showToast } = app;
   const activeServer = (...args) => app.activeServer(...args);

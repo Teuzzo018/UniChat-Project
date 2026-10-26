@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * CONTROLLER SHELL APPLICATIVA (shell.js)
+ * 1. Stato autenticato: transizione visiva tra schermata di autenticazione e app principale
+ * 2. Home e benvenuto: visualizzazione schermata panoramica iniziale
+ * 3. Reset dock utente: sincronizzazione stato microfono, audio e identità
+ * ============================================================================
+ */
 export const registerShellController = (app) => {
   const { state, elements, api, formatBytes, isAllowedAttachment, isAudioAttachment, isImageAttachment, isVideoAttachment, MAX_ATTACHMENT_BYTES, appendMessageContent, createUserAvatar, getDisplayHandle, getInitials, renderAvatarContent, setBadgeCount, showConfirm, showToast } = app;
   const activeServer = (...args) => app.activeServer(...args);

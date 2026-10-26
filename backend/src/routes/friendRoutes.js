@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * ROTTE AMICIZIE E SOCIAL (/api/friends)
+ * 1. Elenco amici, invio/accettazione richieste e gestione utenti bloccati
+ * ============================================================================
+ */
 const express = require('express');
 
 const {

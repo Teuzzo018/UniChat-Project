@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * CONTROLLER ASSEGNAZIONE RUOLI (roleControllers.js)
+ * 1. Cambio ruoli (assignRole): modifica ruolo utente (STUDENT, PROFESSOR, PLATFORM_ADMIN)
+ * ============================================================================
+ */
 const prisma = require('../lib/prisma');
 const { canModerateGlobal, isSuperadmin } = require('../lib/authorization');
 const { canAffectUser, isLastActiveSuperadmin, isLastSuperadmin, lockRoles } = require('../lib/roleManagement');

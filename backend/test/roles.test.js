@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * TEST SUITE: RUOLI E PERMESSI (roles.test.js)
+ * 1. Test gerarchia ruoli: verifica privilegi STUDENT, PROFESSOR, ADMIN, SUPERADMIN
+ * 2. Test modifiche ruoli: verifica vincoli di assegnazione e protezione Creator
+ * ============================================================================
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');

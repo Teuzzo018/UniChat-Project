@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * CONTROLLER LAYOUT SHELL (shellLayout.js)
+ * 1. Adattamento responsive: gestione sidebar espansa/compressa per desktop e mobile
+ * 2. Gestione breakpoint: apertura e chiusura drawer laterale su schermi touch
+ * ============================================================================
+ */
 const MIN_WIDTH = 240;
 const MAX_WIDTH = 420;
 const STORAGE_KEY = 'unichat:sidebar-width';

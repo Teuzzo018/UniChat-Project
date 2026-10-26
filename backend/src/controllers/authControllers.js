@@ -1,3 +1,12 @@
+/**
+ * ============================================================================
+ * CONTROLLER AUTENTICAZIONE E UTENTI (authControllers.js)
+ * 1. Registrazione (register): validazione campi, hash password bcrypt, riscatto invito
+ * 2. Login (login): verifica credenziali, generazione token sessione e hash HMAC
+ * 3. Logout (logout): eliminazione sessione dal DB e disconnessione forzata dei socket
+ * 4. Profilo (getAuthenticatedUser / updateProfile): lettura e aggiornamento profilo/avatar
+ * ============================================================================
+ */
 const bcrypt = require('bcryptjs');
 
 const env = require('../config/env');

@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * ROTTE DOWNLOAD ALLEGATI (/api/uploads)
+ * 1. Download controllato e autorizzato di allegati protetti da token
+ * ============================================================================
+ */
 const express = require('express');
 const path = require('path');
 const authMiddleware = require('../middleware/authMiddleware');

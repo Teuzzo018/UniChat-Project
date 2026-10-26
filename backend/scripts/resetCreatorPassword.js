@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * SCRIPT DI RIPRISTINO PASSWORD CREATOR (resetCreatorPassword.js)
+ * 1. Reset credenziali: procedura da terminale per reimpostare la password del Creator
+ * ============================================================================
+ */
 const bcrypt = require('bcryptjs');
 
 const env = require('../src/config/env');

@@ -1,3 +1,12 @@
+/**
+ * ============================================================================
+ * CONTROLLER STANZE VOCALI LIVEKIT (voiceRtc.js)
+ * 1. Acquisizione token vocale: richiesta token JWT al backend (/api/rtc/voice-token)
+ * 2. Connessione LiveKit: connessione alla stanza multimediale di gruppo
+ * 3. Controlli multimediali: attivazione/disattivazione microfono, webcam e condivisione schermo
+ * 4. Disconnessione: uscita ordinata dalla stanza vocale e rilascio tracce
+ * ============================================================================
+ */
 export const registerVoiceRtcController = (app) => {
   const { state, elements, api, showToast } = app;
   const livekit = window.LivekitClient;

@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * ROTTE AMMINISTRAZIONE (/api/admin)
+ * 1. Dashboard, audit log, moderazione utenti e cambio ruoli
+ * ============================================================================
+ */
 const express = require('express');
 
 const {

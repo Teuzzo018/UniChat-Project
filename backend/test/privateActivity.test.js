@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * TEST SUITE: ATTIVITÀ CHAT PRIVATE (privateActivity.test.js)
+ * 1. Test timestamp attività: verifica aggiornamento orario ultima interazione
+ * ============================================================================
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');

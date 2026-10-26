@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * CONTROLLER ALLEGATI MESSAGGI (messageAttachments.js)
+ * 1. Validazione allegati: controllo formato consentito e limite 25 MB
+ * 2. Anteprima client: visualizzazione chip allegato selezionato con pulsante rimozione
+ * 3. Invio con upload: invio multipart HTTP protetto con barra di avanzamento
+ * ============================================================================
+ */
 export const registerMessageAttachmentsController = (app) => {
   const { state, elements, api, formatBytes, isAllowedAttachment, isAudioAttachment, isImageAttachment, isVideoAttachment, MAX_ATTACHMENT_BYTES, appendMessageContent, createUserAvatar, getDisplayHandle, getInitials, renderAvatarContent, setBadgeCount, showConfirm, showToast } = app;
   const activePrivateUser = (...args) => app.activePrivateUser(...args);

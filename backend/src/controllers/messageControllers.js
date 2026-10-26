@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * CONTROLLER MESSAGGI E CHAT (messageControllers.js)
+ * 1. Lettura messaggi (listChannelMessages / listPrivateMessages): cronologia paginata
+ * 2. Creazione messaggio (createChannelMessage / createPrivateMessage): scrittura e broadcast
+ * 3. Cancellazione logica (deleteMessage): eliminazione contenuto e conservazione traccia
+ * ============================================================================
+ */
 const prisma = require('../lib/prisma');
 const { ensureServerMember } = require('./serverControllers');
 const { canModerateServerMessages } = require('../lib/authorization');

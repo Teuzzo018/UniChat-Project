@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * ROTTE NOTIFICHE (/api/notifications)
+ * 1. Contatori messaggi non letti e marcatura lettura conversazioni
+ * ============================================================================
+ */
 const express = require('express');
 const prisma = require('../lib/prisma');
 const authMiddleware = require('../middleware/authMiddleware');

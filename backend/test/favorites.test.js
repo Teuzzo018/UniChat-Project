@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * TEST SUITE: PREFERITI (favorites.test.js)
+ * 1. Test aggiunta preferiti: verifica salvataggio messaggio nei preferiti personali
+ * 2. Test rimozione preferiti: verifica eliminazione e vincoli di unicità (no duplicati)
+ * ============================================================================
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');

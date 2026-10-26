@@ -1,3 +1,12 @@
+/**
+ * ============================================================================
+ * CONTROLLER CHIAMATE PRIVATE 1-TO-1 (calls.js)
+ * 1. Avvio chiamata: richiesta video/audio chiamata verso un amico via Socket.IO
+ * 2. Risposta e signaling WebRTC: gestione offer, answer e candidati ICE
+ * 3. Gestione flussi media: acquisizione getUserMedia e associazione stream video/audio
+ * 4. Terminazione chiamata: chiusura connessione peer e ripristino interfaccia
+ * ============================================================================
+ */
 export const registerCallsController = (app) => {
   const { state, elements, api, showToast } = app;
   const audioButton = document.querySelector('#audioCallButton');

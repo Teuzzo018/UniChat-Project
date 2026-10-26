@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * CONTROLLER SELETTORE EMOJI (emojiPicker.js)
+ * 1. Inizializzazione picker: creazione popup emoji categorized per la barra messaggi
+ * 2. Inserimento emoji: aggiunta dell'emoji selezionata nel campo di testo del composer
+ * ============================================================================
+ */
 const EMOJI = ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','🙂','😉','😍','🥰','😘','😎','🤔','😮','😢','😭','😡','👍','👎','👏','🙌','🙏','💪','👋','👌','❤️','🧡','💛','💚','💙','💜','✨','🎉','🔥','⭐','💯','👀','🤝','💬','🎮','📚','☕','🍕','🐱','🌈'];
 
 export const registerEmojiPickerController = (app) => {

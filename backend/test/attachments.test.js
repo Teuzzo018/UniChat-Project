@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * TEST SUITE: ALLEGATI E FILE (attachments.test.js)
+ * 1. Test validazione file: verifica blocco estensioni non autorizzate e file > 25 MB
+ * 2. Test download protetto: verifica che solo i membri autorizzati possano scaricare file
+ * 3. Test rimozione allegati: verifica pulizia disco su eliminazione messaggio
+ * ============================================================================
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');

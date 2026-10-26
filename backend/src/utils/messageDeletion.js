@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * LOGICA CANCELLAZIONE MESSAGGI (messageDeletion.js)
+ * 1. Cancellazione logica: pulizia testo e allegato con conservazione timestamp e autore
+ * ============================================================================
+ */
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const prisma = require('../lib/prisma');

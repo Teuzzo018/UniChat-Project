@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * CONTROLLER RICERCA GLOBALE (searchControllers.js)
+ * 1. Ricerca full-text (globalSearch): ricerca sicura di messaggi, canali e persone
+ * ============================================================================
+ */
 const prisma = require('../lib/prisma');
 
 const scopes = new Set(['explore', 'member', 'channels', 'users', 'friends']);

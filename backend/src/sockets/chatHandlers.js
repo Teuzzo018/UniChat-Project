@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * HANDLER SOCKET CHAT (sockets/chatHandlers.js)
+ * 1. Invio messaggi: ricezione evento 'send_message', scrittura DB e broadcast nel canale
+ * ============================================================================
+ */
 const prisma = require('../lib/prisma');
 const { findAccessibleChannel, messageSelect } = require('../controllers/messageControllers');
 const { getChannelRoom } = require('./shared');

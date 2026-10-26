@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * HANDLER SOCKET MINIGIOCHI (sockets/gameHandlers.js)
+ * 1. Stato di gioco in memoria: gestione partite attive (Tris e Impiccato)
+ * 2. Validazione mosse e turni: verifica correttezza mossa e broadcast aggiornamenti
+ * ============================================================================
+ */
 const crypto = require('crypto');
 
 const prisma = require('../lib/prisma');

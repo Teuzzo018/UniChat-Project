@@ -1,3 +1,4 @@
+// 1. Controller per la navigazione tra viste, selezione canali e caricamento messaggi
 export const registerNavigationController = (app) => {
   const { state, elements, api, formatBytes, isAllowedAttachment, isAudioAttachment, isImageAttachment, isVideoAttachment, MAX_ATTACHMENT_BYTES, appendMessageContent, createUserAvatar, getDisplayHandle, getInitials, renderAvatarContent, setBadgeCount, showConfirm, showToast } = app;
   const activeChannel = (...args) => app.activeChannel(...args);
@@ -13,6 +14,7 @@ export const registerNavigationController = (app) => {
   const setDefaultEmptyState = (...args) => app.setDefaultEmptyState(...args);
   let messageLoadSequence = 0;
 
+  // 1.1 Caricamento e visualizzazione dei messaggi (canale testuale o chat privata)
   const loadMessages = async () => {
     const currentLoad = ++messageLoadSequence;
     const channel = activeChannel();
@@ -98,6 +100,7 @@ export const registerNavigationController = (app) => {
     }
   };
 
+  // 1.2 Selezione e cambio canale attivo nel server (testuale o vocale)
   const selectChannel = async (channelId) => {
     resetCall({ notifyPeer: true });
     if (state.activeChannelId !== channelId) app.stopVoicePreview?.();
@@ -113,6 +116,7 @@ export const registerNavigationController = (app) => {
     app.closeMobileNav?.();
   };
 
+  // 1.3 Apertura di una conversazione privata diretta con un amico
   const selectPrivateChat = async (user) => {
     if (!state.friends.some((friendship) => friendship.friend.id === user?.id)) {
       showToast('Puoi scrivere solo agli amici');
@@ -133,6 +137,7 @@ export const registerNavigationController = (app) => {
     app.closeMobileNav?.();
   };
 
+  // 1.4 Selezione e cambio del server universitario attivo
   const selectServer = async (serverId) => {
     await leaveVoiceChannel();
     resetCall({ notifyPeer: true });

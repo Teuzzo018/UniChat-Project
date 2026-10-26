@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * ROTTE RTC E VOCE (/api/rtc)
+ * 1. Generazione e rilascio token vocali LiveKit per le stanze audio/video
+ * ============================================================================
+ */
 const express = require('express');
 const crypto = require('node:crypto');
 const authMiddleware = require('../middleware/authMiddleware');

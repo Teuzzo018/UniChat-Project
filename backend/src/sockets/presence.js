@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * GESTIONE PRESENZA ONLINE (sockets/presence.js)
+ * 1. Tracking presenza: monitoraggio socket attive per utente
+ * 2. Notifiche presenza: broadcast dello stato online/offline a tutti gli amici
+ * ============================================================================
+ */
 const prisma = require('../lib/prisma');
 const { getUserRoom } = require('./shared');
 

@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * HANDLER PRINCIPALE SOCKET.IO (sockets/index.js)
+ * 1. Handshake e autenticazione: verifica token di sessione su evento 'authenticate'
+ * 2. Registrazione moduli socket: chat, canali vocali, videochiamate, giochi e presenza
+ * 3. Gestione disconnessione: notifica offline dello stato agli amici connessi
+ * ============================================================================
+ */
 const registerCallHandlers = require('./callHandlers');
 const registerChatHandlers = require('./chatHandlers');
 const registerGameHandlers = require('./gameHandlers');

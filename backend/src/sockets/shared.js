@@ -1,3 +1,10 @@
+/**
+ * ============================================================================
+ * UTILITY CONDIVISE SOCKET (sockets/shared.js)
+ * 1. Autenticazione socket: estrazione utente dal token e validazione sessione
+ * 2. Stanze socket: definizione identificativi stanze utente, canale e vocali
+ * ============================================================================
+ */
 const prisma = require('../lib/prisma');
 const { hashSessionToken } = require('../utils/sessionTokens');
 

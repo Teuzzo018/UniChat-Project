@@ -1,3 +1,12 @@
+/**
+ * ============================================================================
+ * MIDDLEWARE DI AUTENTICAZIONE (authMiddleware.js)
+ * 1. Estrazione token: lettura header Authorization 'Bearer <token>'
+ * 2. Verifica hash sessione: calcolo HMAC e ricerca sessione su database Prisma
+ * 3. Controllo validità: verifica data di scadenza e stato di sospensione utente
+ * 4. Iniezione contesto: assegnazione di req.user e req.session per le rotte protette
+ * ============================================================================
+ */
 const prisma = require('../lib/prisma');
 const { hashSessionToken } = require('../utils/sessionTokens');
 

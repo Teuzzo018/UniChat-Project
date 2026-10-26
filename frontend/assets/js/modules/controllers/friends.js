@@ -1,3 +1,12 @@
+/**
+ * ============================================================================
+ * CONTROLLER AMICIZIE E RELAZIONI (friends.js)
+ * 1. Caricamento amici: recupero lista amici, richieste pendenti e blocchi
+ * 2. Rendering relazioni: visualizzazione contatti, indicatori presenza e menu
+ * 3. Azioni sociali: invio richiesta per username, accettazione, rifiuto, rimozione
+ * 4. Blocco utenti: gestione blocco e sblocco contatti indesiderati
+ * ============================================================================
+ */
 export const registerFriendsController = (app) => {
   const { state, elements, api, formatBytes, isAllowedAttachment, isAudioAttachment, isImageAttachment, isVideoAttachment, MAX_ATTACHMENT_BYTES, appendMessageContent, createUserAvatar, getDisplayHandle, getInitials, renderAvatarContent, setBadgeCount, showConfirm, showToast } = app;
   const selectPrivateChat = (...args) => app.selectPrivateChat(...args);

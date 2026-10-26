@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * HANDLER STANZE VOCALI (sockets/voiceHandlers.js)
+ * 1. Tracciamento partecipanti: gestione eventi ingresso e uscita dalle stanze vocali
+ * ============================================================================
+ */
 const { findAccessibleChannel } = require('../controllers/messageControllers');
 const { getVoiceRoom } = require('./shared');
 const authorizeSocket = require('./authorize');

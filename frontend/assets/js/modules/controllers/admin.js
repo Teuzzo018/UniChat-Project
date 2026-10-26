@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * CONTROLLER PANNELLO AMMINISTRATIVO (admin.js)
+ * 1. Dashboard amministrativa: statistiche globali, elenco server e gestione utenti
+ * 2. Moderazione utenti: cambio ruoli RBAC, sospensione/riattivazione account
+ * 3. Audit log: visualizzazione registro cronologico delle operazioni amministrative
+ * ============================================================================
+ */
 export const registerAdminController = (app) => {
   const { state, elements, api, showConfirm, showToast } = app;
   const pages = { admin: 1, superadmin: 1 };

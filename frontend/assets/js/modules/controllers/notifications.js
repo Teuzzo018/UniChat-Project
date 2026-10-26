@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * CONTROLLER NOTIFICHE E NON LETTI (notifications.js)
+ * 1. Recupero notifiche: caricamento contatori non letti per canali e privati (/api/notifications)
+ * 2. Ricezione eventi non letti: incremento dinamico contatori su nuovi messaggi in background
+ * 3. Marcatura lettura: azzeramento badge e notifica al backend alla visualizzazione
+ * ============================================================================
+ */
 export const registerNotificationsController = (app) => {
   const { state, api } = app;
   state.unread = { channels: {}, private: {} };

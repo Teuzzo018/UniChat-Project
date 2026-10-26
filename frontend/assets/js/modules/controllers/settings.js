@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * CONTROLLER IMPOSTAZIONI UTENTE (settings.js)
+ * 1. Profilo utente: modifica nome visualizzato e caricamento nuova foto profilo
+ * 2. Personalizzazione tema: cambio tema grafico (Chiaro, Scuro, Nero e Rame)
+ * 3. Gestione bloccati: consultazione elenco account bloccati con sblocco rapido
+ * ============================================================================
+ */
 export const registerSettingsController = (app) => {
   const { state, elements, api, formatBytes, isAllowedAttachment, isAudioAttachment, isImageAttachment, isVideoAttachment, MAX_ATTACHMENT_BYTES, appendMessageContent, createUserAvatar, getDisplayHandle, getInitials, renderAvatarContent, setBadgeCount, showConfirm, showToast } = app;
   const loadFriends = (...args) => app.loadFriends(...args);

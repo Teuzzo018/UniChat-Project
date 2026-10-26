@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * TEST SUITE: DASHBOARD AMMINISTRATIVA (adminDashboard.test.js)
+ * 1. Test autorizzazione: verifica accesso consentito solo a SUPERADMIN e moderatori globali
+ * 2. Test statistiche: verifica aggregazione dati utenti, server e canali attivi
+ * 3. Test audit: verifica tracciamento e recupero cronologico delle azioni di moderazione
+ * ============================================================================
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');

@@ -1,3 +1,9 @@
+/**
+ * ============================================================================
+ * ROTTE SERVER UNIVERSITARI (/api/servers)
+ * 1. CRUD server, inviti, canali, richieste d'accesso e appartenenze
+ * ============================================================================
+ */
 const express = require('express');
 
 const {
